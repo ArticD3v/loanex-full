@@ -1,0 +1,93 @@
+{
+  "info": {
+    "name": "LoanEx Approved Loan Offer",
+    "description": "Customer approved offer view, accept, and decline flows",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" },
+    { "key": "accessToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Current Offer (Success)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/emi/applications/current-offer"
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"Approved loan offer fetched\",\n  \"data\": {\n    \"applicationNumber\": \"LX-EMI-20260729-0001\",\n    \"status\": \"APPROVED\",\n    \"productName\": \"HP Pavilion 15 Laptop\",\n    \"productPrice\": 50000,\n    \"approvedLoanAmount\": 30000,\n    \"approvedDownPayment\": 20000,\n    \"approvedTenure\": 6,\n    \"monthlyEmi\": 5167,\n    \"interestRate\": 12.5,\n    \"processingFee\": 499,\n    \"adminRemarks\": \"Approved as requested\"\n  }\n}"
+        },
+        {
+          "name": "Unauthorized",
+          "status": "Unauthorized",
+          "code": 401,
+          "body": "{\n  \"success\": false,\n  \"message\": \"Access token is required\",\n  \"code\": \"UNAUTHORIZED\"\n}"
+        },
+        {
+          "name": "Offer Already Accepted",
+          "status": "Conflict",
+          "code": 409,
+          "body": "{\n  \"success\": false,\n  \"message\": \"Offer already accepted.\",\n  \"code\": \"CONFLICT\",\n  \"details\": {\n    \"code\": \"OFFER_ALREADY_ACCEPTED\",\n    \"status\": \"OFFER_ACCEPTED\"\n  }\n}"
+        },
+        {
+          "name": "Offer Not Available",
+          "status": "Bad Request",
+          "code": 400,
+          "body": "{\n  \"success\": false,\n  \"message\": \"Approved loan offer is not available for this application.\",\n  \"code\": \"BAD_REQUEST\",\n  \"details\": {\n    \"code\": \"OFFER_NOT_AVAILABLE\",\n    \"status\": \"PENDING\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Accept Offer",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/emi/applications/accept-offer"
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"Loan offer accepted successfully\",\n  \"data\": {\n    \"status\": \"OFFER_ACCEPTED\",\n    \"nextStep\": \"DOWN_PAYMENT\"\n  }\n}"
+        },
+        {
+          "name": "Offer Already Accepted",
+          "status": "Conflict",
+          "code": 409,
+          "body": "{\n  \"success\": false,\n  \"message\": \"Offer already accepted.\",\n  \"code\": \"CONFLICT\",\n  \"details\": { \"code\": \"OFFER_ALREADY_ACCEPTED\" }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Decline Offer",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/emi/applications/decline-offer"
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"Loan offer declined\",\n  \"data\": {\n    \"status\": \"DECLINED_BY_CUSTOMER\"\n  }\n}"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "info": {
+    "name": "LoanEx EMI Application",
+    "description": "EMI application submission and admin pending list",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" },
+    { "key": "accessToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Review Context",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/emi/applications/review"
+      }
+    },
+    {
+      "name": "Submit EMI Application",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"hp-pavilion-15\",\n  \"productName\": \"HP Pavilion 15 Laptop\",\n  \"sellingPrice\": 50000,\n  \"requestedAmount\": 30000,\n  \"requestedDownPayment\": 20000,\n  \"requestedTenure\": 6,\n  \"estimatedMonthlyEmi\": 5167\n}"
+        },
+        "url": "{{baseUrl}}/emi/applications"
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "Created",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"message\": \"EMI application submitted successfully\",\n  \"data\": {\n    \"applicationNumber\": \"LX-EMI-20260729-0001\",\n    \"status\": \"PENDING\"\n  }\n}"
+        },
+        {
+          "name": "Duplicate",
+          "status": "Conflict",
+          "code": 409,
+          "body": "{\n  \"success\": false,\n  \"message\": \"An active EMI application already exists for this account.\",\n  \"code\": \"CONFLICT\"\n}"
+        },
+        {
+          "name": "Unauthorized",
+          "status": "Unauthorized",
+          "code": 401,
+          "body": "{\n  \"success\": false,\n  \"message\": \"Access token is required\",\n  \"code\": \"UNAUTHORIZED\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Application Status",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/emi/applications/status"
+      }
+    },
+    {
+      "name": "Current Application (Pending Review poll)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/emi/applications/current?event=viewed",
+          "host": ["{{baseUrl}}"],
+          "path": ["emi", "applications", "current"],
+          "query": [{ "key": "event", "value": "viewed" }]
+        }
+      },
+      "response": [
+        {
+          "name": "PENDING",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"applicationNumber\": \"EMI202600001\",\n    \"status\": \"PENDING\",\n    \"submittedAt\": \"2026-07-29T12:00:00.000Z\",\n    \"approvedAmount\": null,\n    \"approvedTenure\": null,\n    \"approvedDownPayment\": null\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Current Application Refresh (STATUS_REFRESHED)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/emi/applications/current?event=refreshed"
+      }
+    },
+    {
+      "name": "Admin Pending Applications",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/admin/emi-applications?status=PENDING"
+      }
+    }
+  ]
+}

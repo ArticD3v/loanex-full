@@ -1,0 +1,42 @@
+export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
+export type SupportIssueType = 'OTHER' | 'ORDER_ISSUE' | 'EMI_ISSUE' | 'PAYMENT_ISSUE' | 'ACCOUNT_ISSUE' | 'GENERAL' | 'LOAN' | 'EMI' | 'TECHNICAL' | 'BILLING';
+export type OtpPurpose = 'LOGIN' | 'SIGNUP' | 'VERIFICATION';
+export type UserStatus = 'active' | 'inactive' | 'pending';
+export type OrderTracking = any;
+export type OrderWithRelations = any;
+export type EmiApplication = any;
+export type Notification = any;
+export type products = any;
+export type product_variants = any;
+export type Prisma = any;
+
+export interface Product {
+  id: string;
+  name: string;
+  slug?: string;
+  sku?: string;
+  brand?: string;
+  description?: string;
+  shortDescription?: string;
+  categoryId?: string;
+  subCategoryId?: string;
+  image?: string;
+  galleryImages?: string[];
+  price: number | any;
+  mrp?: number | any;
+  discount?: number | any;
+  stock?: number;
+  availableStock?: number;
+  reservedStock?: number;
+  status?: string;
+  emiAvailable?: boolean;
+  featured?: boolean;
+  trending?: boolean;
+  recommended?: boolean;
+  warranty?: string;
+  hsnCode?: string;
+  manufacturer?: string;
+  modelNumber?: string;
+  createdAt?: Date;
+  [key: string]: any;
+}

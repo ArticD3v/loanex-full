@@ -1,0 +1,96 @@
+{
+  "info": {
+    "name": "LoanEx Order Tracking",
+    "description": "Customer tracking/invoice APIs and Admin order status updates",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "orderId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Get Order By Id",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/orders/{{orderId}}"
+      },
+      "response": [
+        {
+          "name": "Order Found",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"orderNumber\": \"LX-ORD-20260729-0001\",\n    \"orderStatus\": \"ORDER_CONFIRMED\"\n  }\n}"
+        },
+        {
+          "name": "Order Not Found",
+          "status": "Not Found",
+          "code": 404,
+          "body": "{\n  \"success\": false,\n  \"code\": \"NOT_FOUND\"\n}"
+        },
+        {
+          "name": "Unauthorized",
+          "status": "Unauthorized",
+          "code": 401,
+          "body": "{\n  \"success\": false,\n  \"code\": \"UNAUTHORIZED\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Get Order Tracking",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/orders/{{orderId}}/tracking"
+      }
+    },
+    {
+      "name": "Download Invoice",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/orders/{{orderId}}/invoice"
+      }
+    },
+    {
+      "name": "Admin Update Status - Processing",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"PROCESSING\",\n  \"remarks\": \"Warehouse started packing prep\",\n  \"location\": \"LoanEx Central Warehouse, Mumbai\",\n  \"courierPartner\": \"LoanEx Express\",\n  \"trackingNumber\": \"LXTRK1234567890\"\n}"
+        },
+        "url": "{{baseUrl}}/admin/orders/{{orderId}}/status"
+      },
+      "response": [
+        {
+          "name": "Status Update",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"Order status updated\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Admin Update Status - Invalid Transition",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"DELIVERED\"\n}"
+        },
+        "url": "{{baseUrl}}/admin/orders/{{orderId}}/status"
+      }
+    }
+  ]
+}

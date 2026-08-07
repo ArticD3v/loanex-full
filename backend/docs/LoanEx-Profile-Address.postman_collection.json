@@ -1,0 +1,52 @@
+{
+  "info": {
+    "name": "LoanEx Profile & Address",
+    "description": "Personal information and address checkout APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" },
+    { "key": "accessToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Get Profile",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/profile"
+      },
+      "response": [{ "name": "Unauthorized", "status": "Unauthorized", "code": 401 }]
+    },
+    {
+      "name": "Create Profile",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullName\": \"Rahul Sharma\",\n  \"email\": \"rahul@example.com\",\n  \"dob\": \"1995-06-15\",\n  \"gender\": \"MALE\",\n  \"billingSameAsShipping\": true,\n  \"address\": {\n    \"addressLine1\": \"12A\",\n    \"addressLine2\": \"MG Road\",\n    \"landmark\": \"Near Metro\",\n    \"city\": \"Bengaluru\",\n    \"state\": \"Karnataka\",\n    \"pincode\": \"560001\",\n    \"country\": \"India\"\n  }\n}"
+        },
+        "url": "{{baseUrl}}/profile"
+      }
+    },
+    {
+      "name": "Update Profile",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullName\": \"Rahul Sharma\",\n  \"email\": \"rahul.updated@example.com\",\n  \"dob\": \"1995-06-15\",\n  \"gender\": \"MALE\",\n  \"billingSameAsShipping\": true,\n  \"address\": {\n    \"addressLine1\": \"14B\",\n    \"addressLine2\": \"Indiranagar\",\n    \"city\": \"Bengaluru\",\n    \"state\": \"Karnataka\",\n    \"pincode\": \"560038\",\n    \"country\": \"India\"\n  }\n}"
+        },
+        "url": "{{baseUrl}}/profile"
+      }
+    }
+  ]
+}

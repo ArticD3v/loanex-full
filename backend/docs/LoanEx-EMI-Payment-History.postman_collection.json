@@ -1,0 +1,77 @@
+{
+  "info": {
+    "name": "LoanEx EMI Payment History",
+    "description": "Payment history, loan statement, and exports",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "paymentId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Payment History",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/emi/payment-history?paymentType=EMI"
+      },
+      "response": [
+        {
+          "name": "Unauthorized",
+          "status": "Unauthorized",
+          "code": 401
+        }
+      ]
+    },
+    {
+      "name": "Payment By Id",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/emi/payment-history/{{paymentId}}"
+      }
+    },
+    {
+      "name": "Download Receipt",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/emi/payment-history/{{paymentId}}/receipt"
+      }
+    },
+    {
+      "name": "Export History Excel",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/emi/payment-history/export?format=excel"
+      }
+    },
+    {
+      "name": "Export History PDF",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/emi/payment-history/export?format=pdf"
+      }
+    },
+    {
+      "name": "Loan Statement",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/emi/statement"
+      }
+    },
+    {
+      "name": "Loan Statement PDF",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/emi/statement/pdf"
+      }
+    }
+  ]
+}

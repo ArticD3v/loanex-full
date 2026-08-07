@@ -1,0 +1,89 @@
+{
+  "info": {
+    "name": "LoanEx Pending Review",
+    "description": "Customer pending review status polling — PENDING / UNDER_REVIEW / APPROVED / REJECTED",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" },
+    { "key": "accessToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Current Application (STATUS_VIEWED)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/emi/applications/current?event=viewed"
+      },
+      "response": [
+        {
+          "name": "PENDING",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"Current EMI application fetched\",\n  \"data\": {\n    \"applicationNumber\": \"EMI202600001\",\n    \"status\": \"PENDING\",\n    \"submittedAt\": \"2026-07-29T12:00:00.000Z\",\n    \"approvedAmount\": null,\n    \"approvedTenure\": null,\n    \"approvedDownPayment\": null\n  }\n}"
+        },
+        {
+          "name": "UNDER_REVIEW",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"applicationNumber\": \"EMI202600001\",\n    \"status\": \"UNDER_REVIEW\",\n    \"submittedAt\": \"2026-07-29T12:00:00.000Z\",\n    \"approvedAmount\": null,\n    \"approvedTenure\": null,\n    \"approvedDownPayment\": null\n  }\n}"
+        },
+        {
+          "name": "APPROVED",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"applicationNumber\": \"EMI202600001\",\n    \"status\": \"APPROVED\",\n    \"submittedAt\": \"2026-07-29T12:00:00.000Z\",\n    \"approvedAmount\": 30000,\n    \"approvedTenure\": 6,\n    \"approvedDownPayment\": 20000\n  }\n}"
+        },
+        {
+          "name": "REJECTED",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"applicationNumber\": \"EMI202600001\",\n    \"status\": \"REJECTED\",\n    \"submittedAt\": \"2026-07-29T12:00:00.000Z\",\n    \"approvedAmount\": null,\n    \"approvedTenure\": null,\n    \"approvedDownPayment\": null,\n    \"rejectionReason\": \"Insufficient income documentation\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Current Application (STATUS_REFRESHED)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/emi/applications/current?event=refreshed"
+      }
+    },
+    {
+      "name": "Application Status",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/emi/applications/status"
+      },
+      "response": [
+        {
+          "name": "PENDING",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"hasApplication\": true,\n    \"applicationNumber\": \"EMI202600001\",\n    \"status\": \"PENDING\",\n    \"submittedAt\": \"2026-07-29T12:00:00.000Z\",\n    \"approvedAmount\": null,\n    \"approvedTenure\": null,\n    \"approvedDownPayment\": null\n  }\n}"
+        },
+        {
+          "name": "UNDER_REVIEW",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"hasApplication\": true,\n    \"status\": \"UNDER_REVIEW\"\n  }\n}"
+        },
+        {
+          "name": "APPROVED",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"hasApplication\": true,\n    \"status\": \"APPROVED\",\n    \"approvedAmount\": 30000,\n    \"canPayDownPayment\": true,\n    \"canAcceptOffer\": true\n  }\n}"
+        },
+        {
+          "name": "REJECTED",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"hasApplication\": true,\n    \"status\": \"REJECTED\",\n    \"canSubmitAnother\": true\n  }\n}"
+        }
+      ]
+    }
+  ]
+}

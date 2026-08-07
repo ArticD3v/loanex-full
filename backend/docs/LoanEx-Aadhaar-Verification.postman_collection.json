@@ -1,0 +1,101 @@
+{
+  "info": {
+    "name": "LoanEx Aadhaar Verification",
+    "description": "Sample requests for LoanEx Aadhaar verification APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "otp", "value": "" },
+    { "key": "aadhaarNumber", "value": "123456789012" }
+  ],
+  "item": [
+    {
+      "name": "Aadhaar Status",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/verification/aadhaar/status"
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"Aadhaar verification status fetched\",\n  \"data\": {\n    \"aadhaarVerified\": false,\n    \"mobileVerified\": true,\n    \"aadhaarNumberMasked\": null,\n    \"hasActiveOtp\": false\n  }\n}"
+        },
+        {
+          "name": "Unauthorized",
+          "status": "Unauthorized",
+          "code": 401,
+          "body": "{\n  \"success\": false,\n  \"message\": \"Access token is required\",\n  \"code\": \"UNAUTHORIZED\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Send Aadhaar OTP",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"aadhaarNumber\": \"{{aadhaarNumber}}\"\n}"
+        },
+        "url": "{{baseUrl}}/verification/aadhaar/send-otp"
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"OTP sent successfully to your registered mobile number\",\n  \"data\": {\n    \"aadhaarVerified\": false,\n    \"otpSent\": true,\n    \"aadhaarNumberMasked\": \"XXXX XXXX 9012\",\n    \"devOtp\": \"482193\"\n  }\n}"
+        },
+        {
+          "name": "Validation error",
+          "status": "Bad Request",
+          "code": 400,
+          "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"code\": \"BAD_REQUEST\",\n  \"details\": [\n    {\n      \"path\": \"aadhaarNumber\",\n      \"message\": \"Enter a valid 12-digit Aadhaar number\"\n    }\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "Verify Aadhaar OTP",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"otp\": \"{{otp}}\"\n}"
+        },
+        "url": "{{baseUrl}}/verification/aadhaar/verify"
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"Aadhaar verified successfully\",\n  \"data\": {\n    \"aadhaarVerified\": true,\n    \"aadhaarNumberMasked\": \"XXXX XXXX 9012\",\n    \"nextStep\": \"PAN_VERIFICATION\"\n  }\n}"
+        },
+        {
+          "name": "Invalid OTP",
+          "status": "Bad Request",
+          "code": 400,
+          "body": "{\n  \"success\": false,\n  \"message\": \"Invalid OTP. 4 attempts remaining.\",\n  \"code\": \"BAD_REQUEST\"\n}"
+        },
+        {
+          "name": "Expired OTP",
+          "status": "Bad Request",
+          "code": 400,
+          "body": "{\n  \"success\": false,\n  \"message\": \"OTP has expired. Please request a new OTP.\",\n  \"code\": \"BAD_REQUEST\"\n}"
+        }
+      ]
+    }
+  ]
+}

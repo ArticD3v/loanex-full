@@ -1,0 +1,52 @@
+{
+  "info": {
+    "name": "LoanEx Order Confirmation",
+    "description": "Order retrieval and receipt download after successful down payment",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "orderId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Current Order",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/orders/current"
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"orderNumber\": \"LX-ORD-20260729-0001\",\n    \"orderStatus\": \"ORDER_CONFIRMED\",\n    \"paymentId\": \"pay_xxx\"\n  }\n}"
+        },
+        {
+          "name": "Unauthorized",
+          "status": "Unauthorized",
+          "code": 401,
+          "body": "{\n  \"success\": false,\n  \"code\": \"UNAUTHORIZED\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Get Order By Id",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/orders/{{orderId}}"
+      }
+    },
+    {
+      "name": "Download Receipt",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/orders/{{orderId}}/receipt"
+      }
+    }
+  ]
+}

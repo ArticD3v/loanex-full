@@ -1,0 +1,62 @@
+{
+  "info": {
+    "name": "LoanEx Checkout",
+    "description": "Buy Now checkout summary and session APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "productId", "value": "hp-pavilion-15" },
+    { "key": "sessionId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Get Checkout Summary",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/checkout/{{productId}}?quantity=1"
+      },
+      "response": [{ "name": "Unauthorized", "status": "Unauthorized", "code": 401 }]
+    },
+    {
+      "name": "Create Checkout EMI",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"quantity\": 1,\n  \"purchaseType\": \"EMI\"\n}"
+        },
+        "url": "{{baseUrl}}/checkout"
+      }
+    },
+    {
+      "name": "Create Checkout Direct",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"quantity\": 1,\n  \"purchaseType\": \"DIRECT\"\n}"
+        },
+        "url": "{{baseUrl}}/checkout"
+      }
+    },
+    {
+      "name": "Get Checkout Session",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/checkout/session/{{sessionId}}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+{
+  "info": {
+    "name": "LoanEx EMI Payment",
+    "description": "Razorpay EMI payment create/verify/receipt flows",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "emiId", "value": "" },
+    { "key": "loanId", "value": "" },
+    { "key": "razorpayOrderId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Get EMI Payment Details",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/emi/payments/{{emiId}}"
+      },
+      "response": [
+        {
+          "name": "Unauthorized",
+          "status": "Unauthorized",
+          "code": 401,
+          "body": "{\n  \"success\": false,\n  \"code\": \"UNAUTHORIZED\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Create EMI Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"emiId\": \"{{emiId}}\"\n}"
+        },
+        "url": "{{baseUrl}}/emi/payments/create-order"
+      }
+    },
+    {
+      "name": "Dev Bypass Signature",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"razorpayOrderId\": \"{{razorpayOrderId}}\"\n}"
+        },
+        "url": "{{baseUrl}}/emi/payments/dev-bypass-signature"
+      }
+    },
+    {
+      "name": "Verify EMI Payment",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"emiId\": \"{{emiId}}\",\n  \"razorpayOrderId\": \"{{razorpayOrderId}}\",\n  \"razorpayPaymentId\": \"pay_xxx\",\n  \"razorpaySignature\": \"sig_xxx\"\n}"
+        },
+        "url": "{{baseUrl}}/emi/payments/verify"
+      },
+      "response": [
+        {
+          "name": "Payment Success",
+          "status": "OK",
+          "code": 200
+        },
+        {
+          "name": "Already Paid",
+          "status": "Conflict",
+          "code": 409
+        },
+        {
+          "name": "Duplicate / Invalid",
+          "status": "Bad Request",
+          "code": 400
+        }
+      ]
+    },
+    {
+      "name": "Download EMI Receipt",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/emi/payments/{{emiId}}/receipt"
+      }
+    },
+    {
+      "name": "Admin EMI Payments",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/admin/emi-payments?loanId={{loanId}}"
+      }
+    }
+  ]
+}

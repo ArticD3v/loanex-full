@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "LoanEx Super Admin",
+    "slug": "lloanex",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0B2E6F"
+      },
+      "package": "com.tousifkhansteam.lloanex"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "573db643-3c97-44a3-a786-3aabbef9e854"
+      }
+    },
+    "owner": "tousifkhans-team"
+  }
+}

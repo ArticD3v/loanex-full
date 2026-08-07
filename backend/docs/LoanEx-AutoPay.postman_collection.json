@@ -1,0 +1,79 @@
+{
+  "info": {
+    "name": "LoanEx AutoPay",
+    "description": "AutoPay mandate create/cancel/status and admin approval",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "loanId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "AutoPay Status",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/autopay/status"
+      },
+      "response": [
+        { "name": "Unauthorized", "status": "Unauthorized", "code": 401 }
+      ]
+    },
+    {
+      "name": "Create Mandate",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"paymentMethod\": \"UPI_AUTOPAY\",\n  \"bankName\": \"HDFC Bank\",\n  \"upiId\": \"customer@okhdfcbank\"\n}"
+        },
+        "url": "{{baseUrl}}/autopay/create-mandate"
+      }
+    },
+    {
+      "name": "Cancel Mandate",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/autopay/cancel-mandate"
+      }
+    },
+    {
+      "name": "AutoPay History",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/autopay/history"
+      }
+    },
+    {
+      "name": "Admin List AutoPay",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/admin/autopay"
+      }
+    },
+    {
+      "name": "Admin Approve Mandate",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"ACTIVE\",\n  \"remarks\": \"Approved by admin\"\n}"
+        },
+        "url": "{{baseUrl}}/admin/autopay/{{loanId}}"
+      }
+    }
+  ]
+}

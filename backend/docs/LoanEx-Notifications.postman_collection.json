@@ -1,0 +1,94 @@
+{
+  "info": {
+    "name": "LoanEx Notifications",
+    "description": "Notification Center APIs — list, read, delete, admin create",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "notificationId", "value": "" },
+    { "key": "userId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "List Notifications",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/notifications?filter=ALL",
+          "host": ["{{baseUrl}}"],
+          "path": ["notifications"],
+          "query": [{ "key": "filter", "value": "ALL" }]
+        }
+      },
+      "response": [
+        { "name": "Unauthorized", "status": "Unauthorized", "code": 401 }
+      ]
+    },
+    {
+      "name": "Get Notification",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/notifications/{{notificationId}}"
+      }
+    },
+    {
+      "name": "Mark Read",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/notifications/{{notificationId}}/read"
+      }
+    },
+    {
+      "name": "Mark All Read",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/notifications/read-all"
+      }
+    },
+    {
+      "name": "Delete Notification",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/notifications/{{notificationId}}"
+      }
+    },
+    {
+      "name": "Admin List Notifications",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/admin/notifications"
+      }
+    },
+    {
+      "name": "Admin Create Notification",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"title\": \"Test notification\",\n  \"message\": \"Created from Postman\",\n  \"type\": \"SYSTEM\",\n  \"priority\": \"MEDIUM\"\n}"
+        },
+        "url": "{{baseUrl}}/admin/notifications"
+      }
+    },
+    {
+      "name": "Admin Delete Notification",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/admin/notifications/{{notificationId}}"
+      }
+    }
+  ]
+}

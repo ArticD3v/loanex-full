@@ -1,0 +1,234 @@
+import {
+  EmiApplicationStatus,
+  VerificationStatus,
+} from '@prisma/client';
+import { jsonDb } from '../../../config/json-db';
+
+const ACTIVE_STATUSES: EmiApplicationStatus[] = [
+  EmiApplicationStatus.PENDING,
+  EmiApplicationStatus.UNDER_REVIEW,
+  EmiApplicationStatus.APPROVED,
+  EmiApplicationStatus.OFFER_ACCEPTED,
+  EmiApplicationStatus.DOWN_PAYMENT_PENDING,
+  EmiApplicationStatus.DOWN_PAYMENT_COMPLETED,
+  EmiApplicationStatus.ORDER_CONFIRMED,
+  EmiApplicationStatus.ACTIVE_EMI,
+];
+
+export class EmiApplicationRepository {
+  findUserById(userId: string) {
+    return jsonDb.findOne('users', { id: userId });
+  }
+
+  findProfileById(userId: string) {
+    return jsonDb.findOne('profiles', { id: userId });
+  }
+
+  findCustomerVerification(userId: string) {
+    return jsonDb.findOne('customerVerification', { userId });
+  }
+
+  findLatestAadhaar(userId: string) {
+    const res = jsonDb.findMany('aadhaarVerification', { userId, verificationStatus: 'VERIFIED' });
+    return res.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
+  }
+
+  findLatestPan(userId: string) {
+    const res = jsonDb.findMany('panVerification', { userId, status: 'VERIFIED' });
+    return res.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
+  }
+
+  findLatestBank(userId: string) {
+    const res = jsonDb.findMany('bankVerification', { userId, status: 'VERIFIED' });
+    return res.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
+  }
+
+  findActiveByUserId(userId: string) {
+    const res = jsonDb.findMany('emi_applications', { userId });
+    return res.filter((r: any) => ACTIVE_STATUSES.includes(r.status)).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
+  }
+
+  findByUserId(userId: string) {
+    const res = jsonDb.findMany('emi_applications', { userId });
+    return res.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
+  }
+
+  listAllByUserId(userId: string) {
+    const res = jsonDb.findMany('emi_applications', { userId });
+    return res.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  findById(id: string) {
+    return jsonDb.findOne('emi_applications', { id });
+  }
+
+  findByIdForUser(id: string, userId: string) {
+    return jsonDb.findOne('emi_applications', { id, userId });
+  }
+
+  findDefaultShippingAddress(userId: string) {
+    const res = jsonDb.findMany('userAddress', { userId, addressType: 'SHIPPING' });
+    return res.sort((a: any, b: any) => { if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1; return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(); })[0] || null;
+  }
+
+  findProductBrand(productId: string) {
+    return jsonDb.findOne('products', { id: productId });
+  }
+
+  create(data: {
+    applicationNumber: string;
+    userId: string;
+    productId: string;
+    productName?: string | null;
+    sellingPrice: number;
+    requestedAmount: number;
+    requestedDownPayment: number;
+    requestedTenure: number;
+    estimatedMonthlyEmi: number;
+  }) {
+    return jsonDb.insert('emi_applications', {
+      applicationNumber: data.applicationNumber,
+      userId: data.userId,
+      productId: data.productId,
+      productName: data.productName ?? null,
+      sellingPrice: data.sellingPrice,
+      requestedAmount: data.requestedAmount,
+      requestedDownPayment: data.requestedDownPayment,
+      requestedTenure: data.requestedTenure,
+      estimatedMonthlyEmi: data.estimatedMonthlyEmi,
+      status: EmiApplicationStatus.PENDING,
+    });
+  }
+
+  markCustomerPendingReview(userId: string) {
+    jsonDb.update('customerVerification', { userId }, { verificationStatus: VerificationStatus.PENDING_REVIEW });
+    return jsonDb.findOne('customerVerification', { userId });
+  }
+
+  listForAdmin(status?: EmiApplicationStatus) {
+    const results = status ? jsonDb.findMany('emi_applications', { status }) : jsonDb.findMany('emi_applications', {});
+    return results.sort((a: any, b: any) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+  }
+
+  countApplicationsToday(prefix: string) {
+    const results = jsonDb.findMany('emi_applications', {});
+    return results.filter((r: any) => r.applicationNumber?.startsWith(prefix)).length;
+  }
+
+  acceptOffer(id: string) {
+    jsonDb.update('emi_applications', { id }, {
+      status: EmiApplicationStatus.OFFER_ACCEPTED,
+      offerAcceptedAt: new Date(),
+    });
+    return jsonDb.findOne('emi_applications', { id });
+  }
+
+  declineOffer(id: string) {
+    jsonDb.update('emi_applications', { id }, {
+      status: EmiApplicationStatus.DECLINED_BY_CUSTOMER,
+      offerDeclinedAt: new Date(),
+    });
+    return jsonDb.findOne('emi_applications', { id });
+  }
+
+  approveForTesting(id: string, data: {
+    approvedAmount: number;
+    approvedTenure: number;
+    approvedDownPayment: number;
+    monthlyEmi: number;
+    interestRate: number;
+    processingFee: number;
+    adminRemarks: string;
+  }) {
+    jsonDb.update('emi_applications', { id }, {
+      status: EmiApplicationStatus.APPROVED,
+      approvedAmount: data.approvedAmount,
+      approvedTenure: data.approvedTenure,
+      approvedDownPayment: data.approvedDownPayment,
+      monthlyEmi: data.monthlyEmi,
+      interestRate: data.interestRate,
+      processingFee: data.processingFee,
+      adminRemarks: data.adminRemarks,
+      rejectionReason: null,
+      reviewedAt: new Date(),
+      offerAcceptedAt: null,
+      offerDeclinedAt: null,
+    });
+    return jsonDb.findOne('emi_applications', { id });
+  }
+
+  reject(id: string, reason: string) {
+    jsonDb.update('emi_applications', { id }, {
+      status: EmiApplicationStatus.REJECTED,
+      rejectionReason: reason || 'Application rejected by admin.',
+      adminRemarks: reason || 'Application rejected by admin.',
+      reviewedAt: new Date(),
+      offerAcceptedAt: null,
+      offerDeclinedAt: null,
+    });
+    return jsonDb.findOne('emi_applications', { id });
+  }
+
+  modifyTerms(id: string, data: {
+    approvedAmount: number;
+    approvedTenure: number;
+    approvedDownPayment: number;
+    monthlyEmi: number;
+    interestRate: number;
+    processingFee: number;
+    adminRemarks: string;
+  }) {
+    jsonDb.update('emi_applications', { id }, {
+      status: EmiApplicationStatus.APPROVED,
+      approvedAmount: data.approvedAmount,
+      approvedTenure: data.approvedTenure,
+      approvedDownPayment: data.approvedDownPayment,
+      monthlyEmi: data.monthlyEmi,
+      interestRate: data.interestRate,
+      processingFee: data.processingFee,
+      adminRemarks: data.adminRemarks,
+      termsModifiedAt: new Date(),
+      rejectionReason: null,
+      reviewedAt: new Date(),
+      offerAcceptedAt: null,
+      offerDeclinedAt: null,
+    });
+    return jsonDb.findOne('emi_applications', { id });
+  }
+
+  upsertCustomerVerification(userId: string, data: {
+    mobileVerified?: boolean;
+    aadhaarVerified?: boolean;
+    panVerified?: boolean;
+    bankVerified?: boolean;
+    verificationStatus?: VerificationStatus;
+    cibilScore?: number | null;
+  }) {
+    const existing = jsonDb.findOne('customerVerification', { userId });
+    if (existing) {
+      jsonDb.update('customerVerification', { userId }, data);
+      return jsonDb.findOne('customerVerification', { userId });
+    }
+    return jsonDb.insert('customerVerification', {
+      userId,
+      mobileVerified: data.mobileVerified ?? false,
+      aadhaarVerified: data.aadhaarVerified ?? false,
+      panVerified: data.panVerified ?? false,
+      bankVerified: data.bankVerified ?? false,
+      verificationStatus: data.verificationStatus ?? VerificationStatus.NOT_STARTED,
+      cibilScore: data.cibilScore ?? null,
+    });
+  }
+
+  findKycSummary(userId: string) {
+    const customer = jsonDb.findOne('customer_kyc', { userId });
+    return customer;
+  }
+
+  findLatestMobileVerification(userId: string) {
+    const res = jsonDb.findMany('mobileVerification', { userId, verificationStatus: 'VERIFIED' });
+    return res.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
+  }
+}
+
+export const emiApplicationRepository = new EmiApplicationRepository();

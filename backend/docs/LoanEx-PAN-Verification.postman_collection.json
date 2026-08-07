@@ -1,0 +1,70 @@
+{
+  "info": {
+    "name": "LoanEx PAN Verification",
+    "description": "Sample requests for LoanEx PAN verification APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" },
+    { "key": "accessToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "PAN Status",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/verification/pan/status"
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"PAN verification status fetched\",\n  \"data\": {\n    \"panVerified\": false,\n    \"aadhaarVerified\": true,\n    \"status\": \"PENDING\"\n  }\n}"
+        },
+        {
+          "name": "Unauthorized",
+          "status": "Unauthorized",
+          "code": 401,
+          "body": "{\n  \"success\": false,\n  \"message\": \"Access token is required\",\n  \"code\": \"UNAUTHORIZED\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Verify PAN",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"panNumber\": \"ABCDE1234F\",\n  \"fullName\": \"Rahul Sharma\",\n  \"dateOfBirth\": \"1998-05-15\"\n}"
+        },
+        "url": "{{baseUrl}}/verification/pan/verify"
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"PAN Verified Successfully\",\n  \"status\": \"VERIFIED\",\n  \"data\": {\n    \"panVerified\": true,\n    \"panNumberMasked\": \"ABC******4F\",\n    \"nextStep\": \"BANK_VERIFICATION\"\n  }\n}"
+        },
+        {
+          "name": "Validation error",
+          "status": "Bad Request",
+          "code": 400,
+          "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"code\": \"BAD_REQUEST\"\n}"
+        },
+        {
+          "name": "Already verified",
+          "status": "Conflict",
+          "code": 409,
+          "body": "{\n  \"success\": false,\n  \"message\": \"PAN is already verified\",\n  \"code\": \"CONFLICT\"\n}"
+        }
+      ]
+    }
+  ]
+}

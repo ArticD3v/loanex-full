@@ -1,0 +1,2555 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "LoanEx API",
+    "description": "LoanEx authentication and customer verification APIs",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4000/api/v1",
+      "description": "Local development"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "message": { "type": "string" },
+          "code": { "type": "string" },
+          "details": {}
+        }
+      },
+      "SendMobileOtpRequest": {
+        "type": "object",
+        "properties": {
+          "mobile": {
+            "type": "string",
+            "pattern": "^[6-9]\\d{9}$",
+            "example": "9876543210",
+            "description": "Optional. When provided and different from the account mobile, updates the user mobile before sending OTP."
+          }
+        }
+      },
+      "VerifyMobileOtpRequest": {
+        "type": "object",
+        "required": ["otp"],
+        "properties": {
+          "otp": {
+            "type": "string",
+            "pattern": "^\\d{6}$",
+            "example": "482193"
+          },
+          "mobile": {
+            "type": "string",
+            "pattern": "^[6-9]\\d{9}$",
+            "example": "9876543210"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/verification/status": {
+      "get": {
+        "tags": ["Verification"],
+        "summary": "Get overall verification status",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Verification progress",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Verification status fetched",
+                  "data": {
+                    "mobileVerified": false,
+                    "aadhaarVerified": false,
+                    "panVerified": false,
+                    "bankVerified": false,
+                    "overallProgress": 0,
+                    "completedSteps": 0,
+                    "totalSteps": 4,
+                    "verificationStatus": "NOT_STARTED"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" },
+                "example": {
+                  "success": false,
+                  "message": "Access token is required",
+                  "code": "UNAUTHORIZED"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/verification/mobile/status": {
+      "get": {
+        "tags": ["Mobile Verification"],
+        "summary": "Get mobile verification status",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Mobile verification status",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Mobile verification status fetched",
+                  "data": {
+                    "mobile": "9876543210",
+                    "mobileVerified": false,
+                    "hasActiveOtp": false,
+                    "expiresAt": null,
+                    "resendCount": 0,
+                    "maxResend": 3,
+                    "attemptCount": 0,
+                    "maxAttempts": 5,
+                    "cooldownMs": 30000
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/verification/mobile/send-otp": {
+      "post": {
+        "tags": ["Mobile Verification"],
+        "summary": "Send mobile verification OTP",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SendMobileOtpRequest" },
+              "example": {}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OTP sent",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "OTP sent successfully",
+                  "data": {
+                    "mobile": "9876543210",
+                    "mobileVerified": false,
+                    "otpSent": true,
+                    "expiresAt": "2026-07-29T17:10:00.000Z",
+                    "resendCount": 0,
+                    "maxResend": 3,
+                    "cooldownMs": 30000,
+                    "devOtp": "482193"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Validation failed",
+                  "code": "BAD_REQUEST",
+                  "details": [
+                    {
+                      "path": "mobile",
+                      "message": "Enter a valid 10-digit Indian mobile number"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Invalid or expired access token",
+                  "code": "UNAUTHORIZED"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Mobile already linked",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "This mobile number is already linked to another account",
+                  "code": "CONFLICT"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests / resends",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Please wait 28 seconds before requesting another OTP.",
+                  "code": "TOO_MANY_REQUESTS"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/verification/mobile/verify-otp": {
+      "post": {
+        "tags": ["Mobile Verification"],
+        "summary": "Verify mobile OTP",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/VerifyMobileOtpRequest" },
+              "example": {
+                "otp": "482193"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mobile verified",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Mobile number verified successfully",
+                  "data": {
+                    "mobileVerified": true,
+                    "mobile": "9876543210",
+                    "nextStep": "AADHAAR_VERIFICATION",
+                    "user": {
+                      "id": "clx...",
+                      "fullName": "Rahul Kumar",
+                      "mobile": "9876543210",
+                      "isMobileVerified": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or expired OTP",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalidOtp": {
+                    "summary": "Invalid OTP",
+                    "value": {
+                      "success": false,
+                      "message": "Invalid OTP. 4 attempts remaining.",
+                      "code": "BAD_REQUEST"
+                    }
+                  },
+                  "expiredOtp": {
+                    "summary": "Expired OTP",
+                    "value": {
+                      "success": false,
+                      "message": "OTP has expired. Please request a new OTP.",
+                      "code": "BAD_REQUEST"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many verification attempts",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Maximum verification attempts (5) exceeded. Please request a new OTP.",
+                  "code": "TOO_MANY_REQUESTS"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/verification/aadhaar/status": {
+      "get": {
+        "tags": ["Aadhaar Verification"],
+        "summary": "Get Aadhaar verification status",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Aadhaar verification status",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Aadhaar verification status fetched",
+                  "data": {
+                    "aadhaarVerified": false,
+                    "mobileVerified": true,
+                    "aadhaarNumberMasked": null,
+                    "hasActiveOtp": false,
+                    "otpExpiresAt": null,
+                    "resendCount": 0,
+                    "maxResend": 3,
+                    "attemptCount": 0,
+                    "maxAttempts": 5,
+                    "cooldownMs": 60000,
+                    "verificationStatus": "PENDING"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/verification/aadhaar/send-otp": {
+      "post": {
+        "tags": ["Aadhaar Verification"],
+        "summary": "Send Aadhaar verification OTP",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["aadhaarNumber"],
+                "properties": {
+                  "aadhaarNumber": {
+                    "type": "string",
+                    "pattern": "^\\d{12}$",
+                    "example": "123456789012"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OTP sent (masked Aadhaar only — never full number)",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "OTP sent successfully to your registered mobile number",
+                  "data": {
+                    "aadhaarVerified": false,
+                    "otpSent": true,
+                    "aadhaarNumberMasked": "XXXX XXXX 9012",
+                    "otpExpiresAt": "2026-07-29T17:40:00.000Z",
+                    "resendCount": 0,
+                    "maxResend": 3,
+                    "cooldownMs": 60000,
+                    "devOtp": "482193"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Aadhaar",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Validation failed",
+                  "code": "BAD_REQUEST",
+                  "details": [
+                    {
+                      "path": "aadhaarNumber",
+                      "message": "Enter a valid 12-digit Aadhaar number"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Access token is required",
+                  "code": "UNAUTHORIZED"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Mobile not verified",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Complete mobile verification before verifying Aadhaar.",
+                  "code": "FORBIDDEN"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many OTP requests",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Please wait 45 seconds before requesting another OTP.",
+                  "code": "TOO_MANY_REQUESTS"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/verification/aadhaar/verify": {
+      "post": {
+        "tags": ["Aadhaar Verification"],
+        "summary": "Verify Aadhaar OTP",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["otp"],
+                "properties": {
+                  "otp": {
+                    "type": "string",
+                    "pattern": "^\\d{6}$",
+                    "example": "482193"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Aadhaar verified",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Aadhaar verified successfully",
+                  "data": {
+                    "aadhaarVerified": true,
+                    "aadhaarNumberMasked": "XXXX XXXX 9012",
+                    "nextStep": "PAN_VERIFICATION"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or expired OTP",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalidOtp": {
+                    "value": {
+                      "success": false,
+                      "message": "Invalid OTP. 4 attempts remaining.",
+                      "code": "BAD_REQUEST"
+                    }
+                  },
+                  "expiredOtp": {
+                    "value": {
+                      "success": false,
+                      "message": "OTP has expired. Please request a new OTP.",
+                      "code": "BAD_REQUEST"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many verification attempts",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Maximum verification attempts (5) exceeded. Please request a new OTP.",
+                  "code": "TOO_MANY_REQUESTS"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/verification/pan/status": {
+      "get": {
+        "tags": ["PAN Verification"],
+        "summary": "Get PAN verification status",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "PAN status",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "PAN verification status fetched",
+                  "data": {
+                    "panVerified": false,
+                    "aadhaarVerified": true,
+                    "mobileVerified": true,
+                    "panNumberMasked": null,
+                    "fullName": null,
+                    "status": "PENDING",
+                    "verifiedAt": null
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/verification/pan/verify": {
+      "post": {
+        "tags": ["PAN Verification"],
+        "summary": "Verify PAN details",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["panNumber", "fullName", "dateOfBirth"],
+                "properties": {
+                  "panNumber": { "type": "string", "example": "ABCDE1234F" },
+                  "fullName": { "type": "string", "example": "Rahul Sharma" },
+                  "dateOfBirth": { "type": "string", "example": "1998-05-15" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "PAN verified (masked only — never full PAN)",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "PAN Verified Successfully",
+                  "status": "VERIFIED",
+                  "data": {
+                    "status": "VERIFIED",
+                    "panVerified": true,
+                    "panNumberMasked": "ABC******4F",
+                    "nextStep": "BANK_VERIFICATION"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Validation failed",
+                  "code": "BAD_REQUEST",
+                  "details": [
+                    {
+                      "path": "panNumber",
+                      "message": "Enter a valid PAN number (e.g. ABCDE1234F)"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Access token is required",
+                  "code": "UNAUTHORIZED"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already verified",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "PAN is already verified",
+                  "code": "CONFLICT"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/verification/bank/status": {
+      "get": {
+        "tags": ["Bank Verification"],
+        "summary": "Get bank verification status",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Bank status",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Bank verification status fetched",
+                  "data": {
+                    "bankVerified": false,
+                    "panVerified": true,
+                    "status": "PENDING"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/verification/bank/verify": {
+      "post": {
+        "tags": ["Bank Verification"],
+        "summary": "Verify bank account details",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "accountHolderName": "Rahul Sharma",
+                "bankName": "State Bank of India",
+                "accountNumber": "123456789012",
+                "confirmAccountNumber": "123456789012",
+                "ifscCode": "SBIN0001234",
+                "accountType": "SAVINGS"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bank verified (masked account only)",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Bank Account Verified Successfully",
+                  "status": "VERIFIED",
+                  "data": {
+                    "bankVerified": true,
+                    "accountNumberMasked": "XXXXXXXX9012",
+                    "verificationStatus": "COMPLETED",
+                    "nextStep": "VERIFICATION_SUMMARY"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed / mismatch",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Validation failed",
+                  "code": "BAD_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Access token is required",
+                  "code": "UNAUTHORIZED"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already verified",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Bank account is already verified",
+                  "code": "CONFLICT"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/emi/applications/review": {
+      "get": {
+        "tags": ["EMI Application"],
+        "summary": "Get verification review context for summary page",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Review payload with masked IDs" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/emi/applications": {
+      "post": {
+        "tags": ["EMI Application"],
+        "summary": "Submit EMI application",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "productId": "hp-pavilion-15",
+                "productName": "HP Pavilion 15 Laptop",
+                "sellingPrice": 50000,
+                "requestedAmount": 30000,
+                "requestedDownPayment": 20000,
+                "requestedTenure": 6,
+                "estimatedMonthlyEmi": 5167
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Application created",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "EMI application submitted successfully",
+                  "data": {
+                    "applicationNumber": "LX-EMI-20260729-0001",
+                    "status": "PENDING",
+                    "nextStep": "PENDING_REVIEW"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Incomplete verification",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "All verification steps must be completed before submitting an EMI application.",
+                  "code": "BAD_REQUEST"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Access token is required",
+                  "code": "UNAUTHORIZED"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Duplicate active application",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "An active EMI application already exists for this account.",
+                  "code": "CONFLICT"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/emi/applications/status": {
+      "get": {
+        "tags": ["EMI Application", "Pending Review"],
+        "summary": "Get EMI application status (polling helper)",
+        "description": "Returns application status for the authenticated customer. Optional `event=viewed|refreshed` writes STATUS_VIEWED or STATUS_REFRESHED audit logs.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "event",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["viewed", "refreshed"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status payload",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "pending": {
+                    "summary": "PENDING",
+                    "value": {
+                      "success": true,
+                      "message": "EMI application status fetched",
+                      "data": {
+                        "hasApplication": true,
+                        "applicationNumber": "EMI202600001",
+                        "status": "PENDING",
+                        "submittedAt": "2026-07-29T12:00:00.000Z",
+                        "approvedAmount": null,
+                        "approvedTenure": null,
+                        "approvedDownPayment": null,
+                        "canModifyApplication": false,
+                        "canSubmitAnother": false,
+                        "canPayDownPayment": false,
+                        "canAcceptOffer": false
+                      }
+                    }
+                  },
+                  "underReview": {
+                    "summary": "UNDER_REVIEW",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "hasApplication": true,
+                        "applicationNumber": "EMI202600001",
+                        "status": "UNDER_REVIEW",
+                        "submittedAt": "2026-07-29T12:00:00.000Z",
+                        "approvedAmount": null,
+                        "approvedTenure": null,
+                        "approvedDownPayment": null
+                      }
+                    }
+                  },
+                  "approved": {
+                    "summary": "APPROVED",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "hasApplication": true,
+                        "applicationNumber": "EMI202600001",
+                        "status": "APPROVED",
+                        "approvedAmount": 30000,
+                        "approvedTenure": 6,
+                        "approvedDownPayment": 20000,
+                        "canPayDownPayment": true,
+                        "canAcceptOffer": true
+                      }
+                    }
+                  },
+                  "rejected": {
+                    "summary": "REJECTED",
+                    "value": {
+                      "success": true,
+                      "data": {
+                        "hasApplication": true,
+                        "applicationNumber": "EMI202600001",
+                        "status": "REJECTED",
+                        "approvedAmount": null,
+                        "approvedTenure": null,
+                        "approvedDownPayment": null,
+                        "canSubmitAnother": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/emi/applications/current": {
+      "get": {
+        "tags": ["EMI Application", "Pending Review"],
+        "summary": "Get current EMI application (Pending Review polling)",
+        "description": "Used by `/application/pending` every 30 seconds. Defaults to STATUS_VIEWED; pass `event=refreshed` for STATUS_REFRESHED.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "event",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["viewed", "refreshed"], "default": "viewed" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current application status for pending review UI",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Current EMI application fetched",
+                  "data": {
+                    "applicationNumber": "EMI202600001",
+                    "status": "PENDING",
+                    "submittedAt": "2026-07-29T12:00:00.000Z",
+                    "approvedAmount": null,
+                    "approvedTenure": null,
+                    "approvedDownPayment": null,
+                    "canModifyApplication": false,
+                    "canSubmitAnother": false,
+                    "canPayDownPayment": false,
+                    "canAcceptOffer": false,
+                    "timeline": {
+                      "mobileVerified": true,
+                      "aadhaarVerified": true,
+                      "panVerified": true,
+                      "bankVerified": true,
+                      "applicationSubmitted": true,
+                      "waitingForAdminReview": true,
+                      "underReview": false,
+                      "approved": false,
+                      "rejected": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "No application found" }
+        }
+      }
+    },
+    "/emi/applications/current-offer": {
+      "get": {
+        "tags": ["EMI Application", "Approved Loan Offer"],
+        "summary": "Get approved loan offer for customer",
+        "description": "Only available when status is APPROVED. Writes OFFER_VIEWED audit event.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Approved offer payload",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Approved loan offer fetched",
+                  "data": {
+                    "applicationNumber": "LX-EMI-20260729-0001",
+                    "applicationDate": "2026-07-29T12:00:00.000Z",
+                    "status": "APPROVED",
+                    "productName": "HP Pavilion 15 Laptop",
+                    "productPrice": 50000,
+                    "approvedLoanAmount": 30000,
+                    "approvedDownPayment": 20000,
+                    "approvedTenure": 6,
+                    "monthlyEmi": 5167,
+                    "interestRate": 12.5,
+                    "processingFee": 499,
+                    "adminRemarks": "Approved as requested",
+                    "canAcceptOffer": true,
+                    "canDeclineOffer": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Offer not available",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Approved loan offer is not available for this application.",
+                  "code": "BAD_REQUEST",
+                  "details": { "code": "OFFER_NOT_AVAILABLE", "status": "PENDING" }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" },
+          "409": {
+            "description": "Offer already accepted",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Offer already accepted.",
+                  "code": "CONFLICT",
+                  "details": { "code": "OFFER_ALREADY_ACCEPTED", "status": "OFFER_ACCEPTED" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/emi/applications/accept-offer": {
+      "post": {
+        "tags": ["EMI Application", "Approved Loan Offer"],
+        "summary": "Accept approved loan offer",
+        "description": "Sets status to OFFER_ACCEPTED and stores offerAcceptedAt. Writes OFFER_ACCEPTED audit event.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Offer accepted",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Loan offer accepted successfully",
+                  "data": {
+                    "status": "OFFER_ACCEPTED",
+                    "offerAcceptedAt": "2026-07-29T13:00:00.000Z",
+                    "nextStep": "DOWN_PAYMENT"
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Offer not available" },
+          "401": { "description": "Unauthorized" },
+          "409": { "description": "Offer already accepted" }
+        }
+      }
+    },
+    "/emi/applications/decline-offer": {
+      "post": {
+        "tags": ["EMI Application", "Approved Loan Offer"],
+        "summary": "Decline approved loan offer",
+        "description": "Sets status to DECLINED_BY_CUSTOMER and stores offerDeclinedAt. Writes OFFER_DECLINED audit event.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Offer declined",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Loan offer declined",
+                  "data": {
+                    "status": "DECLINED_BY_CUSTOMER",
+                    "offerDeclinedAt": "2026-07-29T13:05:00.000Z",
+                    "nextStep": "HOME"
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Offer not available" },
+          "401": { "description": "Unauthorized" },
+          "409": { "description": "Offer already accepted or already declined" }
+        }
+      }
+    },
+    "/payments/down-payment": {
+      "get": {
+        "tags": ["Payments"],
+        "summary": "Get down payment page context",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Payment context" },
+          "400": { "description": "Payment not available" },
+          "401": { "description": "Unauthorized" },
+          "409": { "description": "Already paid" }
+        }
+      }
+    },
+    "/payments/create-order": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Create Razorpay order for down payment",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "201": {
+            "description": "Razorpay order created",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": {
+                    "razorpayOrderId": "order_xxx",
+                    "amount": 20588.82,
+                    "amountPaise": 2058882,
+                    "keyId": "rzp_test_xxx"
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/payments/verify": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Verify Razorpay signature and complete payment",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["razorpayOrderId", "razorpayPaymentId", "razorpaySignature"],
+                "properties": {
+                  "razorpayOrderId": { "type": "string" },
+                  "razorpayPaymentId": { "type": "string" },
+                  "razorpaySignature": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment Success",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": {
+                    "paymentStatus": "SUCCESS",
+                    "orderNumber": "LX-ORD-20260729-0001",
+                    "nextStep": "ORDER_CONFIRMATION"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Signature Failed / Payment Failed",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": false,
+                  "message": "Payment signature verification failed.",
+                  "details": { "code": "SIGNATURE_FAILED" }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/payments/{applicationId}": {
+      "get": {
+        "tags": ["Payments"],
+        "summary": "Get payments for an application",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Payment list" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/orders/current": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Get current customer order confirmation",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Order confirmation payload",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": {
+                    "orderNumber": "LX-ORD-20260729-0001",
+                    "orderStatus": "ORDER_CONFIRMED",
+                    "applicationNumber": "LX-EMI-20260729-0002",
+                    "paymentId": "pay_xxx",
+                    "amountPaid": 20588.82,
+                    "remainingLoanAmount": 30000
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "No order found" }
+        }
+      }
+    },
+    "/orders/{orderId}": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Get order by id",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "orderId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Order payload" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/orders/{orderId}/tracking": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Get order tracking timeline and shipping details",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "orderId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tracking payload with steps",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": {
+                    "orderNumber": "LX-ORD-20260729-0001",
+                    "orderStatus": "PROCESSING",
+                    "canOpenEmiDashboard": false,
+                    "steps": [
+                      {
+                        "status": "ORDER_CONFIRMED",
+                        "label": "Order Confirmed",
+                        "completed": true,
+                        "active": false
+                      },
+                      {
+                        "status": "PROCESSING",
+                        "label": "Processing",
+                        "completed": true,
+                        "active": true
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/orders/{orderId}/receipt": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Download payment receipt PDF",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "orderId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF receipt",
+            "content": { "application/pdf": {} }
+          },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/orders/{orderId}/invoice": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Download tax invoice PDF",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "orderId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF invoice",
+            "content": { "application/pdf": {} }
+          },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/loans/current": {
+      "get": {
+        "tags": ["Loans"],
+        "summary": "Get current active loan summary",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Loan summary" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Loan not ACTIVE" },
+          "404": { "description": "Loan not found" }
+        }
+      }
+    },
+    "/loans/dashboard": {
+      "get": {
+        "tags": ["Loans"],
+        "summary": "Get EMI dashboard payload",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Dashboard with summary, next EMI, schedule, recent payments",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": {
+                    "loan": {
+                      "loanAccountNumber": "LX-LN-20260730-0001",
+                      "loanStatus": "ACTIVE"
+                    },
+                    "summary": {
+                      "outstandingBalance": 32000,
+                      "emisPaid": 0,
+                      "remainingEmis": 12
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Loan not ACTIVE" },
+          "404": { "description": "Loan not found" }
+        }
+      }
+    },
+    "/loans/payment-history": {
+      "get": {
+        "tags": ["Loans"],
+        "summary": "Get last 10 EMI payments",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Payment history" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Loan not found" }
+        }
+      }
+    },
+    "/loans/statement": {
+      "get": {
+        "tags": ["Loans"],
+        "summary": "Download loan statement PDF",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "PDF statement", "content": { "application/pdf": {} } },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/loans/agreement": {
+      "get": {
+        "tags": ["Loans"],
+        "summary": "Download loan agreement PDF",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "PDF agreement", "content": { "application/pdf": {} } },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/emi/payments/{emiId}": {
+      "get": {
+        "tags": ["EMI Payments"],
+        "summary": "Get EMI payment details for checkout",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "emiId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "EMI payment details" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/emi/payments/create-order": {
+      "post": {
+        "tags": ["EMI Payments"],
+        "summary": "Create Razorpay order for EMI instalment",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["emiId"],
+                "properties": { "emiId": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Razorpay order created" },
+          "401": { "description": "Unauthorized" },
+          "409": { "description": "Already paid / duplicate" }
+        }
+      }
+    },
+    "/emi/payments/verify": {
+      "post": {
+        "tags": ["EMI Payments"],
+        "summary": "Verify Razorpay EMI payment signature",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "emiId",
+                  "razorpayOrderId",
+                  "razorpayPaymentId",
+                  "razorpaySignature"
+                ],
+                "properties": {
+                  "emiId": { "type": "string" },
+                  "razorpayOrderId": { "type": "string" },
+                  "razorpayPaymentId": { "type": "string" },
+                  "razorpaySignature": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Payment Success — EMI marked PAID" },
+          "400": { "description": "Payment Failed / invalid signature" },
+          "401": { "description": "Unauthorized" },
+          "409": { "description": "Already Paid / Duplicate Payment" }
+        }
+      }
+    },
+    "/emi/payments/{emiId}/receipt": {
+      "get": {
+        "tags": ["EMI Payments"],
+        "summary": "Download EMI payment receipt PDF",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "emiId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "PDF receipt", "content": { "application/pdf": {} } },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/emi/payment-history": {
+      "get": {
+        "tags": ["EMI History"],
+        "summary": "Get filtered EMI payment history",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "paymentType", "in": "query", "schema": { "type": "string" } },
+          { "name": "dateFrom", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "dateTo", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Payment History" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/emi/payment-history/export": {
+      "get": {
+        "tags": ["EMI History"],
+        "summary": "Export payment history as PDF or Excel",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["pdf", "excel"] }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Export file" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/emi/payment-history/{paymentId}": {
+      "get": {
+        "tags": ["EMI History"],
+        "summary": "Get payment by id",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "paymentId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Payment details" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/emi/payment-history/{paymentId}/receipt": {
+      "get": {
+        "tags": ["EMI History"],
+        "summary": "Download payment receipt",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "paymentId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Receipt Download", "content": { "application/pdf": {} } },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/emi/statement": {
+      "get": {
+        "tags": ["EMI History"],
+        "summary": "Get loan statement",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Loan Statement" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/emi/statement/pdf": {
+      "get": {
+        "tags": ["EMI History"],
+        "summary": "Download loan statement PDF",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "PDF statement", "content": { "application/pdf": {} } },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/autopay/status": {
+      "get": {
+        "tags": ["AutoPay"],
+        "summary": "Get AutoPay status and current mandate",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Mandate Status" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/autopay/create-mandate": {
+      "post": {
+        "tags": ["AutoPay"],
+        "summary": "Create AutoPay mandate",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["paymentMethod"],
+                "properties": {
+                  "paymentMethod": {
+                    "type": "string",
+                    "enum": ["UPI_AUTOPAY", "EMANDATE", "NACH", "DEBIT_CARD"]
+                  },
+                  "bankName": { "type": "string" },
+                  "upiId": { "type": "string" },
+                  "maximumDebitAmount": { "type": "number" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Create Mandate — PENDING" },
+          "401": { "description": "Unauthorized" },
+          "409": { "description": "Active mandate already exists" }
+        }
+      }
+    },
+    "/autopay/cancel-mandate": {
+      "post": {
+        "tags": ["AutoPay"],
+        "summary": "Cancel AutoPay mandate",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Cancel Mandate" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/autopay/history": {
+      "get": {
+        "tags": ["AutoPay"],
+        "summary": "AutoPay mandate history",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "History" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/admin/autopay": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "List AutoPay mandates",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Admin list" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/admin/autopay/{loanId}": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Get AutoPay details for loan",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "loanId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Loan AutoPay details" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "patch": {
+        "tags": ["Admin"],
+        "summary": "Update mandate status (approve/pause/cancel)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "loanId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["PENDING", "ACTIVE", "PAUSED", "FAILED", "CANCELLED", "EXPIRED"]
+                  },
+                  "remarks": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "List current user notifications",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["ALL", "UNREAD", "LOAN", "ORDERS", "PAYMENTS", "OFFERS", "SYSTEM"]
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "unreadOnly",
+            "in": "query",
+            "schema": { "type": "boolean" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Notification list" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/notifications/read-all": {
+      "patch": {
+        "tags": ["Notifications"],
+        "summary": "Mark all notifications as read",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "All marked read" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/notifications/{id}": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "Get notification by id",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Notification" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "delete": {
+        "tags": ["Notifications"],
+        "summary": "Delete (archive) notification",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Deleted" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/notifications/{id}/read": {
+      "patch": {
+        "tags": ["Notifications"],
+        "summary": "Mark notification as read",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Marked read" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/admin/notifications": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "List notifications (admin)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Admin list" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Create notification for a user",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["userId", "title", "message"],
+                "properties": {
+                  "userId": { "type": "string" },
+                  "title": { "type": "string" },
+                  "message": { "type": "string" },
+                  "type": { "type": "string" },
+                  "priority": {
+                    "type": "string",
+                    "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+                  },
+                  "metadata": { "type": "object" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Created" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/admin/notifications/{id}": {
+      "delete": {
+        "tags": ["Admin"],
+        "summary": "Hard-delete notification",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Deleted" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/admin/emi-payments": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "List EMI payment transactions for a loan",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "loanId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Payment history" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/admin/loans": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "List loans for admin",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["ACTIVE", "PAUSED", "CLOSED"] }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Loan list" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/admin/loans/{loanId}": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Get loan details for admin",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "loanId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Loan dashboard payload" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "patch": {
+        "tags": ["Admin"],
+        "summary": "Update loan status (pause/close/activate)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "loanId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["loanStatus"],
+                "properties": {
+                  "loanStatus": {
+                    "type": "string",
+                    "enum": ["ACTIVE", "PAUSED", "CLOSED"]
+                  },
+                  "remarks": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Loan updated" },
+          "400": { "description": "Invalid update" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/admin/orders/{orderId}/status": {
+      "patch": {
+        "tags": ["Admin"],
+        "summary": "Update order fulfillment status (Android Admin App)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "orderId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "ORDER_CONFIRMED",
+                      "PROCESSING",
+                      "PACKED",
+                      "SHIPPED",
+                      "OUT_FOR_DELIVERY",
+                      "DELIVERED"
+                    ]
+                  },
+                  "remarks": { "type": "string" },
+                  "location": { "type": "string" },
+                  "courierPartner": { "type": "string" },
+                  "trackingNumber": { "type": "string" },
+                  "warehouse": { "type": "string" },
+                  "deliveryAddress": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Status updated; loan activated when DELIVERED" },
+          "400": { "description": "Invalid transition" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Order not found" }
+        }
+      }
+    },
+    "/admin/emi-applications": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "List EMI applications for admin",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "type": "string", "example": "PENDING" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending applications list",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Admin EMI applications fetched",
+                  "data": {
+                    "total": 1,
+                    "items": [
+                      {
+                        "applicationNumber": "LX-EMI-20260729-0001",
+                        "status": "PENDING",
+                        "customer": {
+                          "fullName": "Rahul Sharma",
+                          "mobile": "9876543210"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/profile": {
+      "get": {
+        "tags": ["Profile"],
+        "summary": "Get current user profile and address",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Profile and address payload" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Profile"],
+        "summary": "Create profile and address",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["fullName", "email", "dob", "gender", "address"],
+                "properties": {
+                  "fullName": { "type": "string" },
+                  "email": { "type": "string", "format": "email" },
+                  "dob": { "type": "string", "example": "1995-06-15" },
+                  "gender": {
+                    "type": "string",
+                    "enum": ["MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY"]
+                  },
+                  "billingSameAsShipping": { "type": "boolean", "default": true },
+                  "address": {
+                    "type": "object",
+                    "required": ["addressLine1", "addressLine2", "city", "state", "pincode"],
+                    "properties": {
+                      "addressLine1": { "type": "string" },
+                      "addressLine2": { "type": "string" },
+                      "landmark": { "type": "string", "nullable": true },
+                      "city": { "type": "string" },
+                      "state": { "type": "string" },
+                      "pincode": { "type": "string", "pattern": "^\\d{6}$" },
+                      "country": { "type": "string", "default": "India" }
+                    }
+                  },
+                  "billingAddress": { "type": "object" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Created" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "409": { "description": "Profile already exists" }
+        }
+      },
+      "put": {
+        "tags": ["Profile"],
+        "summary": "Update profile and address",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/checkout/{productId}": {
+      "get": {
+        "tags": ["Checkout"],
+        "summary": "Get checkout order summary for a product",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "productId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "quantity", "in": "query", "schema": { "type": "integer", "default": 1 } }
+        ],
+        "responses": {
+          "200": { "description": "Order summary" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Product not found" }
+        }
+      }
+    },
+    "/checkout": {
+      "post": {
+        "tags": ["Checkout"],
+        "summary": "Create checkout session",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["productId", "purchaseType"],
+                "properties": {
+                  "productId": { "type": "string" },
+                  "quantity": { "type": "integer", "minimum": 1, "default": 1 },
+                  "purchaseType": { "type": "string", "enum": ["EMI", "DIRECT"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Checkout session created" },
+          "400": { "description": "Validation / profile / stock error" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/checkout/session/{sessionId}": {
+      "get": {
+        "tags": ["Checkout"],
+        "summary": "Get checkout session by id",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "sessionId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Session details" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/cart": {
+      "get": {
+        "tags": ["Cart"],
+        "summary": "Get current user cart",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Cart items and summary" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Cart"],
+        "summary": "Add product to cart (or increase quantity)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["productId"],
+                "properties": {
+                  "productId": { "type": "string" },
+                  "quantity": { "type": "integer", "minimum": 1, "default": 1 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Added" },
+          "400": { "description": "Stock / validation error" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "delete": {
+        "tags": ["Cart"],
+        "summary": "Clear cart",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Cleared" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/cart/{cartItemId}": {
+      "put": {
+        "tags": ["Cart"],
+        "summary": "Update cart item quantity (0 removes)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "cartItemId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["quantity"],
+                "properties": {
+                  "quantity": { "type": "integer", "minimum": 0 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated" },
+          "400": { "description": "Stock / validation error" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "delete": {
+        "tags": ["Cart"],
+        "summary": "Remove cart item",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "cartItemId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Removed" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/cart/{cartItemId}/move-to-wishlist": {
+      "post": {
+        "tags": ["Cart"],
+        "summary": "Move cart item to wishlist",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "cartItemId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Moved" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/wishlist": {
+      "get": {
+        "tags": ["Wishlist"],
+        "summary": "Get current user wishlist",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Wishlist items" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Wishlist"],
+        "summary": "Add product to wishlist",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["productId"],
+                "properties": {
+                  "productId": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Added" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Product not found" },
+          "409": { "description": "Product already in wishlist" }
+        }
+      }
+    },
+    "/wishlist/status/{productId}": {
+      "get": {
+        "tags": ["Wishlist"],
+        "summary": "Check if product is in wishlist",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "productId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Wishlist status" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/wishlist/{wishlistItemId}": {
+      "delete": {
+        "tags": ["Wishlist"],
+        "summary": "Remove wishlist item",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "wishlistItemId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Removed" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/wishlist/{wishlistItemId}/move-to-cart": {
+      "post": {
+        "tags": ["Wishlist"],
+        "summary": "Move wishlist item to cart (removes from wishlist; increases cart qty if already present)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "wishlistItemId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Moved" },
+          "400": { "description": "Out of stock / insufficient stock" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/orders": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "List current user orders",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Order list" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/products": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Search, filter, sort, and paginate products",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "brand", "in": "query", "schema": { "type": "string" } },
+          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          { "name": "minPrice", "in": "query", "schema": { "type": "number" } },
+          { "name": "maxPrice", "in": "query", "schema": { "type": "number" } },
+          { "name": "availability", "in": "query", "schema": { "type": "string", "enum": ["ALL", "IN_STOCK", "OUT_OF_STOCK"] } },
+          { "name": "emiAvailable", "in": "query", "schema": { "type": "boolean" } },
+          { "name": "sort", "in": "query", "schema": { "type": "string", "enum": ["latest", "price_asc", "price_desc", "name"] } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Product list" }
+        }
+      }
+    },
+    "/products/{productId}": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Get product by id",
+        "parameters": [
+          { "name": "productId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Product" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/reviews": {
+      "post": {
+        "tags": ["Reviews"],
+        "summary": "Create product review (purchasers only)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["productId", "rating", "review"],
+                "properties": {
+                  "productId": { "type": "string" },
+                  "rating": { "type": "integer", "minimum": 1, "maximum": 5 },
+                  "review": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Not a purchaser" },
+          "409": { "description": "Duplicate review" }
+        }
+      }
+    },
+    "/reviews/{productId}": {
+      "get": {
+        "tags": ["Reviews"],
+        "summary": "List reviews for a product",
+        "parameters": [
+          { "name": "productId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Reviews" }
+        }
+      }
+    },
+    "/reviews/{reviewId}": {
+      "put": {
+        "tags": ["Reviews"],
+        "summary": "Update own review",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "reviewId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Updated" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "delete": {
+        "tags": ["Reviews"],
+        "summary": "Delete own review",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "reviewId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Deleted" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/support": {
+      "get": {
+        "tags": ["Support"],
+        "summary": "List own support tickets",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Tickets" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Support"],
+        "summary": "Create support ticket",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["issueType", "subject", "description"],
+                "properties": {
+                  "issueType": {
+                    "type": "string",
+                    "enum": ["ORDER_ISSUE", "EMI_ISSUE", "PAYMENT_ISSUE", "ACCOUNT_ISSUE", "OTHER"]
+                  },
+                  "subject": { "type": "string" },
+                  "description": { "type": "string" },
+                  "attachment": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/support/{ticketId}": {
+      "get": {
+        "tags": ["Support"],
+        "summary": "Get own support ticket",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "ticketId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Ticket" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    }
+  }
+}

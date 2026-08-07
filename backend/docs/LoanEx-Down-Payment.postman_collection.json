@@ -1,0 +1,100 @@
+{
+  "info": {
+    "name": "LoanEx Down Payment",
+    "description": "Razorpay down payment create/verify and order confirmation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "applicationId", "value": "" },
+    { "key": "razorpayOrderId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Down Payment Context",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/payments/down-payment"
+      }
+    },
+    {
+      "name": "Create Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/payments/create-order"
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "Created",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"razorpayOrderId\": \"order_xxx\",\n    \"amount\": 20588.82,\n    \"keyId\": \"rzp_test_xxx\"\n  }\n}"
+        },
+        {
+          "name": "Unauthorized",
+          "status": "Unauthorized",
+          "code": 401,
+          "body": "{\n  \"success\": false,\n  \"code\": \"UNAUTHORIZED\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Verify Payment Success",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"razorpayOrderId\": \"{{razorpayOrderId}}\",\n  \"razorpayPaymentId\": \"pay_xxx\",\n  \"razorpaySignature\": \"valid_signature\"\n}"
+        },
+        "url": "{{baseUrl}}/payments/verify"
+      },
+      "response": [
+        {
+          "name": "Payment Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"paymentStatus\": \"SUCCESS\",\n    \"orderNumber\": \"LX-ORD-20260729-0001\",\n    \"nextStep\": \"ORDER_CONFIRMATION\"\n  }\n}"
+        },
+        {
+          "name": "Signature Failed",
+          "status": "Bad Request",
+          "code": 400,
+          "body": "{\n  \"success\": false,\n  \"message\": \"Payment signature verification failed.\",\n  \"code\": \"BAD_REQUEST\",\n  \"details\": { \"code\": \"SIGNATURE_FAILED\" }\n}"
+        },
+        {
+          "name": "Payment Failed / Not Available",
+          "status": "Bad Request",
+          "code": 400,
+          "body": "{\n  \"success\": false,\n  \"details\": { \"code\": \"PAYMENT_NOT_AVAILABLE\" }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Get Payments By Application",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/payments/{{applicationId}}"
+      }
+    },
+    {
+      "name": "Order Confirmation",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/payments/order-confirmation"
+      }
+    }
+  ]
+}

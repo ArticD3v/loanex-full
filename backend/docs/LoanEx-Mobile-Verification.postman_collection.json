@@ -1,0 +1,141 @@
+{
+  "info": {
+    "name": "LoanEx Mobile Verification",
+    "description": "Sample requests for LoanEx mobile verification APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000/api/v1"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "otp",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth Login (get token)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"9876543210\",\n  \"password\": \"Password1\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "Mobile Verification Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/verification/mobile/status"
+      },
+      "response": [
+        {
+          "name": "Sample success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"Mobile verification status fetched\",\n  \"data\": {\n    \"mobile\": \"9876543210\",\n    \"mobileVerified\": false,\n    \"hasActiveOtp\": false,\n    \"expiresAt\": null,\n    \"resendCount\": 0,\n    \"maxResend\": 3,\n    \"attemptCount\": 0,\n    \"maxAttempts\": 5,\n    \"cooldownMs\": 30000\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Send Mobile OTP",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": "{{baseUrl}}/verification/mobile/send-otp"
+      },
+      "response": [
+        {
+          "name": "Sample success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"OTP sent successfully\",\n  \"data\": {\n    \"mobile\": \"9876543210\",\n    \"mobileVerified\": false,\n    \"otpSent\": true,\n    \"expiresAt\": \"2026-07-29T17:10:00.000Z\",\n    \"resendCount\": 0,\n    \"maxResend\": 3,\n    \"cooldownMs\": 30000,\n    \"devOtp\": \"482193\"\n  }\n}"
+        },
+        {
+          "name": "Too many resends",
+          "status": "Too Many Requests",
+          "code": 429,
+          "body": "{\n  \"success\": false,\n  \"message\": \"Maximum resend attempts (3) exceeded. Please try again later.\",\n  \"code\": \"TOO_MANY_REQUESTS\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Send Mobile OTP (change number)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"mobile\": \"9988776655\"\n}"
+        },
+        "url": "{{baseUrl}}/verification/mobile/send-otp"
+      }
+    },
+    {
+      "name": "Verify Mobile OTP",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"otp\": \"{{otp}}\"\n}"
+        },
+        "url": "{{baseUrl}}/verification/mobile/verify-otp"
+      },
+      "response": [
+        {
+          "name": "Sample success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"message\": \"Mobile number verified successfully\",\n  \"data\": {\n    \"mobileVerified\": true,\n    \"mobile\": \"9876543210\",\n    \"nextStep\": \"AADHAAR_VERIFICATION\",\n    \"user\": {\n      \"mobile\": \"9876543210\",\n      \"isMobileVerified\": true\n    }\n  }\n}"
+        },
+        {
+          "name": "Invalid OTP",
+          "status": "Bad Request",
+          "code": 400,
+          "body": "{\n  \"success\": false,\n  \"message\": \"Invalid OTP. 4 attempts remaining.\",\n  \"code\": \"BAD_REQUEST\"\n}"
+        },
+        {
+          "name": "Expired OTP",
+          "status": "Bad Request",
+          "code": 400,
+          "body": "{\n  \"success\": false,\n  \"message\": \"OTP has expired. Please request a new OTP.\",\n  \"code\": \"BAD_REQUEST\"\n}"
+        },
+        {
+          "name": "Unauthorized",
+          "status": "Unauthorized",
+          "code": 401,
+          "body": "{\n  \"success\": false,\n  \"message\": \"Access token is required\",\n  \"code\": \"UNAUTHORIZED\"\n}"
+        }
+      ]
+    }
+  ]
+}

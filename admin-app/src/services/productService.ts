@@ -1,0 +1,122 @@
+import api from './api';
+
+export interface Product {
+  id: string;
+  name: string;
+  slug: string;
+  sku: string;
+  brand: string;
+  description: string;
+  shortDescription: string;
+  categoryId: string;
+  image: string;
+  galleryImages: string[];
+  price: number;
+  mrp: number;
+  discount: number;
+  stock: number;
+  availableStock: number;
+  reservedStock: number;
+  status: 'active' | 'inactive';
+  emiAvailable: boolean;
+  featured: boolean;
+  trending: boolean;
+  recommended: boolean;
+  warranty: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+  bgColor: string;
+  status: string;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export interface ProductsResponse {
+  products: Product[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface ProductQueryParams {
+  page?: number;
+  limit?: number;
+  categoryId?: string;
+  featured?: boolean;
+  trending?: boolean;
+  recommended?: boolean;
+  search?: string;
+}
+
+/**
+ * Get all products with optional filters
+ */
+export const getProducts = async (params?: ProductQueryParams): Promise<Product[]> => {
+  const response = await api.get('/products', { params });
+  const data = response.data.data || [];
+  const list = Array.isArray(data) ? data : data.items || data.products || [];
+  return list;
+};
+
+/**
+ * Get a single product by ID
+ */
+export const getProductById = async (productId: string): Promise<Product> => {
+  const response = await api.get(`/products/${productId}`);
+  return response.data.data;
+};
+
+/**
+ * Get a product by slug
+ */
+export const getProductBySlug = async (slug: string): Promise<Product> => {
+  const response = await api.get(`/products/slug/${slug}`);
+  return response.data.data;
+};
+
+/**
+ * Create a new product
+ */
+export const createProduct = async (productData: Partial<Product>): Promise<Product> => {
+  const response = await api.post('/products', productData);
+  return response.data.data;
+};
+
+/**
+ * Update an existing product
+ */
+export const updateProduct = async (productId: string, productData: Partial<Product>): Promise<Product> => {
+  const response = await api.put(`/products/${productId}`, productData);
+  return response.data.data;
+};
+
+/**
+ * Delete a product permanently
+ */
+export const deleteProduct = async (productId: string): Promise<void> => {
+  await api.delete(`/products/${productId}`);
+};
+
+/**
+ * Get all categories
+ */
+export const getCategories = async (): Promise<Category[]> => {
+  const response = await api.get('/categories');
+  return response.data.data || [];
+};
+
+/**
+ * Get a single category by ID
+ */
+export const getCategoryById = async (categoryId: string): Promise<Category> => {
+  const response = await api.get(`/categories/${categoryId}`);
+  return response.data.data;
+};

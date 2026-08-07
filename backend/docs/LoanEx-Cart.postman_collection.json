@@ -1,0 +1,78 @@
+{
+  "info": {
+    "name": "LoanEx Cart",
+    "description": "Add to Cart APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "productId", "value": "hp-pavilion-15" },
+    { "key": "cartItemId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Get Cart",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/cart"
+      },
+      "response": [{ "name": "Unauthorized", "status": "Unauthorized", "code": 401 }]
+    },
+    {
+      "name": "Add to Cart",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"quantity\": 1\n}"
+        },
+        "url": "{{baseUrl}}/cart"
+      }
+    },
+    {
+      "name": "Update Quantity",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"quantity\": 2\n}"
+        },
+        "url": "{{baseUrl}}/cart/{{cartItemId}}"
+      }
+    },
+    {
+      "name": "Move to Wishlist",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/cart/{{cartItemId}}/move-to-wishlist"
+      }
+    },
+    {
+      "name": "Remove Item",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/cart/{{cartItemId}}"
+      }
+    },
+    {
+      "name": "Clear Cart",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/cart"
+      }
+    }
+  ]
+}

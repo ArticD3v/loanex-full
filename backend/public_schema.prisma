@@ -1,0 +1,1032 @@
+model addresses {
+  id                                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId                               String?   @db.Uuid
+  label                                   String?
+  receiver_name                           String?
+  mobileNumber                            String?
+  house_number                            String?
+  apartment                               String?
+  street                                  String?
+  area                                    String?
+  landmark                                String?
+  city                                    String?
+  state                                   String?
+  pincode                                 String?
+  is_default                              Boolean?  @default(false)
+  isResidentialVerified                   Boolean?  @default(false)
+  createdAt                               DateTime? @default(now()) @db.Timestamptz(6)
+  userId                                  String?   @db.Uuid
+  fullAddress                             String?
+  profiles_addresses_profile_idToprofiles profiles? @relation("addresses_profile_idToprofiles", fields: [profileId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  profiles_addresses_user_idToprofiles    profiles? @relation("addresses_user_idToprofiles", fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  orders                                  orders[]
+
+  @@schema("public")
+}
+
+/// This 
+model audit_log {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String?  @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  changes    Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([entityType, entityId], map: "idx_audit_log_entity")
+  @@index([userId], map: "idx_audit_log_user")
+  @@schema("public")
+}
+
+
+model banners {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title      String
+  subtitle   String?
+  badgeText  String?
+  image_url  String
+  link       String?
+  sort_order Int?      @default(0)
+  status     String?   @default("active")
+  createdAt  DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This 
+model brands {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @unique
+  logo        String   @default("")
+  description String   @default("")
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@schema("public")
+}
+
+/// This 
+model cart_items {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  productId      String   @map("product_id") @db.Uuid
+  quantity       Int      @default(1)
+  selectedTenure Int?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  product products @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId], map: "idx_cart_user")
+  @@schema("public")
+}
+
+
+model categories {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  description String?
+  icon        String?
+  color       String?
+  bgColor     String?
+  status      String?    @default("active")
+  sortOrder   Int?       @default(0)
+  createdAt   DateTime?  @default(now()) @db.Timestamptz(6)
+  products    products[]
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+
+model customer_kyc {
+  id                        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId                 String?   @unique @db.Uuid
+  panNumber                 String?
+  pan_verified              Boolean?  @default(false)
+  panNameMatchScore         Int?
+  aadhar_number             String?
+  aadharVerified            Boolean?  @default(false)
+  aadharRawData             Json?
+  face_verified             Boolean?  @default(false)
+  faceLivenessScore         Decimal?  @db.Decimal
+  faceMatchScore            Decimal?  @db.Decimal
+  faceRawData               Json?
+  cibil_score               Int?
+  creditReportFetchedAt     DateTime? @db.Timestamptz(6)
+  experianRawData           Json?
+  credit_eligibility_status String?
+  kycCompletedAt            DateTime? @db.Timestamptz(6)
+  createdAt                 DateTime? @default(now()) @db.Timestamptz(6)
+  updatedAt                 DateTime? @default(now()) @db.Timestamptz(6)
+  userId                    String?   @db.Uuid
+  fullName                  String?
+  dob                       String?
+  gender                    String?
+  address                   Json?
+  rawKycData                Json?
+  cibil_checked             Boolean?  @default(false)
+  kycCompleted              Boolean?  @default(false)
+  profiles                  profiles? @relation(fields: [profileId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users                     users?    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This 
+model dealers {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dealerCode      String            @unique @map("dealer_code")
+  dealerName      String            @map("dealer_name")
+  dealer_address  String            @default("")
+  dealerMobile    String            @map("dealer_mobile")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  gstNumber       String            @default("") @map("gst_number")
+  branch          String            @default("")
+  paymentSchedule String            @default("") @map("payment_schedule")
+  holdDays        Int               @default(0) @map("hold_days")
+  commission      Decimal           @default(0) @db.Decimal(5, 2)
+  email           String            @default("")
+  status          String            @default("active")
+  updatedAt       DateTime          @default(now()) @map("updated_at") @db.Timestamptz(6)
+  emiDetails      emi_details[]
+  product_dealers product_dealers[]
+
+  @@schema("public")
+}
+
+
+model digilocker_reports {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId      String?   @db.Uuid
+  clientId       String?
+  name           String?
+  gender         String?
+  dob            String?
+  careOf         String?
+  yob            String?
+  zip            String?
+  masked_aadhaar String?
+  fullAddress    String?
+  father_name    String?
+  profileImage   String?
+  xml_url        String?
+  rawData        Json?
+  createdAt      DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime? @default(now()) @db.Timestamptz(6)
+  profiles       profiles? @relation(fields: [profileId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+
+model emi_applications {
+  id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId    String?         @db.Uuid
+  orderId      String?         @unique @db.Uuid
+  planId       String?         @db.Uuid
+  loanAmount   Decimal         @map("loan_amount") @db.Decimal(10, 2)
+  downPayment  Decimal         @map("down_payment") @db.Decimal(10, 2)
+  monthlyEmi   Decimal         @map("monthly_emi") @db.Decimal(10, 2)
+  status       String?         @default("Pending")
+  adminNotes   String?
+  reviewed_at  DateTime?       @db.Timestamptz(6)
+  createdAt    DateTime?       @default(now()) @db.Timestamptz(6)
+  orders       orders?         @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  emiPlans     emi_plans?      @relation(fields: [planId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  profiles     profiles?       @relation(fields: [profileId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  emiSchedules emi_schedules[]
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This 
+model emi_details {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId            String    @unique @map("order_id") @db.Uuid
+  tenure             Int
+  first_payment_rule String
+  downPaymentAmount  Int       @map("down_payment_amount")
+  service_charge     Int       @default(0)
+  deliveryCharge     Int       @default(0) @map("delivery_charge")
+  totalPayable       Int       @map("total_payable")
+  balance_for_emi    Int
+  regularEmiAmount   Int       @map("regular_emi_amount")
+  final_emi_amount   Int
+  months             Int
+  monthly_amount     Int
+  totalAmount        Int       @map("total_amount")
+  interest_rate      Decimal   @default(0) @db.Decimal(5, 2)
+  emiStatus          String    @default("pending_approval") @map("emi_status")
+  paidInstallments   Int       @default(0) @map("paid_installments")
+  nextDueDate        DateTime? @db.Date
+  schedule           Json      @default("[]")
+  dealerId           String?   @db.Uuid
+  dealerSnapshot     Json?
+  admin_proposal     Json?
+  customerAccepted   Boolean   @default(false) @map("customer_accepted")
+  customerAcceptedAt DateTime? @db.Timestamptz(6)
+  downpaymentPaid    Boolean   @default(false) @map("downpayment_paid")
+  downpaymentPaidAt  DateTime? @db.Timestamptz(6)
+  customerNotes      String    @default("") @map("customer_notes")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  dealers            dealers?  @relation(fields: [dealerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([emiStatus], map: "idx_emi_details_status")
+  @@schema("public")
+}
+
+
+model emi_plans {
+  id                   String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  months               Int
+  interest_rate_annual Decimal            @db.Decimal(5, 2)
+  processingFeePercent Decimal            @map("processing_fee_percent") @db.Decimal(5, 2)
+  isActive             Boolean?           @default(true)
+  emiApplications      emi_applications[]
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+
+model emi_schedules {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applicationId     String?           @db.Uuid
+  installmentNumber Int               @map("installment_number")
+  due_date          DateTime          @db.Date
+  amountDue         Decimal           @map("amount_due") @db.Decimal(10, 2)
+  status            String?           @default("Upcoming")
+  paidAt            DateTime?         @db.Timestamptz(6)
+  emiApplications   emi_applications? @relation(fields: [applicationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+
+model experian_reports {
+  id                                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId                         String?   @unique @db.Uuid
+  reportDate                        String?
+  report_time                       String?
+  firstName                         String?
+  last_name                         String?
+  incomeTaxPan                      String?
+  date_of_birth_applicant           String?
+  mobilePhoneNumber                 String?
+  email_id                          String?
+  flatNoPlotNoHouseNo               String?
+  bldg_no_society_name              String?
+  roadNoNameAreaLocality            String?
+  city                              String?
+  state                             String?
+  pin_code                          String?
+  countryCode                       String?
+  credit_account_total              String?
+  creditAccountActive               String?
+  credit_account_default            String?
+  creditAccountClosed               String?
+  outstanding_balance_all           String?
+  outstandingBalanceSecured         String?
+  outstanding_balance_unsecured     String?
+  subscriberName                    String?
+  account_number                    String?
+  accountType                       String?
+  open_date                         String?
+  highestCreditOrOriginalLoanAmount String?
+  current_balance                   String?
+  accountStatus                     String?
+  payment_rating                    String?
+  paymentHistoryProfile             String?
+  date_reported                     String?
+  repaymentTenure                   String?
+  days_past_due                     String?
+  assetClassification               String?
+  exact_match                       String?
+  totalCapsLast_7Days               String?
+  total_caps_last_30_days           String?
+  totalCapsLast_90Days              String?
+  total_caps_last_180_days          String?
+  bureauScore                       Int?
+  bureau_score_confid_level         String?
+  message                           String?
+  message_code                      Int?
+  pdfUrl                            String?
+  createdAt                         DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                         DateTime? @default(now()) @db.Timestamptz(6)
+  profiles                          profiles? @relation(fields: [profileId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+
+model kyc {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String?   @unique @db.Uuid
+  fullName       String?
+  aadhar_number  String?
+  aadharVerified Boolean?  @default(false)
+  dob            String?
+  gender         String?
+  address        String?
+  raw_kyc_data   Json?
+  panNumber      String?
+  pan_verified   Boolean?  @default(false)
+  cibilScore     Int?
+  cibil_checked  Boolean?  @default(false)
+  faceVerified   Boolean?  @default(false)
+  kycCompleted   Boolean?  @default(false)
+  kycCompletedAt DateTime? @db.Timestamptz(6)
+  createdAt      DateTime? @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime? @default(now()) @db.Timestamptz(6)
+  profiles       profiles? @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This 
+model manufacturers {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  gst_number    String   @default("")
+  address       String   @default("")
+  contactPerson String   @default("") @map("contact_person")
+  phone         String   @default("")
+  email         String   @default("")
+  status        String   @default("active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@schema("public")
+}
+
+
+model notifications {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String?   @db.Uuid
+  title     String
+  message   String?
+  type      String?
+  route     String?
+  read      Boolean?  @default(false)
+  createdAt DateTime? @default(now()) @db.Timestamptz(6)
+  profiles  profiles? @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+
+model order_items {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId          String?   @db.Uuid
+  productId        String?   @db.Uuid
+  quantity         Int
+  price_at_booking Decimal   @db.Decimal(10, 2)
+  orders           orders?   @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products         products? @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+
+model orders {
+  id                                   String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId                            String?           @db.Uuid
+  addressId                            String?           @db.Uuid
+  totalAmount                          Decimal           @map("total_amount") @db.Decimal(10, 2)
+  paymentMethod                        String?
+  payment_status                       String?
+  status                               String?
+  createdAt                            DateTime?         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                            DateTime?         @default(now()) @db.Timestamptz(6)
+  userId                               String?           @db.Uuid
+  items                                Json?             @default("[]")
+  subtotal                             Decimal?          @default(0) @db.Decimal(10, 2)
+  total                                Decimal?          @default(0) @db.Decimal(10, 2)
+  addressSnapshot                      Json?
+  phone                                String?
+  notes                                String?
+  emi_applications                     emi_applications?
+  orderItems                           order_items[]
+  addresses                            addresses?        @relation(fields: [addressId], references: [id], onUpdate: NoAction)
+  profiles_orders_profile_idToprofiles profiles?         @relation("orders_profile_idToprofiles", fields: [profileId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  profiles_orders_user_idToprofiles    profiles?         @relation("orders_user_idToprofiles", fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This 
+model product_attribute_values {
+  id                       String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  attributeId              String                       @map("attribute_id") @db.Uuid
+  value                    String
+  status                   String                       @default("active")
+  createdAt                DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime                     @default(now()) @map("updated_at") @db.Timestamptz(6)
+  productAttributes        product_attributes           @relation(fields: [attributeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  productVariantAttributes product_variant_attributes[]
+
+  @@unique([attributeId, value])
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This 
+model product_attributes {
+  id                         String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                       String                       @unique
+  status                     String                       @default("active")
+  createdAt                  DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime                     @default(now()) @map("updated_at") @db.Timestamptz(6)
+  productAttributeValues     product_attribute_values[]
+  product_variant_attributes product_variant_attributes[]
+
+  @@schema("public")
+}
+
+/// This 
+model product_dealers {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId     String   @map("product_id") @db.Uuid
+  dealerId      String   @map("dealer_id") @db.Uuid
+  purchasePrice Int      @map("purchase_price")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  dealers       dealers  @relation(fields: [dealerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  product products @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, dealerId])
+  @@schema("public")
+}
+
+/// This 
+model product_photos {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId  String   @map("product_id") @db.Uuid
+  url        String
+  sort_order Int      @default(0)
+  isCover    Boolean  @default(false) @map("is_cover")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  product products @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@schema("public")
+}
+
+/// This 
+model product_suppliers {
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId               String    @map("product_id") @db.Uuid
+  supplierId              String    @map("supplier_id") @db.Uuid
+  dealer                  String?
+  dealerBranch            String?
+  dealerIncentivePercent  Decimal?  @db.Decimal(5, 2)
+  deliveryPaymentPercent  Decimal?  @db.Decimal(5, 2)
+  dispatchFrom            String?
+  firstPaymentPercent     Decimal?  @db.Decimal(5, 2)
+  holdPaymentPercent      Decimal?  @db.Decimal(5, 2)
+  leadTime                String?
+  notes                   String?
+  paymentTerms            String?
+  productSource           String?
+  purchaseDate            DateTime? @db.Timestamptz(6)
+  purchaseInvoice         String?
+  returnToSupplierAllowed Boolean?  @default(false)
+  settlementCycle         String?
+  stockOwnership          String?
+  supplierCode            String?
+  supplierContact         String?
+  supplierGstin           String?
+  supplierProductCode     String?
+  supplierSku             String?
+  wholesaler              String?
+  products                products  @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  suppliers               suppliers @relation(fields: [supplierId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([productId, supplierId])
+  @@index([productId], map: "idx_product_suppliers_product")
+  @@schema("public")
+}
+
+/// This 
+model product_variant_attributes {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  variantId              String                   @map("variant_id") @db.Uuid
+  attributeId            String                   @map("attribute_id") @db.Uuid
+  valueId                String                   @map("value_id") @db.Uuid
+  productAttributes      product_attributes       @relation(fields: [attributeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  productAttributeValues product_attribute_values @relation(fields: [valueId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([variantId, attributeId])
+  @@index([variantId], map: "idx_variant_attributes_variant")
+  @@schema("public")
+}
+
+
+model products {
+  id                            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                          String
+  sku                           String?             @unique
+  brand                         String?
+  description                   String?
+  categoryId                    String?             @db.Uuid
+  image                         String?
+  price                         Decimal             @default(0.00) @db.Decimal(10, 2)
+  mrp                           Decimal?            @db.Decimal(10, 2)
+  stock                         Int?                @default(0)
+  status                        String?             @default("active")
+  emiAvailable                  Boolean?            @default(true)
+  featured                      Boolean?            @default(false)
+  trending                      Boolean?            @default(false)
+  recommended                   Boolean?            @default(false)
+  shortDescription              String?
+  galleryImages                 String[]            @default([])
+  warranty                      String?
+  hsnCode                       String?
+  manufacturer                  String?
+  createdAt                     DateTime?           @default(now()) @db.Timestamptz(6)
+  wizardData                    Json?
+  amazonPrice                   Decimal?            @db.Decimal(10, 2)
+  availableStock                Int?                @default(0)
+  barcode                       String?
+  boxContents                   Json?
+  cashPurchase                  Boolean?            @default(false)
+  childCategoryId               String?             @db.Uuid
+  colourSizeVariant             String?
+  countryOfOrigin               String?
+  defaultDownPaymentPercent     Decimal?            @db.Decimal(5, 2)
+  deliveryChargeMethod          String?
+  deliveryCharges               Decimal?            @db.Decimal(10, 2)
+  deliveryCode                  String?
+  deliveryConfirmationOtp       Boolean?            @default(false)
+  deliveryDays                  Int?
+  deliveryPartner               String?
+  deliveryZone                  String?
+  discount                      Decimal?            @db.Decimal(10, 2)
+  dispatchSla                   Int?
+  documentationCharge           Decimal?            @db.Decimal(10, 2)
+  downPaymentEditableAtApproval Boolean?            @default(false)
+  eligiblePinCodes              String?
+  expressDelivery               Boolean?            @default(false)
+  features                      Json?
+  firstEmiDueAfter              Int?
+  flipkartPrice                 Decimal?            @db.Decimal(10, 2)
+  gracePeriod                   Int?
+  gst                           Decimal?            @db.Decimal(10, 2)
+  gstAmount                     Decimal?            @db.Decimal(10, 2)
+  height                        Decimal?            @db.Decimal(10, 2)
+  installationCharge            Decimal?            @db.Decimal(10, 2)
+  installationRequired          Boolean?            @default(false)
+  invoiceSetting                String?
+  keywords                      String?
+  landingCost                   Decimal?            @db.Decimal(10, 2)
+  length                        Decimal?            @db.Decimal(10, 2)
+  margin                        Decimal?            @db.Decimal(10, 2)
+  marketLowestPrice             Decimal?            @db.Decimal(10, 2)
+  maxDownPayment                Decimal?            @db.Decimal(10, 2)
+  maxQuantityPerCustomer        Int?
+  maximumDiscountAllowed        Decimal?            @db.Decimal(10, 2)
+  maximumQuantity               Int?
+  metaDescription               String?
+  metaTitle                     String?
+  minCustomerDownPayment        Decimal?            @db.Decimal(10, 2)
+  minOrderQuantity              Int?                @default(1)
+  minimumCustomerAge            Int?
+  minimumQuantity               Int?                @default(1)
+  modelNumber                   String?
+  openingStock                  Int?                @default(0)
+  otherWebsitePrice             Decimal?            @db.Decimal(10, 2)
+  priceCheckedBy                String?
+  priceCheckedDate              DateTime?           @db.Timestamptz(6)
+  priceMatchAllowed             Boolean?            @default(false)
+  productCondition              String?
+  productType                   String?
+  productVideoUrl               String?
+  purchasePrice                 Decimal?            @db.Decimal(10, 2)
+  replacementDays               Int?
+  replacementWindow             Boolean?            @default(false)
+  requiresFieldVerification     Boolean?            @default(false)
+  requiresSerialImeiCapture     Boolean?            @default(false)
+  reservedStock                 Int?                @default(0)
+  selectedEmiPlanId             String?             @db.Uuid
+  serialImeiCaptureAtDelivery   Boolean?            @default(false)
+  serialImeiTracking            Boolean?            @default(false)
+  serviceChargeMethod           String?
+  slug                          String?             @unique
+  specifications                Json?
+  subCategoryId                 String?             @db.Uuid
+  trackInventory                Boolean?            @default(true)
+  verificationCharge            Decimal?            @db.Decimal(10, 2)
+  warehouseId                   String?             @db.Uuid
+  weight                        Decimal?            @db.Decimal(10, 2)
+  width                         Decimal?            @db.Decimal(10, 2)
+  orderItems                    order_items[]
+  productEmiPlans               product_emi_plans[]
+  productSuppliers              product_suppliers[]
+  categories                    categories?         @relation(fields: [categoryId], references: [id], onUpdate: NoAction)
+
+  cart_items      cart_items[]
+  product_dealers product_dealers[]
+  product_photos  product_photos[]
+  reviews         reviews[]
+  wishlist_items  wishlist_items[]
+
+  @@schema("public")
+}
+
+
+model product_emi_plans {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId            String   @map("product_id") @db.Uuid
+  planName             String?
+  months               Int?
+  downPayment          Decimal? @db.Decimal(10, 2)
+  serviceCharge        Decimal? @db.Decimal(10, 2)
+  deliveryCharge       Decimal? @db.Decimal(10, 2)
+  minEligibilityAmount Decimal? @db.Decimal(10, 2)
+  customerVisibility   String?  @default("visible")
+  products             products @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+
+model profiles {
+  id                                       String               @id @db.Uuid
+  mobileNumber                             String               @unique @map("mobile_number")
+  fullName                                 String?
+  email                                    String?
+  dob                                      DateTime?            @db.Date
+  gender                                   String?
+  kyc_status                               String?              @default("Pending")
+  createdAt                                DateTime?            @default(now()) @db.Timestamptz(6)
+  updatedAt                                DateTime?            @default(now()) @db.Timestamptz(6)
+  addresses_addresses_profile_idToprofiles addresses[]          @relation("addresses_profile_idToprofiles")
+  addresses_addresses_user_idToprofiles    addresses[]          @relation("addresses_user_idToprofiles")
+  customerKyc                              customer_kyc?
+  digilocker_reports                       digilocker_reports[]
+  emiApplications                          emi_applications[]
+  experian_reports                         experian_reports?
+  kyc                                      kyc?
+  notifications                            notifications[]
+  orders_orders_profile_idToprofiles       orders[]             @relation("orders_profile_idToprofiles")
+  orders_orders_user_idToprofiles          orders[]             @relation("orders_user_idToprofiles")
+  users                                    users                @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This 
+model reviews {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  rating    Int
+  title     String?
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  product products @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, userId])
+  @@index([productId], map: "idx_reviews_product")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This 
+model sub_categories {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  categoryId  String   @map("category_id") @db.Uuid
+  name        String
+  description String   @default("")
+  image       String   @default("")
+  sortOrder   Int      @default(0) @map("sort_order")
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([categoryId], map: "idx_sub_categories_category")
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This 
+model suppliers {
+  id               String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String
+  code             String
+  gstNumber        String              @default("") @map("gst_number")
+  address          String              @default("")
+  phone            String              @default("")
+  email            String              @default("")
+  contactPerson    String              @default("") @map("contact_person")
+  bankDetails      String              @default("") @map("bank_details")
+  paymentTerms     String              @default("") @map("payment_terms")
+  status           String              @default("active")
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime            @default(now()) @map("updated_at") @db.Timestamptz(6)
+  productSuppliers product_suppliers[]
+
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This 
+model warehouses {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  address       String   @default("")
+  contactPerson String   @default("") @map("contact_person")
+  phone         String   @default("")
+  capacity      Int      @default(0)
+  status        String   @default("active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@schema("public")
+}
+
+/// This 
+model wishlist_items {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  product products @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId], map: "idx_wishlist_user")
+  @@schema("public")
+}
+
+enum aal_level {
+  aal1
+  aal2
+  aal3
+
+  @@schema("auth")
+}
+
+enum code_challenge_method {
+  s256
+  plain
+
+  @@schema("auth")
+}
+
+enum factor_status {
+  unverified
+  verified
+
+  @@schema("auth")
+}
+
+enum factor_type {
+  totp
+  webauthn
+  phone
+
+  @@schema("auth")
+}
+
+enum oauth_authorization_status {
+  pending
+  approved
+  denied
+  expired
+
+  @@schema("auth")
+}
+
+enum oauth_client_type {
+  public
+  confidential
+
+  @@schema("auth")
+}
+
+enum oauth_registration_type {
+  dynamic
+  manual
+
+  @@schema("auth")
+}
+
+enum oauth_response_type {
+  code
+
+  @@schema("auth")
+}
+
+enum one_time_token_type {
+  confirmationToken
+  reauthentication_token     @map("confirmation_token")
+  recovery_token
+  emailChangeTokenNew
+  email_change_token_current @map("email_change_token_new")
+  phone_change_token
+
+  @@schema("auth")
+}
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+  PENDING
+  @@schema("public")
+}
+
+enum OtpPurpose {
+  FORGOT_PASSWORD
+  LOGIN
+  REGISTER
+  RESET_PASSWORD
+  @@schema("public")
+}
+
+enum AutopayProviderCode {
+  RAZORPAY
+  STUB
+  @@schema("public")
+}
+
+enum AutopayMandateStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  FAILED
+  PAUSED
+  PENDING
+  @@schema("public")
+}
+
+enum LoanStatus {
+  ACTIVE
+  CLOSED
+  @@schema("public")
+}
+
+enum AutopayPaymentMethod {
+  UPI_AUTOPAY
+  @@schema("public")
+}
+
+enum BankVerificationStatus {
+  PENDING
+  VERIFIED
+  @@schema("public")
+}
+
+enum VerificationStatus {
+  COMPLETED
+  IN_PROGRESS
+  NOT_STARTED
+  PENDING_REVIEW
+  @@schema("public")
+}
+
+enum CheckoutSessionStatus {
+  CREATED
+  PENDING_PAYMENT
+  @@schema("public")
+}
+
+enum PurchaseType {
+  DIRECT
+  EMI
+  @@schema("public")
+}
+
+enum EmiApplicationStatus {
+  ACTIVE_EMI
+  APPROVED
+  DECLINED_BY_CUSTOMER
+  DOWN_PAYMENT_COMPLETED
+  DOWN_PAYMENT_PENDING
+  OFFER_ACCEPTED
+  ORDER_CONFIRMED
+  PENDING
+  REJECTED
+  UNDER_REVIEW
+  @@schema("public")
+}
+
+enum PaymentType {
+  DOWN_PAYMENT
+  EMI
+  @@schema("public")
+}
+
+enum PaymentStatus {
+  CREATED
+  FAILED
+  PENDING
+  REFUNDED
+  SUCCESS
+  @@schema("public")
+}
+
+enum EmiPaymentStatus {
+  FAILED
+  OVERDUE
+  PAID
+  PENDING
+  @@schema("public")
+}
+
+enum ExcelJS {
+  W
+  @@schema("public")
+}
+
+enum NotificationType {
+  APPLICATION_APPROVED
+  APPLICATION_REJECTED
+  APPLICATION_SUBMITTED
+  AUTOPAY_FAILED
+  AUTOPAY_SUCCESS
+  DOWN_PAYMENT_SUCCESS
+  EMI_DUE_REMINDER
+  EMI_FAILED
+  EMI_OVERDUE
+  EMI_PAID
+  LOAN_CLOSED
+  OFFER_ACCEPTED
+  OFFER_RECEIVED
+  ORDER_CONFIRMED
+  ORDER_DELIVERED
+  ORDER_SHIPPED
+  SYSTEM
+  @@schema("public")
+}
+
+enum NotificationCategory {
+  LOAN
+  OFFERS
+  ORDERS
+  PAYMENTS
+  SYSTEM
+  @@schema("public")
+}
+
+enum NotificationPriority {
+  HIGH
+  LOW
+  MEDIUM
+  @@schema("public")
+}
+
+enum OrderStatus {
+  CANCELLED
+  DELIVERED
+  ORDER_CONFIRMED
+  OUT_FOR_DELIVERY
+  PACKED
+  PROCESSING
+  SHIPPED
+  @@schema("public")
+}
+
+enum OrderTrackingStatus {
+  DELIVERED
+  ORDER_CONFIRMED
+  OUT_FOR_DELIVERY
+  PACKED
+  PROCESSING
+  SHIPPED
+  @@schema("public")
+}
+
+enum PanVerificationStatus {
+  PENDING
+  VERIFIED
+  @@schema("public")
+}
+
+enum MobileVerificationPurpose {
+  MOBILE_VERIFICATION
+  @@schema("public")
+}
+
+enum AadhaarVerificationStatus {
+  EXPIRED
+  FAILED
+  OTP_SENT
+  VERIFIED
+  @@schema("public")
+}
+
