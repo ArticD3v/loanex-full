@@ -16,9 +16,9 @@ const envSchema = z.object({
   CORS_ORIGINS: z
     .string()
     .default(
-      'https://customer-web-beige-iota.vercel.app,https://loanex.vercel.app,https://www.loanex.in,https://loanex.in,http://localhost:4200',
+      'https://customer-web-beige-iota.vercel.app,https://loanex.vercel.app,https://www.mrloanex.com,https://mrloanex.com,https://www.loanex.in,https://loanex.in,https://admin-app-five-tan.vercel.app,http://localhost:4200',
     ),
-  FRONTEND_URL: z.string().optional().default('https://customer-web-beige-iota.vercel.app'),
+  FRONTEND_URL: z.string().optional().default('https://www.mrloanex.com'),
   OTP_LENGTH: z.coerce.number().default(6),
   OTP_EXPIRES_MINUTES: z.coerce.number().default(10),
   OTP_DEV_ECHO: z
@@ -121,7 +121,22 @@ if (env.NODE_ENV === 'production') {
   }
 }
 
-export const corsOrigins = env.CORS_ORIGINS.split(',')
+/** Always allow known production frontends even if CORS_ORIGINS was narrowed in deploy env. */
+const REQUIRED_PRODUCTION_ORIGINS = [
+  'https://customer-web-beige-iota.vercel.app',
+  'https://loanex.vercel.app',
+  'https://www.mrloanex.com',
+  'https://mrloanex.com',
+  'https://www.loanex.in',
+  'https://loanex.in',
+  'https://admin-app-five-tan.vercel.app',
+];
+
+export const corsOrigins = [
+  ...env.CORS_ORIGINS.split(','),
+  env.FRONTEND_URL ?? '',
+  ...(env.NODE_ENV === 'production' ? REQUIRED_PRODUCTION_ORIGINS : []),
+]
   .map((origin) => origin.trim())
   .filter(Boolean)
   .filter((origin) => {
@@ -129,4 +144,5 @@ export const corsOrigins = env.CORS_ORIGINS.split(',')
       return false;
     }
     return true;
-  });
+  })
+  .filter((origin, index, all) => all.indexOf(origin) === index);

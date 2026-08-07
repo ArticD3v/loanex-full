@@ -9,6 +9,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Fonts, Spacing, Radius, Shadow } from '../../constants/theme';
 import { getProductById } from '../../services/productService';
+import { calculateEmiBreakdown } from '../../services/emiService';
 import { useCart } from '../../hooks/useCart';
 import { useAuth } from '../../hooks/useAuth';
 import { addToWishlist, removeFromWishlist, isInWishlist } from '../../services/wishlistService';
@@ -109,7 +110,35 @@ export default function ProductDetailScreen() {
     return product?.images?.length ? product.images : [];
   }, [selectedVariant, product]);
 
-  const emiPlans = useMemo(() => product?.emiPlans ?? [], [product]);
+  const emiPlans = useMemo(() => {
+    const raw = product?.emiPlans ?? [];
+    const price = displayPrice || product?.price || 0;
+    return raw.map((plan: any) => {
+      if (plan.monthlyEmi != null && plan.upfrontPayment != null && plan.totalPayable != null) {
+        return plan;
+      }
+      const down = plan.downPaymentAmount ?? plan.downPayment ?? 0;
+      const fee = plan.processingFee ?? ((plan.serviceCharge || 0) + (plan.deliveryCharge || 0));
+      const calc = calculateEmiBreakdown({
+        productPrice: price,
+        downPayment: down,
+        processingFee: fee,
+        tenureMonths: plan.months || 0,
+      });
+      return {
+        ...plan,
+        downPayment: calc.downPayment,
+        downPaymentAmount: calc.downPayment,
+        processingFee: calc.processingFee,
+        loanAmount: calc.loanAmount,
+        monthlyEmi: calc.monthlyEmi,
+        upfrontPayment: calc.upfrontPayment,
+        loanTotal: calc.loanTotal,
+        grandTotal: calc.totalPayable,
+        totalPayable: calc.totalPayable,
+      };
+    });
+  }, [product, displayPrice]);
   const activePlan = useMemo(() =>
     emiPlans.find((p: any) => p.months === selectedPlanMonths) ?? emiPlans[0] ?? null,
     [emiPlans, selectedPlanMonths]);
@@ -394,16 +423,20 @@ export default function ProductDetailScreen() {
               <View style={s.sumBox}>
                 <Text style={s.sumTitle}>EMI Breakdown</Text>
                 <View style={s.sumRow}>
-                  <Text style={s.sumLabel}>Item Price</Text>
+                  <Text style={s.sumLabel}>Product Price</Text>
                   <Text style={s.sumVal}>₹{displayPrice.toLocaleString('en-IN')}</Text>
                 </View>
                 <View style={s.sumRow}>
-                  <Text style={s.sumLabel}>Down Payment (Pay Today)</Text>
-                  <Text style={[s.sumVal, { color: Colors.primary, fontWeight: Fonts.bold }]}>₹{activePlan.downPaymentAmount.toLocaleString('en-IN')}</Text>
+                  <Text style={s.sumLabel}>Down Payment</Text>
+                  <Text style={[s.sumVal, { color: Colors.primary, fontWeight: Fonts.bold }]}>₹{(activePlan.downPaymentAmount ?? activePlan.downPayment).toLocaleString('en-IN')}</Text>
                 </View>
                 <View style={s.sumRow}>
-                  <Text style={s.sumLabel}>Balance to Pay on EMI</Text>
-                  <Text style={s.sumVal}>₹{(displayPrice - activePlan.downPaymentAmount).toLocaleString('en-IN')}</Text>
+                  <Text style={s.sumLabel}>Processing Fee (Upfront)</Text>
+                  <Text style={s.sumVal}>₹{(activePlan.processingFee ?? ((activePlan.serviceCharge || 0) + (activePlan.deliveryCharge || 0))).toLocaleString('en-IN')}</Text>
+                </View>
+                <View style={s.sumRow}>
+                  <Text style={s.sumLabel}>Loan Amount</Text>
+                  <Text style={s.sumVal}>₹{(activePlan.loanAmount ?? (displayPrice - (activePlan.downPaymentAmount ?? activePlan.downPayment))).toLocaleString('en-IN')}</Text>
                 </View>
                 <View style={s.sumRow}>
                   <Text style={s.sumLabel}>Monthly EMI × {activePlan.months} months</Text>
@@ -411,7 +444,7 @@ export default function ProductDetailScreen() {
                 </View>
                 <View style={[s.sumRow, { borderTopWidth: 1, borderTopColor: Colors.borderLight, paddingTop: 6, marginTop: 4 }]}>
                   <Text style={[s.sumLabel, { fontWeight: Fonts.bold, color: Colors.textPrimary }]}>Total Payable</Text>
-                  <Text style={[s.sumVal, { fontWeight: Fonts.bold, color: Colors.primary, fontSize: Fonts.md }]}>₹{activePlan.totalPayable.toLocaleString('en-IN')}</Text>
+                  <Text style={[s.sumVal, { fontWeight: Fonts.bold, color: Colors.primary, fontSize: Fonts.md }]}>₹{(activePlan.totalPayable ?? activePlan.grandTotal).toLocaleString('en-IN')}</Text>
                 </View>
               </View>
             )}

@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { NotFoundError } from '../../../common/errors/app-error';
 import { jsonDb } from '../../../config/json-db';
+import { calculateEmiBreakdown } from '../../loan/service/emi-calculator.service';
 import type { ListProductsQuery } from '../dto/product.dto';
 import { productRepository } from '../repository/product.repository';
 import type { Product } from '../../../types/database.types';
@@ -81,6 +82,17 @@ type VariantSpecs = {
 
 const META_ATTRIBUTE_KEYS = new Set(['colorhex', 'hex', 'swatch', 'image']);
 
+const KEY_SPEC_ICONS = [
+  'pi pi-mobile',
+  'pi pi-desktop',
+  'pi pi-cog',
+  'pi pi-bolt',
+  'pi pi-wifi',
+  'pi pi-camera',
+  'pi pi-box',
+  'pi pi-check-circle',
+];
+
 function parseImages(images: unknown): string[] {
   if (Array.isArray(images)) {
     return images.filter((item): item is string => typeof item === 'string');
@@ -88,18 +100,214 @@ function parseImages(images: unknown): string[] {
   return [];
 }
 
+function asNonEmptyString(value: unknown): string | undefined {
+  if (value === null || value === undefined) return undefined;
+  const s = String(value).trim();
+  return s ? s : undefined;
+}
+
+function normalizeWarrantyLabel(raw: unknown): string | undefined {
+  const value = asNonEmptyString(raw);
+  if (!value) return undefined;
+  return /warranty/i.test(value) ? value : `${value} Warranty`;
+}
+
+function normalizeFeatureList(features: unknown): string[] {
+  if (!Array.isArray(features)) return [];
+  return features
+    .map((item) => {
+      if (typeof item === 'string') return item.trim();
+      if (item && typeof item === 'object') {
+        return asNonEmptyString((item as any).value ?? (item as any).label ?? (item as any).text) ?? '';
+      }
+      return '';
+    })
+    .filter(Boolean);
+}
+
+function normalizeBoxContents(boxContents: unknown): string[] {
+  return normalizeFeatureList(boxContents);
+}
+
+function keyValueArrayToRows(
+  specifications: unknown,
+): Array<{ label: string; value: string }> {
+  if (!Array.isArray(specifications)) return [];
+  return specifications
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const label = asNonEmptyString((item as any).key ?? (item as any).label ?? (item as any).name);
+      const value = asNonEmptyString((item as any).value);
+      if (!label || !value) return null;
+      return { label, value };
+    })
+    .filter((row): row is { label: string; value: string } => Boolean(row));
+}
+
+function rowsToKeySpecs(
+  rows: Array<{ label: string; value: string }>,
+): Array<{ id: string; icon: string; label: string; value: string }> {
+  return rows.slice(0, 8).map((row, index) => ({
+    id: `spec-${index + 1}`,
+    icon: KEY_SPEC_ICONS[index % KEY_SPEC_ICONS.length],
+    label: row.label,
+    value: row.value,
+  }));
+}
+
 function parseSpecs(specifications: unknown): ProductSpecs {
-  if (specifications && typeof specifications === 'object' && !Array.isArray(specifications)) {
-    return specifications as ProductSpecs;
+  if (!specifications) return {};
+
+  // Admin wizard stores KeyValueItem[] — convert to PDP rows/keySpecs.
+  if (Array.isArray(specifications)) {
+    const rows = keyValueArrayToRows(specifications);
+    return {
+      rows,
+      keySpecs: rowsToKeySpecs(rows),
+    };
   }
+
+  if (typeof specifications === 'object') {
+    const obj = specifications as ProductSpecs & {
+      specifications?: unknown;
+      features?: unknown;
+    };
+    // Nested arrays inside an object payload
+    if (Array.isArray((obj as any).rows) || Array.isArray(obj.keySpecs)) {
+      return obj;
+    }
+    const nestedRows = keyValueArrayToRows((obj as any).items ?? (obj as any).list);
+    if (nestedRows.length > 0) {
+      return {
+        ...obj,
+        rows: nestedRows,
+        keySpecs: obj.keySpecs?.length ? obj.keySpecs : rowsToKeySpecs(nestedRows),
+      };
+    }
+    return obj;
+  }
+
   return {};
 }
 
 function parseVariantSpecs(specifications: unknown): VariantSpecs {
-  if (specifications && typeof specifications === 'object' && !Array.isArray(specifications)) {
-    return specifications as VariantSpecs;
+  const parsed = parseSpecs(specifications);
+  return {
+    keySpecs: parsed.keySpecs ?? [],
+    rows: parsed.rows ?? [],
+  };
+}
+
+function buildReturnsPolicy(product: any, specs: ProductSpecs): string[] {
+  if (Array.isArray(specs.returnsPolicy) && specs.returnsPolicy.length > 0) {
+    return specs.returnsPolicy;
   }
-  return {};
+  const days =
+    toNumber(product.replacementDays) ||
+    toNumber(product.wizardData?.replacementDays) ||
+    (product.replacementWindow ? 7 : 0);
+  if (days > 0) {
+    return [
+      `${days}-day replacement available on eligible products.`,
+      'Product must be unused and returned in original packaging with all accessories.',
+      'Replacement request can be raised from My Orders after delivery.',
+    ];
+  }
+  return [];
+}
+
+function resolveWarrantyLabel(product: any, specs: ProductSpecs): string {
+  return (
+    normalizeWarrantyLabel(product.warranty) ||
+    normalizeWarrantyLabel(product.wizardData?.warranty) ||
+    normalizeWarrantyLabel(specs.warranty) ||
+    'Manufacturer Warranty'
+  );
+}
+
+function resolveOverviewHighlights(product: any, specs: ProductSpecs): string[] {
+  if (Array.isArray(specs.highlights) && specs.highlights.length > 0) {
+    return specs.highlights;
+  }
+  const fromFeatures = normalizeFeatureList(product.features);
+  if (fromFeatures.length > 0) return fromFeatures;
+  return normalizeFeatureList(product.wizardData?.features);
+}
+
+function resolveSpecificationPayload(product: any): ProductSpecs {
+  const top = parseSpecs(product.specifications);
+  if ((top.rows?.length ?? 0) > 0 || (top.keySpecs?.length ?? 0) > 0) {
+    return top;
+  }
+  return parseSpecs(product.wizardData?.specifications);
+}
+
+/** Build lightweight variants from wizard when product.variants table is empty. */
+function mapWizardVariants(product: any): ReturnType<typeof mapVariant>[] {
+  const wizardVariants = Array.isArray(product?.wizardData?.variants)
+    ? product.wizardData.variants
+    : [];
+  if (wizardVariants.length === 0) return [];
+
+  return wizardVariants
+    .filter((variant: any) => {
+      if (!variant) return false;
+      // Skip incomplete draft rows from the admin wizard
+      if (variant.saved === false && !asNonEmptyString(variant.sellingPrice) && toNumber(variant.stock) <= 0) {
+        return false;
+      }
+      return Boolean(asNonEmptyString(variant.name) || asNonEmptyString(variant.sku));
+    })
+    .map((variant: any, index: number) => {
+      const name = asNonEmptyString(variant.name) || `Variant ${index + 1}`;
+      const stock = toNumber(variant.stock ?? variant.availableStock);
+      const sellingPrice =
+        toNumber(variant.sellingPrice) || toNumber(product.price) || toNumber(product.sellingPrice);
+      const mrp = toNumber(variant.mrp) || toNumber(product.mrp) || sellingPrice;
+      const images = parseImages(
+        variant.galleryImages?.length
+          ? variant.galleryImages
+          : variant.variantImage
+            ? [variant.variantImage]
+            : [],
+      );
+      const attributes: Record<string, string> = {};
+      if (/gb|tb|inch|kg|l\b|ton/i.test(name)) {
+        attributes['Option'] = name;
+      } else {
+        attributes['Color'] = name;
+      }
+
+      return {
+        id: String(variant.id || `wizard-variant-${index + 1}`),
+        productId: product.id,
+        sku: asNonEmptyString(variant.sku) || `${product.sku || 'SKU'}-${index + 1}`,
+        price: mrp,
+        discountPrice: sellingPrice < mrp ? sellingPrice : null,
+        sellingPrice,
+        mrp,
+        discount: Math.max(mrp - sellingPrice, 0),
+        stock,
+        stockQuantity: stock,
+        inStock: stock > 0,
+        images,
+        imagesGallery: images.map((src: string, imgIndex: number) => ({
+          id: `${variant.id || index}-img-${imgIndex + 1}`,
+          src,
+          alt: `${name} image ${imgIndex + 1}`,
+        })),
+        thumbnail: images[0] ?? null,
+        specifications: variant.specifications,
+        keySpecs: [],
+        specificationRows: [],
+        attributes,
+        isDefault: index === 0,
+        variantName: name,
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
+      };
+    })
+    .filter((v: any) => Boolean(v.id));
 }
 
 function parseAttributes(attributes: unknown): Record<string, string> {
@@ -155,6 +363,7 @@ function mapVariant(variant: ProductVariant) {
       alt: `${variant.variantName} image ${index + 1}`,
     })),
     thumbnail: images[0] ?? null,
+    variantName: (variant as any).variantName ?? (variant as any).name ?? variant.sku,
     specifications: variant.specifications,
     keySpecs: specs.keySpecs ?? [],
     specificationRows: specs.rows ?? [],
@@ -271,7 +480,8 @@ function mapProduct(
     recommended: Boolean((product as any).recommended),
     newArrival: Boolean((product as any).recommended || (product as any).newArrival),
     status: product.status ?? 'active',
-    deliveryCharge: toNumber(product.deliveryCharge),
+    deliveryCharge:
+      toNumber((product as any).deliveryCharges) || toNumber(product.deliveryCharge),
     createdAt: product.createdAt,
     colourSizeVariant: (product as any).colourSizeVariant ?? null,
     features: (product as any).features ?? null,
@@ -280,13 +490,34 @@ function mapProduct(
   };
 }
 
+/**
+ * Prefer normalized product_emi_plans rows; fall back to wizardData.emiPlans
+ * (admin often saves plans only inside wizardData).
+ */
+function resolveRawEmiPlans(product: any): any[] {
+  const fromTable = Array.isArray(product?.productEmiPlans) ? product.productEmiPlans : [];
+  const fromWizard = Array.isArray(product?.wizardData?.emiPlans)
+    ? product.wizardData.emiPlans
+    : [];
+  const source = fromTable.length > 0 ? fromTable : fromWizard;
+
+  return source.filter((plan: any) => {
+    if (!plan) return false;
+    if (plan.enabled === false) return false;
+    const months = toNumber(plan.months);
+    return months > 0;
+  });
+}
+
 function mapPdpProduct(
   product: Product & { },
   stats: { averageRating: number; reviewCount: number },
 ) {
   const base = mapProduct(product, stats);
-  const specs = parseSpecs(product.specifications);
-  const mappedVariants = (product.variants ?? []).map(mapVariant);
+  const specs = resolveSpecificationPayload(product);
+  const tableVariants = (product.variants ?? []).map(mapVariant);
+  const mappedVariants =
+    tableVariants.length > 0 ? tableVariants : mapWizardVariants(product);
   const selectedVariant = pickDefaultVariant(mappedVariants);
   const attributeGroups = buildAttributeGroups(mappedVariants);
 
@@ -324,17 +555,64 @@ function mapPdpProduct(
         }))
       : (specs as any).variants ?? [];
 
-  const emiPlans = ((product as any).productEmiPlans ?? []).map((plan: any) => ({
-    id: plan.id,
-    planName: plan.planName,
-    months: plan.months ?? 0,
-    downPayment: plan.downPayment ? toNumber(plan.downPayment) : 0,
-    serviceCharge: plan.serviceCharge ? toNumber(plan.serviceCharge) : 0,
-    deliveryCharge: plan.deliveryCharge ? toNumber(plan.deliveryCharge) : 0,
-    minEligibilityAmount: plan.minEligibilityAmount ? toNumber(plan.minEligibilityAmount) : 0,
-    customerVisibility: plan.customerVisibility,
-    isRecommended: plan.months === 6,
-  }));
+  const emiPlans = resolveRawEmiPlans(product).map((plan: any) => {
+    const months = Math.max(0, Math.floor(toNumber(plan.months)));
+    const downPayment = toNumber(plan.downPayment);
+    const serviceCharge = toNumber(plan.serviceCharge);
+    const deliveryCharge = toNumber(plan.deliveryCharge);
+    const calc = calculateEmiBreakdown({
+      productPrice: sellingPrice,
+      downPayment,
+      processingFee: serviceCharge + deliveryCharge,
+      tenureMonths: months,
+    });
+
+    return {
+      id: plan.id,
+      planName: plan.planName,
+      months,
+      downPayment: calc.downPayment,
+      downPaymentAmount: calc.downPayment,
+      serviceCharge,
+      deliveryCharge,
+      processingFee: calc.processingFee,
+      minEligibilityAmount: toNumber(plan.minEligibilityAmount),
+      customerVisibility: plan.customerVisibility,
+      isRecommended: Boolean(plan.isRecommended) || months === 6,
+      loanAmount: calc.loanAmount,
+      monthlyEmi: calc.monthlyEmi,
+      upfrontPayment: calc.upfrontPayment,
+      loanTotal: calc.loanTotal,
+      grandTotal: calc.totalPayable,
+      totalPayable: calc.totalPayable,
+    };
+  });
+
+  const emiStartingFrom =
+    emiPlans.length > 0
+      ? Math.min(...emiPlans.map((plan: { monthlyEmi: number }) => plan.monthlyEmi))
+      : undefined;
+
+  const wizard = (product as any).wizardData ?? {};
+  const subcategoryLabel =
+    asNonEmptyString((product as any).subCategory) ||
+    asNonEmptyString(wizard.subCategory) ||
+    asNonEmptyString(wizard.childCategory) ||
+    product.brand;
+  const boxContents = normalizeBoxContents(
+    (product as any).boxContents ?? wizard.boxContents,
+  );
+  const deliveryCharge =
+    toNumber((product as any).deliveryCharges) ||
+    toNumber((product as any).deliveryCharge) ||
+    toNumber(wizard.deliveryCharges) ||
+    0;
+  const deliveryDays =
+    toNumber((product as any).deliveryDays) || toNumber(wizard.deliveryDays) || undefined;
+  const shortDescription =
+    asNonEmptyString((product as any).shortDescription) ||
+    asNonEmptyString(wizard.shortDescription) ||
+    undefined;
 
   return {
     ...base,
@@ -356,21 +634,27 @@ function mapPdpProduct(
       alt: `${product.name} image ${index + 1}`,
     })),
     categoryLabel: product.category,
-    subcategoryLabel: product.brand,
+    subcategoryLabel,
+    shortDescription,
     overviewTitle: product.name,
-    overviewBody: product.description,
-    overviewHighlights: specs.highlights ?? [],
+    overviewBody: product.description || shortDescription || '',
+    overviewHighlights: resolveOverviewHighlights(product, specs),
     keySpecs,
     specificationRows,
+    boxContents,
     colors,
+    variants: legacyVariants,
     attributeGroups,
     productVariants: mappedVariants,
     selectedVariantId: selectedVariant?.id ?? null,
     selectedVariant,
-    warrantyLabel: specs.warranty ?? '1 Year Warranty',
-    returnsPolicy: specs.returnsPolicy ?? [],
+    warrantyLabel: resolveWarrantyLabel(product, specs),
+    returnsPolicy: buildReturnsPolicy(product, specs),
     questions: specs.questions ?? [],
+    deliveryCharge,
+    deliveryDays,
     emiPlans,
+    emiStartingFrom: emiStartingFrom ?? base.emiStartingFrom,
     breadcrumbs: [
       { label: 'Home', path: '/' },
       { label: 'Products', path: '/products' },
@@ -603,7 +887,9 @@ export class ProductService {
       mapped.discount = mapped.mrp - mapped.price;
       mapped.discountPrice = mapped.price;
     }
-    return productRepository.create(mapped);
+    const created = await productRepository.create(mapped);
+    await this.syncEmiPlansFromWizard(created.id, data);
+    return created;
   }
 
   async update(id: string, data: any) {
@@ -616,7 +902,40 @@ export class ProductService {
       mapped.discount = mapped.mrp - mapped.price;
       mapped.discountPrice = mapped.price;
     }
-    return productRepository.update(id, mapped);
+    const updated = await productRepository.update(id, mapped);
+    await this.syncEmiPlansFromWizard(id, data);
+    return updated;
+  }
+
+  /** Persist wizard EMI plans into product_emi_plans so PDP can read them. */
+  private async syncEmiPlansFromWizard(productId: string, data: any) {
+    const wizardPlans = data?.wizardData?.emiPlans ?? data?.emiPlans;
+    if (!Array.isArray(wizardPlans)) return;
+
+    const existing = jsonDb.findMany('product_emi_plans', { productId });
+    for (const plan of existing) {
+      await jsonDb.deleteAwaited('product_emi_plans', { id: plan.id });
+    }
+
+    for (const plan of wizardPlans) {
+      if (!plan || plan.enabled === false) continue;
+      const months = Math.max(0, Math.floor(toNumber(plan.months)));
+      if (months <= 0) continue;
+
+      await jsonDb.insertAwaited('product_emi_plans', {
+        id: plan.id && isUuid(String(plan.id)) ? String(plan.id) : randomUUID(),
+        productId,
+        planName: toStr(plan.planName) || `${months} Months`,
+        months,
+        downPayment: toNumber(plan.downPayment),
+        serviceCharge: toNumber(plan.serviceCharge),
+        deliveryCharge: toNumber(plan.deliveryCharge),
+        minEligibilityAmount: toNumber(plan.minEligibilityAmount),
+        customerVisibility: toStr(plan.customerVisibility) || 'visible',
+        enabled: plan.enabled !== false,
+        createdAt: new Date().toISOString(),
+      });
+    }
   }
 
   async remove(id: string) {

@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import PDFDocument from 'pdfkit';
 
 export enum EmiApplicationStatus {
@@ -30,12 +28,32 @@ export enum PaymentStatus {
   FAILED = 'FAILED',
 }
 
-export type OrderTracking = any;
-import { STATUS_FLOW } from '../repository/order.repository';
+import { STATUS_FLOW, type OrderStatusType } from '../repository/order.repository';
+
+const BRAND = {
+  primary: '#0A2E6F',
+  secondary: '#D4A12A',
+  ink: '#111827',
+  muted: '#6B7280',
+  line: '#E5E9F0',
+  soft: '#F8FAFC',
+  white: '#FFFFFF',
+  success: '#16A34A',
+};
+
+const STEP_LABELS: Record<OrderStatusType, string> = {
+  ORDER_CONFIRMED: 'Order Confirmed',
+  PROCESSING: 'Processing',
+  PACKED: 'Packed',
+  SHIPPED: 'Shipped',
+  OUT_FOR_DELIVERY: 'Out for Delivery',
+  DELIVERED: 'Delivered',
+};
 
 function toNumber(value: { toString(): string } | number | null | undefined): number {
   if (value === null || value === undefined) return 0;
-  return Number(value);
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
 }
 
 export function productImagePath(productId: string): string {
@@ -67,8 +85,19 @@ export function productBrand(productId: string, fallback?: string | null): strin
   return map[productId] ?? 'LoanEx';
 }
 
+function normalizeFlowStatus(raw: unknown): OrderStatusType {
+  const value = String(raw ?? 'ORDER_CONFIRMED').toUpperCase().replace(/\s+/g, '_');
+  if (value === 'CONFIRMED' || value === 'PENDING' || value === 'PLACED' || value === 'SUCCESS') {
+    return 'ORDER_CONFIRMED';
+  }
+  if ((STATUS_FLOW as string[]).includes(value)) {
+    return value as OrderStatusType;
+  }
+  return 'ORDER_CONFIRMED';
+}
+
 function statusRank(status: string): number {
-  return STATUS_FLOW.findIndex((value) => value === status);
+  return STATUS_FLOW.findIndex((value) => value === normalizeFlowStatus(status));
 }
 
 const PAYABLE_DOWN_PAYMENT_STATUSES: EmiApplicationStatus[] = [
@@ -90,80 +119,191 @@ function isDownPaymentPaid(app: EmiApplicationStatus, payment: any) {
   );
 }
 
+function resolvePaymentType(order: any): 'FULL PAYMENT' | 'EMI' {
+  const method = String(order.paymentMethod ?? order.payment_method ?? '').toUpperCase();
+  if (order.applicationId || method === 'EMI') return 'EMI';
+  return 'FULL PAYMENT';
+}
+
+function resolveAmountPaid(order: any, app: any, payment: any, paymentType: string): number {
+  if (payment && String(payment.paymentStatus).toUpperCase() === PaymentStatus.SUCCESS) {
+    return toNumber(payment.amount);
+  }
+
+  const totalAmount = toNumber(
+    order.totalAmount ?? order.total_amount ?? order.total ?? app.sellingPrice ?? 0,
+  );
+
+  if (paymentType === 'FULL PAYMENT') {
+    const status = String(order.payment_status ?? order.orderStatus ?? order.status ?? '').toUpperCase();
+    // Confirmed / paid full-payment orders should show order total, not ₹0.
+    if (
+      status.includes('CONFIRM') ||
+      status === 'SUCCESS' ||
+      status === 'PENDING' ||
+      status === 'PAID' ||
+      !status
+    ) {
+      return totalAmount;
+    }
+    return totalAmount;
+  }
+
+  const downPayment = toNumber(app.downPayment || 0);
+  if (isDownPaymentPaid(app.status, payment)) return downPayment;
+  return 0;
+}
+
+function buildTrackingSteps(order: any, createdAt: string) {
+  const currentRank = Math.max(0, statusRank(order.orderStatus || order.status || 'ORDER_CONFIRMED'));
+  return STATUS_FLOW.map((status, index) => {
+    const completed = index <= currentRank;
+    const active = index === currentRank;
+    return {
+      status,
+      label: STEP_LABELS[status],
+      completed,
+      active,
+      timestamp: index === 0 ? createdAt : null,
+      remarks: active ? 'In progress' : completed ? 'Completed' : null,
+      location: null,
+      updatedBy: null,
+    };
+  });
+}
+
 export function buildOrderPayload(order: any) {
   const app = order.application || {};
   const payment = order.paymentTransaction;
-  const productPrice = toNumber(app.sellingPrice || order.total_amount);
-  const loanAmount = toNumber(app.loanAmount || order.total_amount);
+  const paymentType = resolvePaymentType(order);
+  const productPrice = toNumber(
+    app.sellingPrice ??
+      order.totalAmount ??
+      order.total_amount ??
+      order.total ??
+      order.items?.[0]?.unitPrice ??
+      0,
+  );
+  const loanAmount = toNumber(app.loanAmount ?? (paymentType === 'EMI' ? productPrice : 0));
   const downPayment = toNumber(app.downPayment || 0);
   const downPaymentPaid = isDownPaymentPaid(app.status, payment);
-  const amountPaid = payment && payment.paymentStatus === PaymentStatus.SUCCESS
-    ? toNumber(payment.amount)
-    : 0;
-  const remainingLoanAmount = Math.max(loanAmount, Math.max(0, productPrice - downPayment));
-  const currentRank = statusRank(order.orderStatus || order.status || 'Pending');
-  const canPayDownPayment = PAYABLE_DOWN_PAYMENT_STATUSES.includes(app.status) && !downPaymentPaid;
+  const amountPaid = resolveAmountPaid(order, app, payment, paymentType);
+  const remainingLoanAmount =
+    paymentType === 'EMI' ? Math.max(0, loanAmount - (downPaymentPaid ? downPayment : 0)) : 0;
+  const canPayDownPayment =
+    paymentType === 'EMI' &&
+    PAYABLE_DOWN_PAYMENT_STATUSES.includes(app.status) &&
+    !downPaymentPaid;
 
   const tenure = app.months || app.tenure || 6;
   const monthlyEmi = toNumber(app.monthlyEmi || app.regular_emi_amount || 0);
   const interestRate = toNumber(app.interestRate || 12.5);
   const processingFee = toNumber(app.service_charge || 0);
+  const createdAt = order.createdAt ?? order.created_at ?? new Date().toISOString();
+  const shippingAddress =
+    order.addressSnapshot?.fullAddress ??
+    order.deliveryAddress ??
+    order.shippingAddress ??
+    null;
+  const trackingSteps = buildTrackingSteps(order, createdAt);
+  const flowStatus = normalizeFlowStatus(order.orderStatus || order.status);
+  const displayStatus =
+    paymentType === 'FULL PAYMENT' && flowStatus === 'ORDER_CONFIRMED'
+      ? 'CONFIRMED'
+      : order.orderStatus || order.status || flowStatus;
 
-  const trackingStepIndex = currentRank < 0 ? 0 : currentRank;
+  const items =
+    order.items && order.items.length > 0
+      ? order.items.map((i: any) => ({
+          productId: i.productId,
+          productName: i.product?.name || i.productName || i.productId,
+          productBrand: productBrand(i.productId, i.product?.brand),
+          productImage: i.product?.imageUrl || productImagePath(i.productId),
+          quantity: i.quantity ?? 1,
+          unitPrice: toNumber(i.unitPrice ?? productPrice),
+        }))
+      : undefined;
 
   return {
     id: order.id,
-    orderNumber: order.orderNumber ?? order.id,
-    orderStatus: order.orderStatus || order.status || 'Pending',
-    status: order.orderStatus || order.status || 'Pending',
-    applicationId: order.applicationId ?? app.id ?? order.id,
-    applicationNumber: order.applicationId ?? app.id ?? order.id,
-    paymentId: payment?.id,
-    paymentTransactionId: payment?.transactionId,
-    transactionDate: payment?.createdAt ? new Date(payment.createdAt).toISOString() : null,
-    paymentType: order.paymentMethod === 'FULL PAYMENT' || order.paymentMethod === 'FULL_PAYMENT' ? 'FULL PAYMENT' : 'EMI',
-    paymentMethod: payment?.paymentMethod ?? order.paymentMethod ?? 'Razorpay',
-    paymentStatus: payment?.paymentStatus ?? order.payment_status ?? 'Pending',
-    productId: order.productId ?? app.productId ?? 'prod-1',
-    productName: app.product?.name ?? app.productName ?? order.productName ?? 'Product',
-    productBrand: productBrand(order.productId, app.brand),
-    productImage: app.product?.image ?? app.productImage ?? productImagePath(order.productId),
-    quantity: order.quantity ?? 1,
-    items: order.items && order.items.length > 0 ? order.items.map((i: any) => ({
-      productId: i.productId,
-      productName: i.product?.name || i.productId,
-      productBrand: productBrand(i.productId, i.product?.brand),
-      productImage: i.product?.imageUrl || productImagePath(i.productId),
-      quantity: i.quantity,
-      unitPrice: i.unitPrice,
-    })) : undefined,
+    orderNumber: order.orderNumber ?? (order.id ? `ORD-${String(order.id).slice(0, 8).toUpperCase()}` : 'ORD-0000'),
+    orderStatus: displayStatus,
+    status: displayStatus,
+    applicationId: order.applicationId ?? app.id ?? null,
+    applicationNumber: order.applicationId ?? app.applicationNumber ?? app.id ?? null,
+    paymentId: payment?.id ?? null,
+    paymentTransactionId: payment?.transactionId ?? payment?.id ?? null,
+    transactionDate: payment?.createdAt ? new Date(payment.createdAt).toISOString() : createdAt,
+    paymentType,
+    paymentMethod: paymentType === 'FULL PAYMENT' ? 'FULL PAYMENT' : (payment?.paymentMethod ?? 'EMI'),
+    paymentStatus: payment?.paymentStatus ?? order.payment_status ?? 'SUCCESS',
+    productId: order.productId ?? app.productId ?? items?.[0]?.productId ?? 'prod-1',
+    productName:
+      app.product?.name ?? app.productName ?? order.productName ?? items?.[0]?.productName ?? 'Product',
+    productBrand: productBrand(order.productId, app.brand ?? items?.[0]?.productBrand),
+    productImage:
+      app.product?.image ?? app.productImage ?? items?.[0]?.productImage ?? productImagePath(order.productId),
+    quantity: order.quantity ?? items?.[0]?.quantity ?? 1,
+    items,
     productPrice,
     loanAmount,
     downPayment,
     amountPaid,
     remainingLoanAmount,
+    approvedLoanAmount: loanAmount,
+    approvedDownPayment: downPayment,
     tenureMonths: tenure,
     monthlyEmi,
     interestRate,
     processingFee,
     gstPercent: 18,
     gstAmount: Math.round((processingFee * 18) / 100),
-    totalPayableToday: downPayment + processingFee,
-    shippingAddress: order.addressSnapshot?.fullAddress ?? order.deliveryAddress ?? null,
+    totalPayableToday: paymentType === 'EMI' ? downPayment + processingFee : amountPaid,
+    shippingAddress,
+    billingAddress: shippingAddress,
     courierPartner: order.courierPartner ?? 'Standard Delivery',
-    trackingNumber: order.trackingNumber ?? `TRK-${Date.now()}`,
-    estimatedDeliveryDate: order.estimatedDeliveryDate ?? new Date(Date.now() + 86400000 * 3).toISOString(),
-    deliveryAddress: order.addressSnapshot?.fullAddress ?? order.deliveryAddress ?? null,
-    warehouse: 'Main Warehouse',
+    trackingNumber: order.trackingNumber ?? `TRK-${String(order.id ?? Date.now()).replace(/-/g, '').slice(-13)}`,
+    estimatedDeliveryDate:
+      order.estimatedDeliveryDate ?? new Date(Date.now() + 86400000 * 3).toISOString(),
+    deliveryAddress: shippingAddress,
     canPayDownPayment,
     downPaymentPaid,
-    trackingSteps: STATUS_FLOW.map((s, index) => ({
-      status: s,
-      completed: index <= trackingStepIndex,
-      current: index === trackingStepIndex,
-    })),
-    createdAt: order.createdAt ?? order.created_at ?? new Date().toISOString(),
-    updatedAt: order.updatedAt ?? new Date().toISOString(),
+    canOpenEmiDashboard: paymentType === 'EMI' && downPaymentPaid,
+    customer: order.user
+      ? {
+          fullName: order.user.fullName ?? 'Customer',
+          email: order.user.email ?? '',
+          mobile: order.user.mobile ?? '',
+        }
+      : null,
+    emi:
+      paymentType === 'EMI'
+        ? {
+            loanAmount,
+            downPayment,
+            tenure,
+            monthlyEmi,
+            interestRate,
+            processingFee,
+          }
+        : undefined,
+    timeline: {
+      applicationApproved: true,
+      offerAccepted: true,
+      downPaymentCompleted: paymentType === 'FULL PAYMENT' || downPaymentPaid,
+      orderConfirmed: true,
+      processing: statusRank(flowStatus) >= 1,
+      packed: statusRank(flowStatus) >= 2,
+      shipped: statusRank(flowStatus) >= 3,
+      outForDelivery: statusRank(flowStatus) >= 4,
+      delivered: statusRank(flowStatus) >= 5,
+    },
+    trackingSteps,
+    steps: trackingSteps,
+    trackingEvents: [],
+    createdAt,
+    updatedAt: order.updatedAt ?? order.updated_at ?? createdAt,
+    receiptAvailable: true,
     invoiceAvailable: true,
   };
 }
@@ -171,74 +311,273 @@ export function buildOrderPayload(order: any) {
 export function buildTrackingPayload(order: any) {
   const payload = buildOrderPayload(order);
   return {
+    ...payload,
     orderId: payload.id,
-    orderNumber: payload.orderNumber,
-    orderStatus: payload.orderStatus,
+    steps: payload.steps,
+    trackingSteps: payload.trackingSteps,
+    trackingEvents: payload.trackingEvents,
     courierPartner: payload.courierPartner,
     trackingNumber: payload.trackingNumber,
     estimatedDeliveryDate: payload.estimatedDeliveryDate,
-    trackingSteps: payload.trackingSteps,
   };
 }
 
-export async function generateOrderPdf(
+function formatInr(amount: number): string {
+  return `INR ${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+async function generateOrderPdfBuffer(
   order: any,
   type: 'receipt' | 'invoice',
-) {
-  const folder = type === 'receipt' ? 'receipts' : 'invoices';
-  const title = type === 'receipt' ? 'Payment Receipt' : 'Order Invoice';
-  const fileName = `${type}_${order.id}_${Date.now()}.pdf`;
-  const storageDir = path.join(process.cwd(), 'storage', folder);
-
-  if (!fs.existsSync(storageDir)) {
-    fs.mkdirSync(storageDir, { recursive: true });
-  }
-
-  const absolutePath = path.join(storageDir, fileName);
-  const relativePath = path.join('storage', folder, fileName);
+): Promise<Buffer> {
   const payload = buildOrderPayload(order);
+  const title = type === 'receipt' ? 'Payment Receipt' : 'Tax Invoice';
 
-  await new Promise<void>((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 50 });
-    const stream = fs.createWriteStream(absolutePath);
-    doc.pipe(stream);
+  return new Promise<Buffer>((resolve, reject) => {
+    const doc = new PDFDocument({
+      margin: 48,
+      size: 'A4',
+      info: {
+        Title: `${title} ${payload.orderNumber}`,
+        Author: 'LoanEx',
+        Subject: `LoanEx ${title}`,
+      },
+    });
+    const chunks: Buffer[] = [];
+    doc.on('data', (chunk) => chunks.push(chunk as Buffer));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
 
-    doc.fontSize(20).fillColor('#0A2E6F').text(`LoanEx ${title}`);
-    doc.moveDown(0.5);
-    doc.fontSize(12).fillColor('#111827');
-    doc.text(`Order Number: ${payload.orderNumber}`);
-    doc.text(`Application Number: ${payload.id}`);
-    doc.text(`Payment ID: ${payload.paymentId ?? '—'}`);
-    doc.text(`Product: ${payload.productName ?? payload.productId}`);
-    doc.text(`Brand: ${payload.productBrand}`);
-    doc.text(`Quantity: ${payload.quantity}`);
-    doc.text(`Amount Paid: INR ${payload.amountPaid.toFixed(2)}`);
-    doc.text(`Remaining Loan: INR ${payload.remainingLoanAmount.toFixed(2)}`);
-    doc.text(`Status: ${payload.orderStatus}`);
+    const pageWidth = doc.page.width;
+    const left = 48;
+    const right = pageWidth - 48;
+    const contentWidth = right - left;
 
-    if (type === 'invoice') {
-      doc.moveDown();
-      doc.text(`Courier: ${payload.courierPartner ?? '—'}`);
-      doc.text(`Tracking Number: ${payload.trackingNumber ?? '—'}`);
-      doc.text(`Warehouse: ${payload.warehouse ?? '—'}`);
-      doc.text(`Delivery Address: ${payload.deliveryAddress ?? '—'}`);
+    // Brand header bar
+    doc.rect(0, 0, pageWidth, 72).fill(BRAND.primary);
+    doc.fillColor(BRAND.white).font('Helvetica-Bold').fontSize(22).text('LOANEX', left, 22, {
+      width: contentWidth * 0.55,
+    });
+    doc
+      .font('Helvetica')
+      .fontSize(10)
+      .fillColor('#D5E1F5')
+      .text('Smart shopping. Flexible EMI.', left, 48, { width: contentWidth * 0.55 });
+
+    doc
+      .fillColor(BRAND.secondary)
+      .font('Helvetica-Bold')
+      .fontSize(14)
+      .text(title.toUpperCase(), left + contentWidth * 0.45, 28, {
+        width: contentWidth * 0.55,
+        align: 'right',
+      });
+
+    let y = 96;
+
+    // Meta card
+    doc.roundedRect(left, y, contentWidth, 78, 8).fill(BRAND.soft);
+    doc.roundedRect(left, y, contentWidth, 78, 8).strokeColor(BRAND.line).lineWidth(1).stroke();
+
+    doc.fillColor(BRAND.muted).font('Helvetica').fontSize(9).text('ORDER NUMBER', left + 16, y + 14);
+    doc
+      .fillColor(BRAND.primary)
+      .font('Helvetica-Bold')
+      .fontSize(12)
+      .text(String(payload.orderNumber), left + 16, y + 28);
+
+    doc.fillColor(BRAND.muted).font('Helvetica').fontSize(9).text('ORDER DATE', left + 220, y + 14);
+    doc
+      .fillColor(BRAND.ink)
+      .font('Helvetica-Bold')
+      .fontSize(11)
+      .text(
+        new Date(payload.createdAt).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        }),
+        left + 220,
+        y + 28,
+      );
+
+    doc.fillColor(BRAND.muted).font('Helvetica').fontSize(9).text('STATUS', left + 370, y + 14);
+    doc
+      .fillColor(BRAND.success)
+      .font('Helvetica-Bold')
+      .fontSize(11)
+      .text(String(payload.orderStatus).replaceAll('_', ' '), left + 370, y + 28);
+
+    doc.fillColor(BRAND.muted).font('Helvetica').fontSize(9).text('PAYMENT', left + 16, y + 50);
+    doc
+      .fillColor(BRAND.ink)
+      .font('Helvetica-Bold')
+      .fontSize(11)
+      .text(String(payload.paymentType), left + 70, y + 48);
+
+    y += 100;
+
+    // Customer / shipping
+    doc.fillColor(BRAND.primary).font('Helvetica-Bold').fontSize(12).text('Bill To', left, y);
+    doc.text('Ship To', left + contentWidth / 2 + 8, y);
+    y += 18;
+    doc.fillColor(BRAND.ink).font('Helvetica').fontSize(10);
+    const customerName = payload.customer?.fullName ?? 'Customer';
+    const customerLine = [payload.customer?.email, payload.customer?.mobile].filter(Boolean).join(' · ');
+    doc.text(customerName, left, y, { width: contentWidth / 2 - 12 });
+    doc.text(payload.shippingAddress ?? payload.deliveryAddress ?? '—', left + contentWidth / 2 + 8, y, {
+      width: contentWidth / 2 - 12,
+    });
+    if (customerLine) {
+      doc.fillColor(BRAND.muted).text(customerLine, left, y + 14, { width: contentWidth / 2 - 12 });
     }
 
-    doc.moveDown();
-    doc.fontSize(10).fillColor('#6B7280').text('System-generated document from LoanEx.');
+    y += 52;
+
+    // Items table header
+    doc.rect(left, y, contentWidth, 26).fill(BRAND.primary);
+    doc.fillColor(BRAND.white).font('Helvetica-Bold').fontSize(9);
+    doc.text('ITEM', left + 12, y + 8);
+    doc.text('QTY', left + contentWidth - 180, y + 8, { width: 40, align: 'right' });
+    doc.text('UNIT PRICE', left + contentWidth - 130, y + 8, { width: 70, align: 'right' });
+    doc.text('AMOUNT', left + contentWidth - 55, y + 8, { width: 43, align: 'right' });
+    y += 26;
+
+    const lineItems =
+      payload.items && payload.items.length > 0
+        ? payload.items
+        : [
+            {
+              productName: payload.productName,
+              productBrand: payload.productBrand,
+              quantity: payload.quantity,
+              unitPrice: payload.productPrice,
+            },
+          ];
+
+    let subtotal = 0;
+    lineItems.forEach((item: any, index: number) => {
+      const qty = Number(item.quantity ?? 1);
+      const unit = toNumber(item.unitPrice);
+      const lineTotal = qty * unit;
+      subtotal += lineTotal;
+      if (index % 2 === 0) {
+        doc.rect(left, y, contentWidth, 36).fill('#FFFFFF');
+      } else {
+        doc.rect(left, y, contentWidth, 36).fill(BRAND.soft);
+      }
+      doc
+        .strokeColor(BRAND.line)
+        .lineWidth(0.5)
+        .moveTo(left, y + 36)
+        .lineTo(right, y + 36)
+        .stroke();
+
+      doc.fillColor(BRAND.ink).font('Helvetica-Bold').fontSize(10).text(String(item.productName ?? 'Product'), left + 12, y + 8, {
+        width: contentWidth - 210,
+      });
+      if (item.productBrand) {
+        doc.fillColor(BRAND.muted).font('Helvetica').fontSize(8).text(String(item.productBrand), left + 12, y + 22, {
+          width: contentWidth - 210,
+        });
+      }
+      doc.fillColor(BRAND.ink).font('Helvetica').fontSize(10);
+      doc.text(String(qty), left + contentWidth - 180, y + 12, { width: 40, align: 'right' });
+      doc.text(formatInr(unit), left + contentWidth - 130, y + 12, { width: 70, align: 'right' });
+      doc.font('Helvetica-Bold').text(formatInr(lineTotal), left + contentWidth - 55, y + 12, {
+        width: 43,
+        align: 'right',
+      });
+      y += 36;
+    });
+
+    y += 16;
+
+    // Totals
+    const totalsX = left + contentWidth - 220;
+    doc.fillColor(BRAND.muted).font('Helvetica').fontSize(10);
+    doc.text('Subtotal', totalsX, y, { width: 100 });
+    doc.fillColor(BRAND.ink).text(formatInr(subtotal || payload.productPrice), totalsX + 100, y, {
+      width: 120,
+      align: 'right',
+    });
+    y += 16;
+    doc.fillColor(BRAND.muted).text('Payment Type', totalsX, y, { width: 100 });
+    doc.fillColor(BRAND.ink).text(String(payload.paymentType), totalsX + 100, y, {
+      width: 120,
+      align: 'right',
+    });
+    y += 20;
+    doc.rect(totalsX, y, 220, 32).fill(BRAND.secondary);
+    doc
+      .fillColor(BRAND.primary)
+      .font('Helvetica-Bold')
+      .fontSize(11)
+      .text('Amount Paid', totalsX + 12, y + 10);
+    doc.text(formatInr(payload.amountPaid || subtotal || payload.productPrice), totalsX + 100, y + 10, {
+      width: 108,
+      align: 'right',
+    });
+
+    y += 52;
+
+    if (type === 'invoice') {
+      doc.fillColor(BRAND.primary).font('Helvetica-Bold').fontSize(11).text('Delivery', left, y);
+      y += 16;
+      doc.fillColor(BRAND.ink).font('Helvetica').fontSize(10);
+      doc.text(`Courier: ${payload.courierPartner ?? 'Standard Delivery'}`, left, y);
+      y += 14;
+      doc.text(`Tracking: ${payload.trackingNumber ?? '—'}`, left, y);
+      y += 14;
+      doc.text(
+        `Est. delivery: ${
+          payload.estimatedDeliveryDate
+            ? new Date(payload.estimatedDeliveryDate).toLocaleDateString('en-IN', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              })
+            : '—'
+        }`,
+        left,
+        y,
+      );
+      y += 24;
+    }
+
+    // Footer
+    doc
+      .moveTo(left, Math.max(y, doc.page.height - 72))
+      .lineTo(right, Math.max(y, doc.page.height - 72))
+      .strokeColor(BRAND.line)
+      .stroke();
+    doc
+      .fillColor(BRAND.muted)
+      .font('Helvetica')
+      .fontSize(8)
+      .text(
+        'This is a system-generated LoanEx document. For support visit mrloanex.com or contact Support from your account.',
+        left,
+        doc.page.height - 60,
+        { width: contentWidth, align: 'center' },
+      );
+
     doc.end();
-
-    stream.on('finish', () => resolve());
-    stream.on('error', reject);
   });
-
-  return { absolutePath, relativePath };
 }
 
-export function generateOrderInvoicePdf(order: any) {
-  return generateOrderPdf(order, 'invoice');
+export async function generateOrderInvoicePdf(order: any) {
+  const buffer = await generateOrderPdfBuffer(order, 'invoice');
+  return {
+    buffer,
+    relativePath: `invoices/${order.id}-invoice.pdf`,
+  };
 }
 
-export function generateOrderReceiptPdf(order: any) {
-  return generateOrderPdf(order, 'receipt');
+export async function generateOrderReceiptPdf(order: any) {
+  const buffer = await generateOrderPdfBuffer(order, 'receipt');
+  return {
+    buffer,
+    relativePath: `receipts/${order.id}-receipt.pdf`,
+  };
 }

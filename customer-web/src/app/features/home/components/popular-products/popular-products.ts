@@ -14,6 +14,7 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WishlistService } from '../../../wishlist/services/wishlist.service';
 import { CatalogProduct, ProductsApiService } from '../../../products/services/products-api.service';
+import { calculateEmiBreakdown } from '../../../products/utils/emi-calc.helper';
 import { formatInr } from '../../../../shared/utils/currency';
 import { PopularProduct } from '../../models/catalog.models';
 
@@ -117,8 +118,13 @@ export class PopularProducts {
     const sellingPrice = product.sellingPrice ?? product.price;
     const emiMonthly =
       product.emiStartingFrom != null
-        ? Math.ceil(product.emiStartingFrom)
-        : Math.ceil(sellingPrice / 24);
+        ? product.emiStartingFrom
+        : calculateEmiBreakdown({
+            productPrice: sellingPrice,
+            downPayment: Math.round(sellingPrice * 0.2),
+            processingFee: 0,
+            tenureMonths: 12,
+          }).monthlyEmi;
 
     return {
       id: product.id,

@@ -30,6 +30,7 @@ const COLUMNS = [
   { key: 'balance', label: 'Balance Amount', width: 110 },
   { key: 'serviceCharge', label: 'Service Charge (₹)', width: 115 },
   { key: 'deliveryCharge', label: 'Delivery Charge (₹)', width: 115 },
+  { key: 'upfrontPayment', label: 'Upfront Payment', width: 120 },
   { key: 'totalPayable', label: 'Total Payable', width: 110 },
   { key: 'monthlyEmi', label: 'Monthly EMI', width: 100 },
   { key: 'minEligibility', label: 'Min Eligibility (₹)', width: 115 },
@@ -42,7 +43,17 @@ function visibilityLabel(v: CustomerVisibility): string {
 }
 
 function visibilityFromLabel(label: string): CustomerVisibility {
-  return label === 'Visible' ? 'visible' : 'hidden';
+  const normalized = label.trim().toLowerCase();
+  // Accept both current labels and legacy "Public" / "Members Only"
+  if (
+    normalized === 'visible' ||
+    normalized === 'public' ||
+    normalized === 'members only' ||
+    normalized === 'members_only'
+  ) {
+    return 'visible';
+  }
+  return 'hidden';
 }
 
 export function Step9EMI() {
@@ -262,22 +273,25 @@ export function Step9EMI() {
                       {plan.deliveryCharge ? formatCurrency(parseFloat(plan.deliveryCharge)) : '—'}
                     </Text>
                     <Text style={[styles.cellText, styles.cellCalc, styles.cell, { width: COLUMNS[7].width }]}>
+                      {hasSellingPrice ? formatCurrency(calcs.upfrontPayment) : '—'}
+                    </Text>
+                    <Text style={[styles.cellText, styles.cellCalc, styles.cell, { width: COLUMNS[8].width }]}>
                       {hasSellingPrice ? formatCurrency(calcs.totalPayable) : '—'}
                     </Text>
-                    <Text style={[styles.cellText, styles.cellCalc, styles.cellEmi, styles.cell, { width: COLUMNS[8].width }]}>
+                    <Text style={[styles.cellText, styles.cellCalc, styles.cellEmi, styles.cell, { width: COLUMNS[9].width }]}>
                       {hasSellingPrice && plan.months ? formatCurrency(calcs.monthlyEmi) : '—'}
                     </Text>
-                    <Text style={[styles.cellText, styles.cell, { width: COLUMNS[9].width }]}>
+                    <Text style={[styles.cellText, styles.cell, { width: COLUMNS[10].width }]}>
                       {plan.minEligibilityAmount ? formatCurrency(parseFloat(plan.minEligibilityAmount)) : '—'}
                     </Text>
-                    <View style={[styles.cell, { width: COLUMNS[10].width }]}>
+                    <View style={[styles.cell, { width: COLUMNS[11].width }]}>
                       <View style={[styles.visibilityBadge, plan.customerVisibility === 'visible' ? styles.visibleBadge : styles.hiddenBadge]}>
                         <Text style={[styles.visibilityText, plan.customerVisibility === 'visible' ? styles.visibleText : styles.hiddenText]}>
                           {visibilityLabel(plan.customerVisibility)}
                         </Text>
                       </View>
                     </View>
-                    <View style={[styles.cell, styles.actionsCell, { width: COLUMNS[11].width }]}>
+                    <View style={[styles.cell, styles.actionsCell, { width: COLUMNS[12].width }]}>
                       <TouchableOpacity onPress={() => openEditModal(plan)} style={styles.actionLink}>
                         <Text style={styles.actionEdit}>Edit</Text>
                       </TouchableOpacity>
@@ -399,18 +413,19 @@ function EmiPlanModal({
             {calcs && sellingPrice > 0 ? (
               <View style={styles.calcPreview}>
                 <Text style={styles.calcPreviewTitle}>Auto Calculated Preview</Text>
-                <CalcPreviewRow label="Balance Amount" value={formatCurrency(calcs.balanceAmount)} />
-                <CalcPreviewRow label="Total Payable" value={formatCurrency(calcs.totalPayable)} />
+                <CalcPreviewRow label="Loan Amount" value={formatCurrency(calcs.loanAmount)} />
                 <CalcPreviewRow
                   label="Monthly EMI"
                   value={plan.months ? formatCurrency(calcs.monthlyEmi) : '— (enter EMI duration)'}
                   highlight
                 />
+                <CalcPreviewRow label="Upfront Payment" value={formatCurrency(calcs.upfrontPayment)} />
+                <CalcPreviewRow label="Total Payable" value={formatCurrency(calcs.totalPayable)} />
               </View>
             ) : (
               <View style={styles.calcPreviewMissing}>
                 <Text style={styles.calcPreviewMissingText}>
-                  Set Selling Price in Step 5 (Pricing) to preview Balance, Total Payable, and Monthly EMI.
+                  Set Selling Price in Step 5 (Pricing) to preview Loan Amount, EMI, Upfront Payment, and Total Payable.
                 </Text>
               </View>
             )}

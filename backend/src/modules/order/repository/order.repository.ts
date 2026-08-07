@@ -20,11 +20,22 @@ const STATUS_FLOW: OrderStatusType[] = [
   OrderStatus.DELIVERED,
 ];
 
+function orderOwnedBy(order: any, userId: string): boolean {
+  if (!order || !userId) return false;
+  return (
+    order.userId === userId ||
+    order.profileId === userId ||
+    order.user_id === userId ||
+    order.profile_id === userId
+  );
+}
+
 function mapOrderRecord(order: any) {
   if (!order) return null;
   const items = (order.items as any[]) ?? [];
-  const profile = jsonDb.findOne('profiles', { id: order.profileId ?? order.userId });
-  const rawMethod = String(order.paymentMethod ?? '').toUpperCase();
+  const ownerId = order.profileId ?? order.userId ?? order.user_id ?? order.profile_id;
+  const profile = jsonDb.findOne('profiles', { id: ownerId });
+  const rawMethod = String(order.paymentMethod ?? order.payment_method ?? '').toUpperCase();
   const paymentMethod = order.applicationId
     ? 'EMI'
     : rawMethod === 'EMI'
@@ -35,7 +46,7 @@ function mapOrderRecord(order: any) {
   ).toUpperCase();
   const orderStatus = (rawStatus === 'PENDING' && paymentMethod === 'FULL PAYMENT') ? 'CONFIRMED' : rawStatus;
 
-  const productId = items[0]?.productId ?? '';
+  const productId = items[0]?.productId ?? order.productId ?? '';
   let productName = 'Product';
   let productImage = '';
   let productBrandName = '';
@@ -48,7 +59,9 @@ function mapOrderRecord(order: any) {
     }
   }
 
-  const address = order.addressId ? jsonDb.findOne('addresses', { id: order.addressId }) : null;
+  const address = order.addressId || order.address_id
+    ? jsonDb.findOne('addresses', { id: order.addressId ?? order.address_id })
+    : null;
   const deliveryAddress = address?.fullAddress ?? order.deliveryAddress ?? null;
 
   const populatedItems = items.map(item => {
@@ -66,18 +79,20 @@ function mapOrderRecord(order: any) {
 
   return {
     ...order,
+    userId: order.userId ?? order.user_id,
+    profileId: order.profileId ?? order.profile_id ?? order.userId ?? order.user_id,
     items: populatedItems,
     orderNumber: order.orderNumber ?? (order.id ? `ORD-${order.id.slice(0, 8).toUpperCase()}` : 'ORD-0000'),
     applicationId: order.applicationId ?? order.emi_applications?.id ?? null,
     productId,
     productBrand: productBrandName,
-    totalAmount: order.totalAmount ?? order.total ?? 0,
+    totalAmount: order.totalAmount ?? order.total_amount ?? order.total ?? 0,
     paymentMethod,
     orderStatus,
-    createdAt: order.createdAt ?? new Date(),
+    createdAt: order.createdAt ?? order.created_at ?? new Date(),
     application: order.emi_applications ?? {
       id: order.id,
-      sellingPrice: order.totalAmount ?? order.total ?? 0,
+      sellingPrice: order.totalAmount ?? order.total_amount ?? order.total ?? 0,
       productName: productName,
       productImage: productImage,
       emiAmount: 0,
@@ -100,14 +115,14 @@ function mapOrderRecord(order: any) {
 export class OrderRepository {
   async listForUser(userId: string) {
     const orders = jsonDb.findMany('orders');
-    const filtered = orders.filter((o: any) => o.userId === userId || o.profileId === userId);
-    filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const filtered = orders.filter((o: any) => orderOwnedBy(o, userId));
+    filtered.sort((a, b) => new Date(b.createdAt ?? b.created_at).getTime() - new Date(a.createdAt ?? a.created_at).getTime());
     return filtered.map(mapOrderRecord);
   }
 
   async adminListAll() {
     const orders = jsonDb.findMany('orders');
-    orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    orders.sort((a, b) => new Date(b.createdAt ?? b.created_at).getTime() - new Date(a.createdAt ?? a.created_at).getTime());
     return orders.map(mapOrderRecord);
   }
 
@@ -118,7 +133,7 @@ export class OrderRepository {
 
   async findByIdForUser(orderId: string, userId: string) {
     const order = jsonDb.findOne('orders', { id: orderId });
-    if (order && (order.userId === userId || order.profileId === userId)) {
+    if (order && orderOwnedBy(order, userId)) {
       return mapOrderRecord(order);
     }
     return null;
@@ -148,7 +163,7 @@ export class OrderRepository {
     productBrand?: string | null;
     deliveryAddress: string;
   }) {
-    const created = jsonDb.insert('orders', {
+    const created = await jsonDb.insertAwaited('orders', {
       userId: input.userId,
       profileId: input.userId,
       orderNumber: input.orderNumber,
@@ -157,6 +172,7 @@ export class OrderRepository {
       deliveryAddress: input.deliveryAddress,
       status: OrderStatus.ORDER_CONFIRMED,
       orderStatus: OrderStatus.ORDER_CONFIRMED,
+      paymentMethod: 'EMI',
       items: [{ productId: input.productId, quantity: 1 }],
     });
     return mapOrderRecord(created);

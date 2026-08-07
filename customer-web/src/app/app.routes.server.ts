@@ -1,17 +1,5 @@
 import { RenderMode, ServerRoute } from '@angular/ssr';
 
-/** Seed product IDs from backend catalog — used for prerender only. */
-const PRERENDER_PRODUCT_IDS = [
-  'smartphone-iphone-15',
-  'laptop-hp-pavilion-15',
-  'smart-tv-samsung-55',
-  'refrigerator-lg-260',
-  'washing-machine-bosch-7kg',
-  'ac-voltas-1-5ton',
-  'tablet-samsung-s9',
-  'smartwatch-apple-series-9',
-] as const;
-
 export const serverRoutes: ServerRoute[] = [
   {
     // Home must run in the browser so product/banner APIs fire after hydration.
@@ -20,11 +8,16 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Client,
   },
   {
+    // Shop listing must match Home: CSR so catalog (and Shell cart/wishlist) APIs
+    // run on refresh. Prerender via `**` left /products hydrating with cancelled work.
+    path: 'products',
+    renderMode: RenderMode.Client,
+  },
+  {
+    // PDP also loads product + related (+ wishlist) via takeUntilDestroyed; same
+    // prerender cancellation bug as Home/Shop on hard refresh.
     path: 'products/:productId',
-    renderMode: RenderMode.Prerender,
-    async getPrerenderParams() {
-      return PRERENDER_PRODUCT_IDS.map((productId) => ({ productId }));
-    },
+    renderMode: RenderMode.Client,
   },
   {
     path: 'orders/:orderId',

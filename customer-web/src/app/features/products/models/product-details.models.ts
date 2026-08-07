@@ -128,6 +128,10 @@ export interface ProductDetails {
   baseOverviewBody: string;
   overviewHighlights: string[];
   specifications: ProductSpecRow[];
+  boxContents?: string[];
+  shortDescription?: string;
+  deliveryCharge?: number;
+  deliveryDays?: number;
   reviews: ProductReviewHighlight[];
   returnsPolicy: string[];
   questions: ProductQaItem[];
@@ -160,9 +164,19 @@ export interface EmiDownPaymentOption {
 export interface EmiPlanCard {
   months: number;
   monthlyEmi: number;
+  /** Collected upfront — never financed */
   processingFee: number;
   downPayment: number;
+  /** Product Price − Down Payment */
+  loanAmount: number;
+  /** Down Payment + Processing Fee */
+  upfrontPayment: number;
+  /** Product Price + Processing Fee (+ interest if any) */
   totalPayable: number;
+  /** @deprecated Alias of totalEmi (financed portion) */
+  loanTotal: number;
+  /** @deprecated Alias of totalPayable */
+  grandTotal: number;
   recommended: boolean;
 }
 
@@ -170,6 +184,12 @@ export interface EmiPlanSummary {
   productPrice: number;
   downPayment: number;
   processingFee: number;
+  loanAmount: number;
   monthlyEmi: number;
+  upfrontPayment: number;
   totalPayable: number;
+  /** @deprecated Alias of totalEmi */
+  loanTotal: number;
+  /** @deprecated Alias of totalPayable */
+  grandTotal: number;
 }

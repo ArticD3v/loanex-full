@@ -1,5 +1,139 @@
-import { ProductDetails, ProductVariantSku } from '../models/product-details.models';
+import { ProductDetails, ProductEmiPlan, ProductVariantSku } from '../models/product-details.models';
 import { ProductDetail } from '../services/products-api.service';
+
+function toMoneyNumber(value: unknown): number {
+  if (value === null || value === undefined || value === '') return 0;
+  const n = typeof value === 'number' ? value : Number(String(value).replace(/,/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Map wizard / API EMI rows into PDP plan shape. */
+function normalizeEmiPlans(
+  plans: ProductDetail['emiPlans'] | NonNullable<ProductDetail['wizardData']>['emiPlans'],
+): ProductEmiPlan[] {
+  if (!Array.isArray(plans) || plans.length === 0) return [];
+
+  return plans
+    .filter((plan) => {
+      if (!plan) return false;
+      if ((plan as { enabled?: boolean }).enabled === false) return false;
+      return toMoneyNumber((plan as { months?: number | string }).months) > 0;
+    })
+    .map((plan) => {
+      const months = Math.max(0, Math.floor(toMoneyNumber(plan.months)));
+      return {
+        id: String(plan.id || `emi-${months}`),
+        planName: plan.planName,
+        months,
+        downPayment: toMoneyNumber(plan.downPayment),
+        serviceCharge: toMoneyNumber(plan.serviceCharge),
+        deliveryCharge: toMoneyNumber(plan.deliveryCharge),
+        minEligibilityAmount: toMoneyNumber(
+          (plan as { minEligibilityAmount?: number | string }).minEligibilityAmount,
+        ),
+        customerVisibility: (plan as { customerVisibility?: string }).customerVisibility,
+        isRecommended: Boolean((plan as { isRecommended?: boolean }).isRecommended) || months === 6,
+      };
+    });
+}
+
+function resolveEmiPlans(detail: ProductDetail): ProductEmiPlan[] {
+  const fromApi = normalizeEmiPlans(detail.emiPlans);
+  if (fromApi.length > 0) return fromApi;
+  return normalizeEmiPlans(detail.wizardData?.emiPlans);
+}
+
+function textList(
+  items: Array<string | { value?: string; label?: string; text?: string }> | undefined,
+): string[] {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => {
+      if (typeof item === 'string') return item.trim();
+      return String(item?.value ?? item?.label ?? item?.text ?? '').trim();
+    })
+    .filter(Boolean);
+}
+
+function warrantyFromDetail(detail: ProductDetail): string {
+  const raw =
+    detail.warrantyLabel ||
+    detail.warranty ||
+    detail.wizardData?.warranty ||
+    '';
+  const value = String(raw).trim();
+  if (!value) return 'Manufacturer Warranty';
+  return /warranty/i.test(value) ? value : `${value} Warranty`;
+}
+
+function specsFromDetail(detail: ProductDetail): {
+  rows: { label: string; value: string }[];
+  keySpecs: { id: string; icon: string; label: string; value: string }[];
+  highlights: string[];
+  boxContents: string[];
+  returnsPolicy: string[];
+} {
+  const icons = [
+    'pi pi-mobile',
+    'pi pi-desktop',
+    'pi pi-cog',
+    'pi pi-bolt',
+    'pi pi-wifi',
+    'pi pi-camera',
+    'pi pi-box',
+    'pi pi-check-circle',
+  ];
+
+  let rows =
+    detail.specificationRows?.map((row) => ({ label: row.label, value: row.value })) ?? [];
+  if (!rows.length && Array.isArray(detail.wizardData?.specifications)) {
+    rows = detail.wizardData.specifications
+      .map((item) => ({
+        label: String(item.key || '').trim(),
+        value: String(item.value || '').trim(),
+      }))
+      .filter((row) => row.label && row.value);
+  }
+
+  let keySpecs = detail.keySpecs ?? [];
+  if (!keySpecs.length && rows.length) {
+    keySpecs = rows.slice(0, 8).map((row, index) => ({
+      id: `spec-${index + 1}`,
+      icon: icons[index % icons.length],
+      label: row.label,
+      value: row.value,
+    }));
+  }
+
+  let highlights = detail.overviewHighlights ?? [];
+  if (!highlights.length) {
+    highlights = textList(detail.features as any);
+  }
+  if (!highlights.length) {
+    highlights = textList(detail.wizardData?.features);
+  }
+
+  let boxContents = textList(detail.boxContents as any);
+  if (!boxContents.length) {
+    boxContents = textList(detail.wizardData?.boxContents);
+  }
+
+  let returnsPolicy = detail.returnsPolicy ?? [];
+  if (!returnsPolicy.length) {
+    const days =
+      toMoneyNumber(detail.replacementDays) ||
+      toMoneyNumber(detail.wizardData?.replacementDays);
+    if (days > 0) {
+      returnsPolicy = [
+        `${days}-day replacement available on eligible products.`,
+        'Product must be unused and returned in original packaging with all accessories.',
+        'Replacement request can be raised from My Orders after delivery.',
+      ];
+    }
+  }
+
+  return { rows, keySpecs, highlights, boxContents, returnsPolicy };
+}
 
 function galleryFromUrls(urls: string[], name: string, prefix = 'img') {
   return urls.map((src, index) => ({
@@ -176,6 +310,7 @@ export function mapProductDetails(detail: ProductDetail): ProductDetails {
   );
 
   const displayName = presentation.name;
+  const resolved = specsFromDetail(detail);
   const images =
     selected?.imagesGallery?.length
       ? selected.imagesGallery.map((img, index) => ({
@@ -188,42 +323,57 @@ export function mapProductDetails(detail: ProductDetail): ProductDetails {
           ? detail.imagesGallery
           : galleryFromUrls(detail.images, displayName);
 
+  const isActive =
+    detail.isActive !== false && String((detail as { status?: string }).status || 'active') !== 'inactive';
+
   return {
     id: detail.id,
     name: displayName,
     baseName,
     brand: detail.brand,
     categoryLabel: detail.categoryLabel,
-    subcategoryLabel: detail.subcategoryLabel,
+    subcategoryLabel:
+      detail.subcategoryLabel ||
+      detail.wizardData?.subCategory ||
+      detail.wizardData?.childCategory ||
+      detail.brand,
     price: selected?.sellingPrice ?? detail.sellingPrice,
     mrp: (selected?.discount ?? detail.discount) > 0 ? (selected?.mrp ?? detail.mrp) : undefined,
     rating: detail.averageRating,
     reviewCount: detail.reviewCount,
-    answeredQuestions: detail.questions.length,
-    inStock: selected ? selected.inStock && detail.isActive : detail.inStock,
+    answeredQuestions: detail.questions?.length ?? 0,
+    inStock: selected ? selected.inStock && isActive : detail.inStock,
     stockQuantity: selected?.stock ?? detail.stock,
     sku: selected?.sku ?? detail.sku,
-    deliveryPincode: '560001',
-    warrantyLabel: detail.warrantyLabel,
+    deliveryPincode: '',
+    warrantyLabel: warrantyFromDetail(detail),
     images,
     colors: detail.colors ?? [],
     variants: detail.variants ?? [],
     attributeGroups: detail.attributeGroups ?? [],
     productVariants: detail.productVariants ?? [],
     selectedVariantId: selected?.id ?? null,
-    keySpecs: selected?.keySpecs?.length ? selected.keySpecs : detail.keySpecs,
+    keySpecs: selected?.keySpecs?.length ? selected.keySpecs : resolved.keySpecs,
     overviewTitle: presentation.overviewTitle,
     overviewBody: presentation.overviewBody,
     baseOverviewBody,
-    overviewHighlights: detail.overviewHighlights,
+    overviewHighlights: resolved.highlights,
     specifications: selected?.specificationRows?.length
       ? selected.specificationRows
-      : detail.specificationRows,
+      : resolved.rows,
+    boxContents: resolved.boxContents,
+    shortDescription: detail.shortDescription || detail.wizardData?.shortDescription,
+    deliveryCharge:
+      toMoneyNumber(detail.deliveryCharge) ||
+      toMoneyNumber(detail.deliveryCharges) ||
+      toMoneyNumber(detail.wizardData?.deliveryCharges),
+    deliveryDays:
+      toMoneyNumber(detail.deliveryDays) || toMoneyNumber(detail.wizardData?.deliveryDays) || undefined,
     reviews: [],
-    returnsPolicy: detail.returnsPolicy,
-    questions: detail.questions,
+    returnsPolicy: resolved.returnsPolicy,
+    questions: detail.questions ?? [],
     breadcrumbs: presentation.breadcrumbs,
-    emiPlans: detail.emiPlans ?? [],
+    emiPlans: resolveEmiPlans(detail),
   };
 }
 

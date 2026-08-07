@@ -31,7 +31,8 @@ export default function EmiApplyScreen() {
   const downPayment = Number(params.downPaymentAmount || 0);
   const monthlyEmi = Number(params.monthlyEmi || 0);
   const months = Number(params.planMonths || 0);
-  const totalPayable = downPayment + monthlyEmi * months;
+  const processingFee = Math.max(0, Number((params as { processingFee?: string }).processingFee || 0));
+  const totalPayable = price + processingFee;
 
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');

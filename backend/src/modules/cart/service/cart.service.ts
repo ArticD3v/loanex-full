@@ -25,35 +25,47 @@ type CartRow = Awaited<ReturnType<typeof cartRepository.listForUser>>[number];
 
 function resolvePricing(row: CartRow) {
   const variant = row.variant;
+  const product = row.product as any;
   if (variant) {
     const mrp = toNumber(variant.mrp || variant.price);
-    const unitPrice = toNumber(variant.price);
+    const unitPrice = toNumber(variant.sellingPrice ?? variant.discountPrice ?? variant.price);
     const images = parseImages(variant.images);
     return {
       mrp,
-      unitPrice,
+      unitPrice: unitPrice > 0 ? unitPrice : mrp,
       stock: variant.stock,
-      imageUrl: images[0] ?? row.product.image,
+      imageUrl: images[0] ?? product.image,
       variantLabel: variant.variantName,
       sku: variant.sku,
     };
   }
 
-  const mrp = toNumber(row.product.mrp || row.product.price);
-  const unitPrice = toNumber(row.product.price);
+  const mrp = toNumber(product.mrp || product.price);
+  const unitPrice = toNumber(
+    product.sellingPrice ?? product.discountPrice ?? product.price ?? mrp,
+  );
   return {
     mrp,
-    unitPrice,
-    stock: row.product.stock,
-    imageUrl: row.product.image,
-    variantLabel: row.product.variant,
-    sku: row.product.sku,
+    unitPrice: unitPrice > 0 ? unitPrice : mrp,
+    stock: product.stock,
+    imageUrl: product.image,
+    variantLabel: product.variant,
+    sku: product.sku,
   };
+}
+
+function resolveDeliveryCharge(product: any): number {
+  return (
+    toNumber(product?.deliveryCharges) ||
+    toNumber(product?.deliveryCharge) ||
+    toNumber(product?.wizardData?.deliveryCharges) ||
+    0
+  );
 }
 
 function mapItem(row: CartRow) {
   const pricing = resolvePricing(row);
-  const deliveryCharge = toNumber(row.product.deliveryCharge);
+  const deliveryCharge = resolveDeliveryCharge(row.product);
   const lineSubtotal = pricing.unitPrice * row.quantity;
   const lineDiscount = Math.max(pricing.mrp - pricing.unitPrice, 0) * row.quantity;
   const isActive = row.product.status === 'active';

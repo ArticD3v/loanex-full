@@ -10,10 +10,25 @@ export type DownPaymentType = 'amount' | 'percentage';
 export type FirstPaymentRule = 'down_payment' | 'emi_1';
 
 export interface EMICalcResult {
-  tenure: number; totalPayable: number; downPaymentAmount: number;
-  balanceForEMI: number; futureEMICount: number;
-  regularEMIAmount: number; finalEMIAmount: number;
-  firstDueDate: Date; isRounded: boolean;
+  tenure: number;
+  /** Product Price + Processing Fee (+ interest) */
+  totalPayable: number;
+  downPaymentAmount: number;
+  /** Loan Amount (Product Price − Down Payment) */
+  balanceForEMI: number;
+  loanAmount: number;
+  /** Down Payment + Processing Fee */
+  upfrontPayment: number;
+  /** @deprecated Alias of totalEmi */
+  loanTotal: number;
+  /** @deprecated Alias of totalPayable */
+  grandTotal: number;
+  processingFee: number;
+  futureEMICount: number;
+  regularEMIAmount: number;
+  finalEMIAmount: number;
+  firstDueDate: Date;
+  isRounded: boolean;
 }
 
 export interface Brand {
@@ -188,8 +203,19 @@ export interface Review {
 }
 
 export interface EMIPlan {
-  months: number; interestRate: number; monthlyAmount: number;
-  totalAmount: number; processingFee: number;
+  months: number;
+  interestRate: number;
+  monthlyAmount: number;
+  loanAmount: number;
+  upfrontPayment: number;
+  totalPayable: number;
+  /** @deprecated Alias of totalEmi */
+  loanTotal: number;
+  /** @deprecated Alias of totalPayable */
+  grandTotal: number;
+  /** @deprecated Alias of totalPayable */
+  totalAmount: number;
+  processingFee: number;
 }
 
 export interface AuditLog {

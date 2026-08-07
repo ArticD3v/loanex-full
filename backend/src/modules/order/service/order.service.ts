@@ -190,7 +190,7 @@ export class OrderService {
     });
 
     return {
-      absolutePath: generated.absolutePath,
+      buffer: generated.buffer,
       fileName: `${order.orderNumber}-receipt.pdf`,
       orderNumber: order.orderNumber,
     };
@@ -217,7 +217,7 @@ export class OrderService {
     });
 
     return {
-      absolutePath: generated.absolutePath,
+      buffer: generated.buffer,
       fileName: `${order.orderNumber}-invoice.pdf`,
       orderNumber: order.orderNumber,
     };

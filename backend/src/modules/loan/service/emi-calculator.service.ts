@@ -7,8 +7,91 @@ export type ScheduleRow = {
   remainingBalance: number;
 };
 
-function round2(value: number): number {
+export function round2(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+export interface EmiBreakdownInput {
+  productPrice: number;
+  downPayment: number;
+  processingFee: number;
+  tenureMonths: number;
+  annualInterestRatePercent?: number;
+}
+
+export interface EmiBreakdown {
+  productPrice: number;
+  downPayment: number;
+  /** Collected upfront — never financed */
+  processingFee: number;
+  tenureMonths: number;
+  annualInterestRatePercent: number;
+  loanAmount: number;
+  monthlyEmi: number;
+  totalEmi: number;
+  totalInterest: number;
+  /** Down Payment + Processing Fee */
+  upfrontPayment: number;
+  /** Product Price + Processing Fee (+ interest) */
+  totalPayable: number;
+  /** @deprecated Alias of totalEmi */
+  loanTotal: number;
+  /** @deprecated Alias of totalPayable */
+  grandTotal: number;
+}
+
+/**
+ * Canonical EMI breakdown used across the platform.
+ *
+ * Business rules:
+ * - Processing Fee is collected upfront (never financed, never in EMI).
+ * - Loan Amount = Product Price − Down Payment
+ * - Monthly EMI on Loan Amount only
+ * - Upfront Payment = Down Payment + Processing Fee
+ * - Total Payable = Product Price + Processing Fee (+ interest)
+ */
+export function calculateEmiBreakdown(input: EmiBreakdownInput): EmiBreakdown {
+  const productPrice = round2(Math.max(0, input.productPrice));
+  const downPayment = round2(Math.min(Math.max(0, input.downPayment), productPrice));
+  const processingFee = round2(Math.max(0, input.processingFee));
+  const tenureMonths = Math.max(0, Math.floor(input.tenureMonths));
+  const annualInterestRatePercent = Math.max(0, input.annualInterestRatePercent ?? 0);
+
+  const loanAmount = round2(productPrice - downPayment);
+
+  const monthlyEmi = calculateMonthlyEmi(
+    loanAmount,
+    annualInterestRatePercent,
+    tenureMonths,
+  );
+  // At 0% interest, total EMI equals loan amount exactly (avoid paise drift).
+  const totalEmi =
+    annualInterestRatePercent === 0
+      ? loanAmount
+      : round2(monthlyEmi * tenureMonths);
+  const totalInterest =
+    annualInterestRatePercent === 0
+      ? 0
+      : round2(Math.max(0, totalEmi - loanAmount));
+
+  const upfrontPayment = round2(downPayment + processingFee);
+  const totalPayable = round2(productPrice + processingFee + totalInterest);
+
+  return {
+    productPrice,
+    downPayment,
+    processingFee,
+    tenureMonths,
+    annualInterestRatePercent,
+    loanAmount,
+    monthlyEmi,
+    totalEmi,
+    totalInterest,
+    upfrontPayment,
+    totalPayable,
+    loanTotal: totalEmi,
+    grandTotal: totalPayable,
+  };
 }
 
 export function calculateMonthlyEmi(
@@ -72,6 +155,7 @@ export function buildEmiSchedule(input: {
     });
   }
 
+  // Loan-only total (principal + interest). Processing fee / DP are tracked separately.
   const totalPayable = round2(input.principal + totalInterest);
 
   return {

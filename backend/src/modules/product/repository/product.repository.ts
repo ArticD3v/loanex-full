@@ -26,7 +26,7 @@ export class ProductRepository {
       rating: row.rating ?? 0,
       totalReviews: row.totalReviews ?? 0,
       emiStartingFrom: row.emiStartingFrom ?? null,
-      deliveryCharge: row.deliveryCharge ?? 0,
+      deliveryCharge: row.deliveryCharge ?? row.deliveryCharges ?? 0,
       discountPrice:
         row.discountPrice ??
         (row.mrp && row.price && row.mrp > row.price ? row.price : null),

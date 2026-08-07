@@ -21,8 +21,14 @@ export class CheckoutRepository {
       category: product.category || cat?.name || '',
       isFeatured: product.featured ?? false,
       emiStartingFrom: product.emiStartingFrom ?? null,
-      deliveryCharge: product.deliveryCharge ?? 0,
-      discountPrice: product.discountPrice ?? null,
+      // Admin stores deliveryCharges; keep both keys in sync for pricing.
+      deliveryCharge:
+        Number(product.deliveryCharges ?? product.deliveryCharge ?? product.wizardData?.deliveryCharges ?? 0) || 0,
+      deliveryCharges:
+        Number(product.deliveryCharges ?? product.deliveryCharge ?? product.wizardData?.deliveryCharges ?? 0) || 0,
+      mrp: product.mrp ?? product.price ?? 0,
+      sellingPrice: product.sellingPrice ?? product.discountPrice ?? product.price ?? 0,
+      discountPrice: product.discountPrice ?? product.sellingPrice ?? null,
       variants: [],
     };
   }
@@ -99,7 +105,7 @@ export class CheckoutRepository {
     }));
 
     try {
-      const created = jsonDb.insert('orders', {
+      const created = await jsonDb.insertAwaited('orders', {
         userId: input.userId,
         profileId: input.userId,
         addressId: input.addressId,
@@ -109,7 +115,9 @@ export class CheckoutRepository {
         paymentMethod: input.purchaseType === 'EMI' ? 'EMI' : 'FULL_PAYMENT',
         payment_status: 'PENDING',
         status: 'PENDING',
+        orderStatus: 'PENDING',
         items: orderItems,
+        phone: '',
       });
       return {
         id: created.id,
@@ -125,28 +133,17 @@ export class CheckoutRepository {
         updatedAt: created.updatedAt,
         product: firstProduct,
       };
-    } catch {
-      return {
-        id: crypto.randomUUID(),
-        userId: input.userId,
-        items: inputItems,
-        productId: inputItems[0]?.productId,
-        quantity: inputItems[0]?.quantity,
-        purchaseType: input.purchaseType,
-        addressId: input.addressId,
-        totalAmount: input.totalAmount,
-        status: input.status ?? CheckoutSessionStatus.CREATED,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        product: firstProduct,
-      };
+    } catch (error) {
+      // Never return a fake UUID — that caused "Order not found for this account" after confirm.
+      throw error;
     }
   }
 
   async findSessionForUser(sessionId: string, userId: string) {
     try {
       const order = jsonDb.findOne('orders', { id: sessionId });
-      if (order && (order.userId === userId || order.profileId === userId)) {
+      const ownerId = order?.userId ?? order?.user_id ?? order?.profileId ?? order?.profile_id;
+      if (order && ownerId === userId) {
         const items = (order.items as any[]) ?? [];
         const productId = items[0]?.productId;
         const product = productId ? this.findProductById(productId) : null;
@@ -158,8 +155,8 @@ export class CheckoutRepository {
           quantity: items[0]?.quantity ?? 1,
           purchaseType:
             order.paymentMethod === 'EMI' ? PurchaseType.EMI : PurchaseType.DIRECT,
-          addressId: order.addressId ?? '',
-          totalAmount: Number(order.totalAmount),
+          addressId: order.addressId ?? order.address_id ?? '',
+          totalAmount: Number(order.totalAmount ?? order.total_amount ?? order.total),
           status: order.status ?? CheckoutSessionStatus.CREATED,
           createdAt: order.createdAt,
           updatedAt: order.updatedAt,
@@ -175,7 +172,11 @@ export class CheckoutRepository {
 
   async updateSessionStatus(sessionId: string, status: string) {
     try {
-      jsonDb.update('orders', { id: sessionId }, { status });
+      await jsonDb.updateAwaited('orders', { id: sessionId }, {
+        status,
+        orderStatus: status,
+        payment_status: status === 'CONFIRMED' || status === 'ORDER_CONFIRMED' ? 'SUCCESS' : undefined,
+      });
     } catch {
       /* ignore */
     }

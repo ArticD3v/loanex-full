@@ -37,10 +37,14 @@
   <p class="lx-info__sku">SKU: <strong>{{ p.sku }}</strong></p>
 
   <p class="lx-info__deliver">
-    Deliver to: <strong>{{ deliveryPincode() }}</strong>
+    Deliver to:
+    <strong>{{ deliveryPincode() || 'Add pincode' }}</strong>
     <button type="button" (click)="changeDeliveryAddress()">Change</button>
   </p>
 
+  @if (p.shortDescription) {
+    <p class="lx-info__tax">{{ p.shortDescription }}</p>
+  }
   @for (group of attributeGroups(); track group.key) {
     <div class="lx-info__block">
       <span class="lx-info__label">{{ group.label }}:</span>
@@ -112,7 +116,7 @@
   </div>
 
   <div class="lx-info__actions">
-    <button type="button" [disabled]="!p.inStock" (click)="addToCart.emit()">
+    <button type="button" (click)="addToCart.emit()">
       <i class="pi pi-shopping-cart" aria-hidden="true"></i>
       Add to Cart
     </button>

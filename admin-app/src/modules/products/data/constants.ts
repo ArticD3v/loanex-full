@@ -10,7 +10,7 @@ export const STOCK_OWNERSHIP_TYPES = ['Owned', 'Consignment', 'Marketplace'];
 
 export const DELIVERY_CHARGE_METHODS = ['Fixed Rate', 'Distance Based', 'Weight Based', 'Free Shipping'];
 
-export const CUSTOMER_VISIBILITY = ['Public', 'Members Only', 'Hidden'];
+export const CUSTOMER_VISIBILITY = ['Visible', 'Hidden'];
 export const SERVICE_CHARGE_METHODS = ['Flat Fee', 'Percentage', 'Tiered', 'None'];
 
 export const BRANDS = ['Samsung', 'Apple', 'Xiaomi', 'Oppo', 'Vivo'];

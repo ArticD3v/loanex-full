@@ -56,15 +56,13 @@
           [productName]="p.name"
           [productPrice]="p.price"
           [inStock]="p.inStock"
-          [tenureOptions]="tenureOptions"
-          [downPaymentOptions]="downPaymentOptions"
           [emiPlans]="p.emiPlans || []"
         />
       </div>
     </div>
 
     <section class="lx-pdp__trust" aria-label="Shopping guarantees">
-      @for (badge of trustBadges; track badge.id) {
+      @for (badge of trustBadges(); track badge.id) {
         <div class="lx-pdp__trust-item">
           <i [class]="badge.icon" aria-hidden="true"></i>
           <div>

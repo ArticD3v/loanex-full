@@ -1,7 +1,5 @@
 import {
   DeliveryStep,
-  EmiDownPaymentOption,
-  EmiTenureOption,
   TrustBadge,
 } from '../models/product-details.models';
 
@@ -58,28 +56,3 @@ export const DELIVERY_STEPS: DeliveryStep[] = [
     description: 'Handed over at your doorstep',
   },
 ];
-
-export const EMI_TENURE_OPTIONS: EmiTenureOption[] = [
-  { label: '3 Months', value: 3 },
-  { label: '6 Months', value: 6 },
-  { label: '9 Months', value: 9 },
-  { label: '12 Months', value: 12 },
-];
-
-export const EMI_DOWN_PAYMENT_OPTIONS: EmiDownPaymentOption[] = [
-  { label: '₹10,000', value: 10000 },
-  { label: '₹15,000', value: 15000 },
-  { label: '₹20,000', value: 20000 },
-  { label: '₹25,000', value: 25000 },
-];
-
-const PROCESSING_FEE_BY_TENURE: Record<number, number> = {
-  3: 800,
-  6: 1500,
-  9: 1800,
-  12: 2100,
-};
-
-export function getProcessingFee(months: number): number {
-  return PROCESSING_FEE_BY_TENURE[months] ?? 1500;
-}

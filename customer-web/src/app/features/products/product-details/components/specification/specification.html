@@ -22,11 +22,13 @@
                 : p.overviewBody.slice(0, 220) + (p.overviewBody.length > 220 ? '…' : '')
             }}
           </p>
-          <ul>
-            @for (point of p.overviewHighlights; track point) {
-              <li>{{ point }}</li>
-            }
-          </ul>
+          @if (p.overviewHighlights.length) {
+            <ul>
+              @for (point of p.overviewHighlights; track point) {
+                <li>{{ point }}</li>
+              }
+            </ul>
+          }
           <button type="button" class="lx-specs__more" (click)="toggleOverview()">
             {{ overviewExpanded() ? 'Show Less' : 'Show More' }}
             <i
@@ -41,17 +43,30 @@
 
       <p-tabpanel value="specifications">
         <div class="lx-specs__panel">
-          <table class="lx-specs__table">
-            <caption class="sr-only">Technical specifications</caption>
-            <tbody>
-              @for (row of p.specifications; track row.label) {
-                <tr>
-                  <th scope="row">{{ row.label }}</th>
-                  <td>{{ row.value }}</td>
-                </tr>
+          @if (p.specifications.length) {
+            <table class="lx-specs__table">
+              <caption class="sr-only">Technical specifications</caption>
+              <tbody>
+                @for (row of p.specifications; track row.label) {
+                  <tr>
+                    <th scope="row">{{ row.label }}</th>
+                    <td>{{ row.value }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else {
+            <p class="lx-specs__lead">No specifications listed for this product.</p>
+          }
+
+          @if (p.boxContents?.length) {
+            <h3>Box Contents</h3>
+            <ul>
+              @for (item of p.boxContents; track item) {
+                <li>{{ item }}</li>
               }
-            </tbody>
-          </table>
+            </ul>
+          }
         </div>
       </p-tabpanel>
 
@@ -149,22 +164,30 @@
 
       <p-tabpanel value="returns">
         <div class="lx-specs__panel">
-          <ul>
-            @for (item of p.returnsPolicy; track item) {
-              <li>{{ item }}</li>
-            }
-          </ul>
+          @if (p.returnsPolicy.length) {
+            <ul>
+              @for (item of p.returnsPolicy; track item) {
+                <li>{{ item }}</li>
+              }
+            </ul>
+          } @else {
+            <p class="lx-specs__lead">Return policy details will appear here when configured.</p>
+          }
         </div>
       </p-tabpanel>
 
       <p-tabpanel value="qa">
         <div class="lx-specs__panel">
           <div class="lx-specs__qa">
-            @for (item of p.questions; track item.id) {
-              <article>
-                <h4>Q. {{ item.question }}</h4>
-                <p>A. {{ item.answer }}</p>
-              </article>
+            @if (p.questions.length) {
+              @for (item of p.questions; track item.id) {
+                <article>
+                  <h4>Q. {{ item.question }}</h4>
+                  <p>A. {{ item.answer }}</p>
+                </article>
+              }
+            } @else {
+              <p class="lx-specs__lead">No questions answered yet for this product.</p>
             }
           </div>
         </div>

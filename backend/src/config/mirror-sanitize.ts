@@ -220,6 +220,98 @@ function sanitizeCategoriesRow(item: Record<string, any>, mode: 'insert' | 'upda
   });
 }
 
+/**
+ * Orders span two historical schemas (EMI tracking vs checkout ecommerce).
+ * Send portable columns; mirrorInsert strips unknown ones on retry.
+ * Always keep user ownership fields so GET /orders/:id survives hydrate.
+ */
+function sanitizeOrdersRow(item: Record<string, any>, mode: 'insert' | 'update'): Record<string, any> {
+  const now = new Date().toISOString();
+  const userId = item.userId ?? item.user_id;
+  const profileId = item.profileId ?? item.profile_id ?? userId;
+  const addressId = item.addressId ?? item.address_id;
+  const total =
+    item.totalAmount ?? item.total_amount ?? item.total ?? item.subtotal ?? 0;
+  const rawStatus = String(
+    item.orderStatus ?? item.status ?? item.payment_status ?? 'pending',
+  );
+  const statusUpper = rawStatus.toUpperCase();
+  const statusLower = (() => {
+    if (statusUpper.includes('DELIVER')) return 'delivered';
+    if (statusUpper.includes('SHIP')) return 'shipped';
+    if (statusUpper.includes('CANCEL')) return 'cancelled';
+    if (statusUpper.includes('CONFIRM') || statusUpper === 'SUCCESS') return 'confirmed';
+    return 'pending';
+  })();
+  const rawMethod = String(item.paymentMethod ?? item.payment_method ?? '').toUpperCase();
+  const isEmi = rawMethod === 'EMI' || Boolean(item.applicationId);
+  const paymentMethodLegacy = isEmi ? 'EMI' : 'FULL_PAYMENT';
+  const paymentMethodSnake = isEmi ? 'emi' : 'cod';
+  const items = Array.isArray(item.items)
+    ? item.items
+    : item.productId
+      ? [{ productId: item.productId, quantity: item.quantity ?? 1, unitPrice: total }]
+      : [];
+
+  return pickDefined({
+    ...(mode === 'insert' && item.id != null && isUuid(item.id) ? { id: item.id } : {}),
+    userId,
+    user_id: userId,
+    profileId,
+    profile_id: profileId,
+    addressId: isUuid(addressId) ? addressId : undefined,
+    address_id: isUuid(addressId) ? addressId : undefined,
+    totalAmount: total,
+    total_amount: total,
+    subtotal: item.subtotal ?? total,
+    total: item.total ?? total,
+    paymentMethod: paymentMethodLegacy,
+    payment_method: paymentMethodSnake,
+    payment_status: item.payment_status ?? (statusLower === 'confirmed' ? 'SUCCESS' : 'PENDING'),
+    status: statusLower,
+    orderStatus: item.orderStatus ?? statusUpper,
+    items,
+    phone: item.phone != null && String(item.phone).trim() !== '' ? String(item.phone) : '0000000000',
+    notes: item.notes ?? null,
+    addressSnapshot: item.addressSnapshot ?? item.address_snapshot ?? null,
+    address_snapshot: item.addressSnapshot ?? item.address_snapshot ?? null,
+    orderNumber: item.orderNumber,
+    applicationId: isUuid(item.applicationId) ? item.applicationId : undefined,
+    productId: item.productId,
+    quantity: item.quantity ?? (items[0]?.quantity ?? 1),
+    paymentTransactionId: item.paymentTransactionId,
+    estimatedDeliveryDate: item.estimatedDeliveryDate,
+    courierPartner: item.courierPartner,
+    trackingNumber: item.trackingNumber,
+    warehouse: item.warehouse,
+    deliveryAddress: item.deliveryAddress,
+    productBrand: item.productBrand,
+    createdAt: item.createdAt ?? item.created_at ?? (mode === 'insert' ? now : undefined),
+    created_at: item.created_at ?? item.createdAt ?? (mode === 'insert' ? now : undefined),
+    updatedAt: item.updatedAt ?? item.updated_at ?? now,
+    updated_at: item.updated_at ?? item.updatedAt ?? now,
+  });
+}
+
+/** Normalize hydrated Supabase rows so in-memory lookups use camelCase ownership fields. */
+export function normalizeOrderRow(row: Record<string, any>): Record<string, any> {
+  if (!row || typeof row !== 'object') return row;
+  const userId = row.userId ?? row.user_id ?? null;
+  const profileId = row.profileId ?? row.profile_id ?? userId;
+  return {
+    ...row,
+    userId,
+    profileId,
+    addressId: row.addressId ?? row.address_id ?? null,
+    totalAmount: row.totalAmount ?? row.total_amount ?? row.total ?? 0,
+    paymentMethod: row.paymentMethod ?? row.payment_method ?? null,
+    orderStatus: row.orderStatus ?? row.status ?? null,
+    createdAt: row.createdAt ?? row.created_at ?? null,
+    updatedAt: row.updatedAt ?? row.updated_at ?? null,
+    items: Array.isArray(row.items) ? row.items : [],
+  };
+}
+
 /** Strip unknown keys for collections that have broken on schema mismatch. */
 export function sanitizeMirrorPayload(
   collectionName: string,
@@ -241,6 +333,8 @@ export function sanitizeMirrorPayload(
       return sanitizeBannersRow(item, mode);
     case 'categories':
       return sanitizeCategoriesRow(item, mode);
+    case 'orders':
+      return sanitizeOrdersRow(item, mode);
     default: {
       // Drop undefined values; keep the rest for tables that accept flexible JSON.
       const copy = { ...item };

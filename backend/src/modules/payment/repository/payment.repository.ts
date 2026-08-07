@@ -110,7 +110,7 @@ export class PaymentRepository {
     return jsonDb.findOne('paymentTransaction', { id });
   }
 
-  completePaymentAndCreateOrder(input: {
+  async completePaymentAndCreateOrder(input: {
     transactionId: string;
     applicationId: string;
     userId: string;
@@ -136,26 +136,36 @@ export class PaymentRepository {
     let order = existing;
 
     if (!existing) {
-      order = jsonDb.insert('orders', {
+      order = await jsonDb.insertAwaited('orders', {
         orderNumber: input.orderNumber,
         applicationId: input.applicationId,
         userId: input.userId,
+        profileId: input.userId,
         productId: input.productId,
         quantity: 1,
         paymentTransactionId: payment.id,
         orderStatus: OrderStatus.ORDER_CONFIRMED,
+        status: OrderStatus.ORDER_CONFIRMED,
+        paymentMethod: 'EMI',
+        payment_status: 'SUCCESS',
         estimatedDeliveryDate,
         courierPartner: 'LoanEx Express',
         trackingNumber: `LXTRK${Date.now().toString().slice(-10)}`,
         warehouse: 'LoanEx Central Warehouse, Mumbai',
         deliveryAddress: 'Customer registered address',
+        items: [{ productId: input.productId, quantity: 1 }],
+        totalAmount: application?.sellingPrice ?? application?.approvedLoanAmount ?? 0,
+        subtotal: application?.sellingPrice ?? application?.approvedLoanAmount ?? 0,
+        total: application?.sellingPrice ?? application?.approvedLoanAmount ?? 0,
       });
     }
 
     if (existing && !existing.paymentTransactionId) {
-      jsonDb.update('orders', { id: existing.id }, {
+      await jsonDb.updateAwaited('orders', { id: existing.id }, {
         paymentTransactionId: payment.id,
         orderStatus: OrderStatus.ORDER_CONFIRMED,
+        status: OrderStatus.ORDER_CONFIRMED,
+        payment_status: 'SUCCESS',
         estimatedDeliveryDate: existing.estimatedDeliveryDate ?? estimatedDeliveryDate,
       });
       order = jsonDb.findOne('orders', { id: existing.id });

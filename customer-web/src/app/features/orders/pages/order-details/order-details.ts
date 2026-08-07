@@ -207,7 +207,15 @@ export class OrderDetailsComponent implements OnInit {
       next: ({ order, tracking }) => {
         this.loading.set(false);
         this.order.set(order);
-        this.tracking.set(tracking);
+        const steps =
+          tracking.steps?.length
+            ? tracking.steps
+            : ((tracking as { trackingSteps?: OrderTrackingDetails['steps'] }).trackingSteps ?? []);
+        this.tracking.set({
+          ...tracking,
+          ...order,
+          steps,
+        });
 
         const autopay = this.route.snapshot.queryParamMap.get('autopay');
         if (autopay === '1' && order.downPaymentPaid) {

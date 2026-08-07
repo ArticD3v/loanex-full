@@ -25,6 +25,64 @@ function parseImages(images: unknown): string[] {
   return [];
 }
 
+function parseDiscountPercent(value: unknown): number {
+  if (value === null || value === undefined || value === '') return 0;
+  const raw = String(value).trim();
+  const match = raw.match(/(-?\d+(?:\.\d+)?)\s*%/);
+  if (match) return Math.max(0, Number(match[1]));
+  // Bare number only if it looks like a percent field (0–100) and original had %
+  return 0;
+}
+
+function resolveDeliveryCharges(product: any): number {
+  return (
+    toNumber(product?.deliveryCharges) ||
+    toNumber(product?.deliveryCharge) ||
+    toNumber(product?.wizardData?.deliveryCharges) ||
+    toNumber(product?.wizardData?.deliveryCharge) ||
+    0
+  );
+}
+
+function resolveUnitPricing(product: any, variant?: ProductVariant | null) {
+  const mrp = toNumber(
+    variant?.mrp ??
+      variant?.price ??
+      product.mrp ??
+      product.price ??
+      product.sellingPrice,
+  );
+
+  let unitPrice = toNumber(
+    variant?.sellingPrice ??
+      variant?.discountPrice ??
+      product.sellingPrice ??
+      product.discountPrice ??
+      product.price ??
+      mrp,
+  );
+
+  // Prefer explicit discounted/selling price when lower than MRP.
+  const explicitDiscountPrice = variant?.discountPrice ?? product.discountPrice;
+  if (explicitDiscountPrice != null && explicitDiscountPrice !== '') {
+    const discounted = toNumber(explicitDiscountPrice);
+    if (discounted > 0) unitPrice = discounted;
+  }
+
+  let discount = Math.max(mrp - unitPrice, 0);
+
+  // Fallback: wizard/admin percent discount when MRP == selling price.
+  if (discount <= 0) {
+    const pct = parseDiscountPercent(product.discount ?? product.wizardData?.discount);
+    if (pct > 0 && pct < 100 && mrp > 0) {
+      discount = Math.round(((mrp * pct) / 100) * 100) / 100;
+      unitPrice = Math.max(0, mrp - discount);
+    }
+  }
+
+  return { mrp, unitPrice, discount };
+}
+
 function buildSummary(
   items: { product: Product; quantity: number; variant?: ProductVariant | null }[]
 ) {
@@ -37,12 +95,10 @@ function buildSummary(
   
   const summaryItems = items.map(item => {
     const { product, quantity, variant } = item;
-    const mrp = toNumber(variant?.price ?? product.price);
-    const rawDiscount = variant ? variant.discountPrice : product.discountPrice;
-    const unitPrice = rawDiscount == null ? mrp : toNumber(rawDiscount);
-    const deliveryCharges = toNumber(product.deliveryCharge);
+    const { mrp, unitPrice, discount: unitDiscount } = resolveUnitPricing(product, variant);
+    const deliveryCharges = resolveDeliveryCharges(product);
     const productPrice = unitPrice * quantity;
-    const discount = Math.max(mrp - unitPrice, 0) * quantity;
+    const discount = unitDiscount * quantity;
     const stock = variant?.stock ?? product.stock;
     const images = variant ? parseImages(variant.images) : [];
     

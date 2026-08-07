@@ -3,7 +3,14 @@ import fs from 'fs';
 import path from 'path';
 import { supabase } from './supabase';
 import { env } from './env';
-import { sanitizeMirrorPayload } from './mirror-sanitize';
+import { normalizeOrderRow, sanitizeMirrorPayload } from './mirror-sanitize';
+
+function unknownColumnFromError(message: string): string | null {
+  const match =
+    /Could not find the '([^']+)' column/i.exec(message) ||
+    /column "([^"]+)" of relation/i.exec(message);
+  return match?.[1] ?? null;
+}
 
 const { appendFileSync } = fs;
 
@@ -355,7 +362,8 @@ class LocalDatabaseEngine {
           return;
         }
         if (Array.isArray(data)) {
-          (this.data as any)[name] = data;
+          (this.data as any)[name] =
+            name === 'orders' ? data.map((row) => normalizeOrderRow(row)) : data;
           loaded += 1;
           rows += data.length;
         }
@@ -391,13 +399,21 @@ class LocalDatabaseEngine {
   }
 
   private async mirrorInsert(name: string, item: any): Promise<void> {
-    const payload = sanitizeMirrorPayload(name, item, 'insert');
-    try {
-      const { error } = await supabase.from(name).upsert([payload], { onConflict: 'id' });
-      if (error) {
-        // Table without a unique "id" constraint: fall back to a plain insert.
+    let payload: Record<string, any> = sanitizeMirrorPayload(name, item, 'insert');
+    let lastError: any = null;
+
+    // PostgREST rejects unknown columns; strip and retry so orders survive cold starts.
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      try {
+        const { error } = await supabase.from(name).upsert([payload], { onConflict: 'id' });
+        if (!error) return;
+
         const { error: fallbackError } = await supabase.from(name).insert([payload]);
-        if (fallbackError) {
+        if (!fallbackError) return;
+
+        lastError = fallbackError;
+        const unknown = unknownColumnFromError(String(fallbackError.message || error.message));
+        if (!unknown || !(unknown in payload)) {
           this.logMirrorError(
             name,
             'insert',
@@ -405,34 +421,68 @@ class LocalDatabaseEngine {
           );
           throw fallbackError;
         }
+        const next = { ...payload };
+        delete next[unknown];
+        payload = next;
+      } catch (e) {
+        lastError = e;
+        const unknown = unknownColumnFromError(String(e));
+        if (!unknown || !(unknown in payload)) {
+          this.logMirrorError(name, 'insert', String(e));
+          throw e;
+        }
+        const next = { ...payload };
+        delete next[unknown];
+        payload = next;
       }
-    } catch (e) {
-      this.logMirrorError(name, 'insert', String(e));
-      throw e;
     }
+
+    this.logMirrorError(name, 'insert', `exhausted retries | ${String(lastError)}`);
+    throw lastError ?? new Error(`mirror insert failed for ${name}`);
   }
 
   private async mirrorUpdate(name: string, where: Record<string, any>, data: any): Promise<void> {
-    const payload = sanitizeMirrorPayload(name, data, 'update');
-    try {
-      let query = supabase.from(name).update(payload);
-      for (const [key, value] of Object.entries(where)) {
-        if (value === undefined) continue;
-        query = query.eq(key, value);
+    let payload: Record<string, any> = sanitizeMirrorPayload(name, data, 'update');
+    let lastError: any = null;
+
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      try {
+        let query = supabase.from(name).update(payload);
+        for (const [key, value] of Object.entries(where)) {
+          if (value === undefined) continue;
+          query = query.eq(key, value);
+        }
+        const { error } = await query;
+        if (!error) return;
+
+        lastError = error;
+        const unknown = unknownColumnFromError(String(error.message));
+        if (!unknown || !(unknown in payload)) {
+          this.logMirrorError(
+            name,
+            'update',
+            `${error.message} | payload keys: ${Object.keys(payload).join(',')} | payload: ${JSON.stringify(payload).slice(0, 2000)}`,
+          );
+          throw error;
+        }
+        const next = { ...payload };
+        delete next[unknown];
+        payload = next;
+      } catch (e) {
+        lastError = e;
+        const unknown = unknownColumnFromError(String(e));
+        if (!unknown || !(unknown in payload)) {
+          this.logMirrorError(name, 'update', String(e));
+          throw e;
+        }
+        const next = { ...payload };
+        delete next[unknown];
+        payload = next;
       }
-      const { error } = await query;
-      if (error) {
-        this.logMirrorError(
-          name,
-          'update',
-          `${error.message} | payload keys: ${Object.keys(payload).join(',')} | payload: ${JSON.stringify(payload).slice(0, 2000)}`,
-        );
-        throw error;
-      }
-    } catch (e) {
-      this.logMirrorError(name, 'update', String(e));
-      throw e;
     }
+
+    this.logMirrorError(name, 'update', `exhausted retries | ${String(lastError)}`);
+    throw lastError ?? new Error(`mirror update failed for ${name}`);
   }
 
   private async mirrorDelete(name: string, where: Record<string, any>): Promise<void> {

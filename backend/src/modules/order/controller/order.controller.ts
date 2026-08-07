@@ -56,7 +56,8 @@ export class OrderController {
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${receipt.fileName}"`);
-    return res.sendFile(receipt.absolutePath);
+    res.setHeader('Content-Length', String(receipt.buffer.length));
+    return res.send(receipt.buffer);
   };
 
   getInvoice = async (req: Request, res: Response) => {
@@ -68,7 +69,8 @@ export class OrderController {
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${invoice.fileName}"`);
-    return res.sendFile(invoice.absolutePath);
+    res.setHeader('Content-Length', String(invoice.buffer.length));
+    return res.send(invoice.buffer);
   };
 
   adminUpdateStatus = async (req: Request, res: Response) => {

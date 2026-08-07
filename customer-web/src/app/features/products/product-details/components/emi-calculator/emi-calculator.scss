@@ -138,6 +138,24 @@
   }
 }
 
+.lx-emi__btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
+.lx-emi__error {
+  margin: 0 0 0.7rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.55rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 .lx-emi__note {
   display: flex;
   align-items: flex-start;

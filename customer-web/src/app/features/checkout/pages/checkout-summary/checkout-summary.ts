@@ -9,6 +9,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { formatInr } from '../../../../shared/utils/currency';
 import { EmiPlanSelectionService } from '../../../emi/services/emi-plan-selection.service';
+import { calculateEmiBreakdown } from '../../../products/utils/emi-calc.helper';
 import { CheckoutIntentService } from '../../services/checkout-intent.service';
 import {
   CheckoutApiService,
@@ -143,15 +144,24 @@ export class CheckoutSummaryComponent implements OnInit {
         next: (result) => {
           this.submitting.set(false);
           if (result.nextStep === 'EMI_VERIFICATION') {
+            const unitPrice = result.summary.pricing.unitPrice;
+            const downPayment = Math.round(unitPrice * 0.2);
+            const tenure = 6;
+            const emi = calculateEmiBreakdown({
+              productPrice: unitPrice,
+              downPayment,
+              processingFee: 0,
+              tenureMonths: tenure,
+            });
             this.emiPlan.save({
               productId: result.summary.product.id,
               variantId: result.summary.product.variantId ?? this.variantId() ?? undefined,
               productName: result.summary.product.name,
-              sellingPrice: result.summary.pricing.unitPrice,
-              requestedAmount: result.summary.pricing.totalAmount,
-              requestedDownPayment: Math.round(result.summary.pricing.unitPrice * 0.2),
-              requestedTenure: 6,
-              estimatedMonthlyEmi: Math.round(result.summary.pricing.totalAmount / 6),
+              sellingPrice: unitPrice,
+              requestedAmount: emi.loanAmount,
+              requestedDownPayment: downPayment,
+              requestedTenure: tenure,
+              estimatedMonthlyEmi: emi.monthlyEmi,
             });
           }
           void this.router.navigateByUrl(

@@ -31,56 +31,7 @@ export const DESKTOP_NAV_ITEMS: NavItem[] = [
 /** Primary navbar navigation (approved client menu). */
 export const NAVBAR_NAV_ITEMS = DESKTOP_NAV_ITEMS;
 
-export const MEGA_MENU_CATEGORIES: CategoryItem[] = [
-  {
-    id: 'smartphone',
-    label: 'Smartphone',
-    path: '/products',
-    queryParams: { category: 'Smartphone' },
-    icon: 'pi pi-mobile',
-    description: 'Flagship mobiles on EMI',
-  },
-  {
-    id: 'laptop',
-    label: 'Laptop',
-    path: '/products',
-    queryParams: { category: 'Laptop' },
-    icon: 'pi pi-desktop',
-    description: 'Work and creator machines',
-  },
-  {
-    id: 'smart-tv',
-    label: 'Smart TV',
-    path: '/products',
-    queryParams: { category: 'Smart TV' },
-    icon: 'pi pi-desktop',
-    description: '4K and smart entertainment',
-  },
-  {
-    id: 'refrigerator',
-    label: 'Refrigerator',
-    path: '/products',
-    queryParams: { category: 'Refrigerator' },
-    icon: 'pi pi-home',
-    description: 'Frost-free & inverter fridges',
-  },
-  {
-    id: 'washing-machine',
-    label: 'Washing Machine',
-    path: '/products',
-    queryParams: { category: 'Washing Machine' },
-    icon: 'pi pi-sync',
-    description: 'Front load & top load washers',
-  },
-  {
-    id: 'air-conditioner',
-    label: 'Air Conditioner',
-    path: '/products',
-    queryParams: { category: 'Air Conditioner' },
-    icon: 'pi pi-sun',
-    description: 'Inverter split ACs',
-  },
-];
+export const MEGA_MENU_CATEGORIES: CategoryItem[] = [];
 
 export const FOOTER_SECTIONS: FooterSection[] = [
   {
@@ -136,13 +87,13 @@ export const SOCIAL_LINKS: SocialLink[] = [
 export const MOCK_COUNTS = {
   cart: 0,
   wishlist: 0,
-  notifications: 2,
+  notifications: 0,
 } as const;
 
 export const MOCK_USER: MockUser = {
-  name: 'Aarav Mehta',
-  email: 'aarav.mehta@email.com',
-  initials: 'AM',
+  name: '',
+  email: '',
+  initials: '',
 };
 
 /** Path segment → breadcrumb label map for future routes. */

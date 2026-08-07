@@ -54,23 +54,41 @@ function mapAddress(row: {
   };
 }
 
+type JwtIdentity = { email?: string; mobile?: string; fullName?: string };
+
 export class ProfileService {
-  async get(
-    userId: string,
-    identity?: { email?: string; mobile?: string; fullName?: string },
-  ) {
-    // Prefer local/hydrated records. If this serverless instance has neither
-    // users nor profiles yet, fall back to JWT claims (already authenticated).
-    const user =
-      (await profileRepository.findUserById(userId)) ??
-      (identity
-        ? {
-            id: userId,
-            fullName: identity.fullName?.trim() || 'Customer',
-            email: identity.email ?? '',
-            mobile: identity.mobile ?? '',
-          }
-        : null);
+  /**
+   * Resolve the authenticated user for profile ops.
+   * Order: local/Supabase hydrate → JWT claims (token already verified).
+   */
+  private async resolveUser(userId: string, identity?: JwtIdentity) {
+    const hydrated = await profileRepository.findUserById(userId);
+    if (hydrated) {
+      return {
+        ...hydrated,
+        email: hydrated.email || identity?.email || '',
+        mobile: hydrated.mobile || identity?.mobile || '',
+        fullName:
+          hydrated.fullName && hydrated.fullName !== 'Customer'
+            ? hydrated.fullName
+            : identity?.fullName?.trim() || hydrated.fullName || 'Customer',
+      };
+    }
+
+    if (identity?.mobile || identity?.email) {
+      return {
+        id: userId,
+        fullName: identity.fullName?.trim() || 'Customer',
+        email: identity.email ?? '',
+        mobile: identity.mobile ?? '',
+      };
+    }
+
+    return null;
+  }
+
+  async get(userId: string, identity?: JwtIdentity) {
+    const user = await this.resolveUser(userId, identity);
     if (!user) throw new NotFoundError('User not found.');
 
     const profile = await profileRepository.findProfile(userId);
@@ -113,20 +131,24 @@ export class ProfileService {
     };
   }
 
-  async create(userId: string, input: UpsertProfileBody) {
+  async create(userId: string, input: UpsertProfileBody, identity?: JwtIdentity) {
     const existing = await profileRepository.findProfile(userId);
     if (existing) {
       throw new ConflictError('Profile already exists. Use PUT to update.');
     }
-    return this.save(userId, input, 'PROFILE_CREATED');
+    return this.save(userId, input, 'PROFILE_CREATED', identity);
   }
 
-  async update(userId: string, input: UpsertProfileBody) {
-    return this.save(userId, input, 'PROFILE_UPDATED');
+  async update(userId: string, input: UpsertProfileBody, identity?: JwtIdentity) {
+    return this.save(userId, input, 'PROFILE_UPDATED', identity);
   }
 
-  async updatePersonal(userId: string, input: UpdatePersonalBody) {
-    const user = await profileRepository.findUserById(userId);
+  async updatePersonal(
+    userId: string,
+    input: UpdatePersonalBody,
+    identity?: JwtIdentity,
+  ) {
+    const user = await this.resolveUser(userId, identity);
     if (!user) throw new NotFoundError('User not found.');
 
     const dob = new Date(`${input.dob}T00:00:00.000Z`);
@@ -151,7 +173,7 @@ export class ProfileService {
       metadata: { timestamp: new Date().toISOString() },
     });
 
-    return this.get(userId);
+    return this.get(userId, identity);
   }
 
   async listAddresses(userId: string) {
@@ -247,8 +269,13 @@ export class ProfileService {
     return this.listAddresses(userId);
   }
 
-  private async save(userId: string, input: UpsertProfileBody, action: string) {
-    const user = await profileRepository.findUserById(userId);
+  private async save(
+    userId: string,
+    input: UpsertProfileBody,
+    action: string,
+    identity?: JwtIdentity,
+  ) {
+    const user = await this.resolveUser(userId, identity);
     if (!user) throw new NotFoundError('User not found.');
 
     if (user.mobile && !/^[6-9]\d{9}$/.test(user.mobile) && user.mobile.length > 0) {
@@ -285,7 +312,7 @@ export class ProfileService {
       },
     });
 
-    return this.get(userId);
+    return this.get(userId, identity);
   }
 }
 

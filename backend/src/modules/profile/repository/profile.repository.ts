@@ -1,15 +1,33 @@
 import { jsonDb } from '../../../config/json-db';
 import { v4 as uuidv4 } from 'uuid';
+import { authRepository } from '../../auth/auth.repository';
 import type { AddressBody } from '../dto/profile.dto';
 
 export class ProfileRepository {
   async findUserById(userId: string) {
+    // Auth repo hydrates from Supabase when this serverless instance's
+    // in-memory cache missed the user (common after cold start / other instance login).
+    const authUser = await authRepository.findById(userId);
+    if (authUser) {
+      const profile =
+        authUser.profiles ?? jsonDb.findOne('profiles', { id: userId });
+      return {
+        id: userId,
+        fullName: profile?.fullName ?? 'Customer',
+        email: authUser.email ?? profile?.email ?? '',
+        mobile:
+          authUser.phone ??
+          profile?.mobile_number ??
+          profile?.mobileNumber ??
+          '',
+      };
+    }
+
     const user = jsonDb.findOne('users', { id: userId });
     const profile = jsonDb.findOne('profiles', { id: userId });
 
-    // On Vercel (SUPABASE_SYNC_MODE=source), auth.users often fails to hydrate into
-    // the in-memory users collection while public.profiles does sync. Reconstruct
-    // identity from the profile so GET /profile is consistent across instances.
+    // Reconstruct identity from profile so GET/POST /profile stays consistent
+    // when users row is missing but profile already exists.
     if (!user && !profile) return null;
 
     return {

@@ -139,6 +139,39 @@ export interface ProductDetail extends CatalogProduct {
   breadcrumbs: BreadcrumbTrailItem[];
 
   emiPlans?: import('../models/product-details.models').ProductEmiPlan[];
+  warranty?: string;
+  boxContents?: Array<string | { id?: string; value?: string }>;
+  features?: Array<string | { id?: string; value?: string }>;
+  deliveryCharges?: number;
+  deliveryDays?: number;
+  replacementDays?: number;
+
+  /** Raw admin wizard payload — used when top-level fields are empty. */
+  wizardData?: {
+    emiPlans?: Array<{
+      id?: string;
+      months?: number | string;
+      enabled?: boolean;
+      planName?: string;
+      downPayment?: number | string;
+      serviceCharge?: number | string;
+      deliveryCharge?: number | string;
+      minEligibilityAmount?: number | string;
+      customerVisibility?: string;
+      isRecommended?: boolean;
+    }>;
+    emiEnabled?: boolean;
+    warranty?: string;
+    shortDescription?: string;
+    specifications?: Array<{ id?: string; key?: string; value?: string }>;
+    features?: Array<{ id?: string; value?: string }>;
+    boxContents?: Array<{ id?: string; value?: string }>;
+    deliveryCharges?: number | string;
+    deliveryDays?: number | string;
+    replacementDays?: number | string;
+    subCategory?: string;
+    childCategory?: string;
+  };
 }
 
 

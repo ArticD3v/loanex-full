@@ -13,36 +13,46 @@ function requireUserId(req: AuthenticatedRequest): string {
   return req.user!.sub;
 }
 
+function jwtIdentity(req: AuthenticatedRequest) {
+  return {
+    email: req.user?.email,
+    mobile: req.user?.mobile,
+  };
+}
+
 export class ProfileController {
   get = async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
-    const data = await profileService.get(requireUserId(authReq), {
-      email: authReq.user?.email,
-      mobile: authReq.user?.mobile,
-    });
+    const data = await profileService.get(requireUserId(authReq), jwtIdentity(authReq));
     return sendSuccess(res, data, 'Profile fetched');
   };
 
   create = async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     const data = await profileService.create(
-      requireUserId(req as AuthenticatedRequest),
+      requireUserId(authReq),
       req.body as UpsertProfileBody,
+      jwtIdentity(authReq),
     );
     return sendSuccess(res, data, 'Profile created');
   };
 
   update = async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     const data = await profileService.update(
-      requireUserId(req as AuthenticatedRequest),
+      requireUserId(authReq),
       req.body as UpsertProfileBody,
+      jwtIdentity(authReq),
     );
     return sendSuccess(res, data, 'Profile updated');
   };
 
   updatePersonal = async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     const data = await profileService.updatePersonal(
-      requireUserId(req as AuthenticatedRequest),
+      requireUserId(authReq),
       req.body as UpdatePersonalBody,
+      jwtIdentity(authReq),
     );
     return sendSuccess(res, data, 'Personal details updated');
   };

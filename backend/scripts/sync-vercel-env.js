@@ -6,7 +6,23 @@ const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const FRONTEND_URL = 'https://customer-web-beige-iota.vercel.app';
+/** Primary customer frontend (used for redirects / emails). */
+const FRONTEND_URL = 'https://www.mrloanex.com';
+
+/**
+ * Every browser origin that may call the production API.
+ * Keep in sync with backend/src/config/env.ts CORS_ORIGINS default.
+ * Do not strip custom domains — that causes live CORS failures.
+ */
+const PRODUCTION_CORS_ORIGINS = [
+  FRONTEND_URL,
+  'https://loanex.vercel.app',
+  'https://www.mrloanex.com',
+  'https://mrloanex.com',
+  'https://www.loanex.in',
+  'https://loanex.in',
+  'https://admin-app-five-tan.vercel.app',
+];
 
 function parseEnvFile(filePath) {
   const map = {};
@@ -35,11 +51,13 @@ const env = parseEnvFile(path.join(__dirname, '..', '.env'));
 // Production overrides (deployment configuration only)
 env.NODE_ENV = 'production';
 env.FRONTEND_URL = FRONTEND_URL;
-env.CORS_ORIGINS = [
-  FRONTEND_URL,
-  'http://localhost:4200',
-  'http://127.0.0.1:4200',
-].join(',');
+// Merge any extra origins already in .env, but always keep production domains.
+const fromEnv = (env.CORS_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean)
+  .filter((o) => !/localhost|127\.0\.0\.1/i.test(o));
+env.CORS_ORIGINS = [...new Set([...PRODUCTION_CORS_ORIGINS, ...fromEnv])].join(',');
 env.SUPABASE_SYNC_MODE = env.SUPABASE_SYNC_MODE || 'source';
 env.OTP_DEV_ECHO = 'false';
 env.PAYMENT_DEV_BYPASS = 'false';

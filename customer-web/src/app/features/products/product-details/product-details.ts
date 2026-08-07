@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  computed,
   effect,
   inject,
   input,
@@ -17,13 +18,12 @@ import { WishlistService } from '../../wishlist/services/wishlist.service';
 import { LayoutUiService } from '../../../layout/services/layout-ui.service';
 import {
   DELIVERY_STEPS,
-  EMI_DOWN_PAYMENT_OPTIONS,
-  EMI_TENURE_OPTIONS,
   TRUST_BADGES,
 } from '../data/pdp-static.data';
 import {
   BreadcrumbTrailItem,
   ProductDetails as ProductDetailsModel,
+  TrustBadge,
 } from '../models/product-details.models';
 import { ProductsApiService } from '../services/products-api.service';
 import { toProductCardItem } from '../utils/map-catalog-product-card';
@@ -65,14 +65,48 @@ export class ProductDetails {
   readonly product = signal<ProductDetailsModel | null>(null);
   readonly relatedProducts = signal<ProductCardItem[]>([]);
 
-  readonly trustBadges = TRUST_BADGES;
   readonly deliverySteps = DELIVERY_STEPS;
-  readonly tenureOptions = EMI_TENURE_OPTIONS;
-  readonly downPaymentOptions = EMI_DOWN_PAYMENT_OPTIONS;
   readonly cartNotice = signal<string | null>(null);
   readonly wishlistActive = signal(false);
   readonly wishlistItemId = signal<string | null>(null);
   readonly reviewSummary = signal<RatingSummary | null>(null);
+
+  readonly trustBadges = computed<TrustBadge[]>(() => {
+    const p = this.product();
+    if (!p) return TRUST_BADGES;
+
+    const deliveryTitle =
+      p.deliveryCharge && p.deliveryCharge > 0
+        ? `Delivery ₹${Math.round(p.deliveryCharge).toLocaleString('en-IN')}`
+        : 'Free Delivery';
+    const deliverySubtitle =
+      p.deliveryDays && p.deliveryDays > 0
+        ? `Usually in ${p.deliveryDays} days`
+        : 'Fast & Reliable';
+
+    const replacementMatch = p.warrantyLabel?.match(/(\d+)\s*day/i);
+    const returnsDays =
+      p.returnsPolicy?.[0]?.match(/(\d+)\s*-?\s*day/i)?.[1] ||
+      replacementMatch?.[1] ||
+      '7';
+
+    return [
+      {
+        id: 'delivery',
+        icon: 'pi pi-truck',
+        title: deliveryTitle,
+        subtitle: deliverySubtitle,
+      },
+      {
+        id: 'replacement',
+        icon: 'pi pi-refresh',
+        title: `${returnsDays} Days Replacement`,
+        subtitle: 'No questions asked',
+      },
+      TRUST_BADGES[2],
+      TRUST_BADGES[3],
+    ];
+  });
 
   constructor() {
     effect(() => {

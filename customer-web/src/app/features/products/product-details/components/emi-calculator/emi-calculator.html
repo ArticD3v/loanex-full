@@ -1,17 +1,24 @@
 <aside class="lx-emi" aria-labelledby="lx-emi-heading">
   <h2 id="lx-emi-heading">Choose Your EMI Plan</h2>
 
-  <div class="lx-emi__plans" role="list" aria-label="EMI tenure plans">
-    @for (plan of plans(); track plan.months) {
-      <div role="listitem">
-        <app-plan-card
-          [plan]="plan"
-          [selected]="selectedTenure() === plan.months"
-          (select)="selectPlan($event)"
-        />
-      </div>
-    }
-  </div>
+  @if (plans().length === 0) {
+    <p class="lx-emi__note">
+      <i class="pi pi-info-circle" aria-hidden="true"></i>
+      No customer-visible EMI plans are configured for this product.
+    </p>
+  } @else {
+    <div class="lx-emi__plans" role="list" aria-label="EMI tenure plans">
+      @for (plan of plans(); track plan.months) {
+        <div role="listitem">
+          <app-plan-card
+            [plan]="plan"
+            [selected]="activePlan()?.months === plan.months"
+            (select)="selectPlan($event)"
+          />
+        </div>
+      }
+    </div>
+  }
 
   @if (summary(); as plan) {
     <div class="lx-emi__summary" aria-label="Plan summary">
@@ -24,8 +31,12 @@
         <strong class="is-neg">- {{ formatInr(plan.downPayment) }}</strong>
       </div>
       <div>
-        <span>Processing Fee</span>
+        <span>Processing Fee (Upfront)</span>
         <strong class="is-pos">+ {{ formatInr(plan.processingFee) }}</strong>
+      </div>
+      <div>
+        <span>Loan Amount</span>
+        <strong>{{ formatInr(plan.loanAmount) }}</strong>
       </div>
       <div>
         <span>Monthly EMI</span>
@@ -41,15 +52,15 @@
   <button
     type="button"
     class="lx-emi__btn lx-emi__btn--primary"
-    [disabled]="proceeding() || !inStock()"
+    [disabled]="proceeding()"
     (click)="proceedWithEmi()"
   >
-    Proceed with EMI
+    {{ proceeding() ? 'Please wait…' : 'Proceed with EMI' }}
   </button>
   <button
     type="button"
     class="lx-emi__btn lx-emi__btn--secondary"
-    [disabled]="proceeding() || !inStock()"
+    [disabled]="proceeding()"
     (click)="buyNow()"
   >
     Buy Now
@@ -57,14 +68,24 @@
   <button
     type="button"
     class="lx-emi__btn lx-emi__btn--secondary"
-    [disabled]="proceeding() || addingToCart() || !inStock()"
+    [disabled]="proceeding() || addingToCart()"
     (click)="addToCart()"
   >
-    {{ cartMessage() || 'Add to Cart' }}
+    {{ cartMessage() || (addingToCart() ? 'Adding…' : 'Add to Cart') }}
   </button>
+
+  @if (actionError(); as err) {
+    <p class="lx-emi__error" role="alert">{{ err }}</p>
+  }
+  @if (!inStock()) {
+    <p class="lx-emi__note">
+      <i class="pi pi-info-circle" aria-hidden="true"></i>
+      Currently marked out of stock — you can still continue; availability is confirmed at checkout.
+    </p>
+  }
 
   <p class="lx-emi__note">
     <i class="pi pi-info-circle" aria-hidden="true"></i>
-    Final eligibility and plan depend on verification.
+    Processing fee is collected upfront and is not included in EMI. Final eligibility depends on verification.
   </p>
 </aside>
