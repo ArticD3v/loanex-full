@@ -1,0 +1,162 @@
+import { Product } from '../types';
+import { api } from '../lib/apiClient';
+
+export type SortOption = 'relevance' | 'price_asc' | 'price_desc' | 'rating' | 'newest' | 'discount';
+
+export interface FilterOptions {
+  query?: string;
+  categoryIds?: string[];
+  brands?: string[];
+  minPrice?: number;
+  maxPrice?: number;
+  emiOnly?: boolean;
+  minRating?: number;
+  sort?: SortOption;
+}
+
+export async function getProducts(): Promise<Product[]> {
+  try {
+    const res = await api.get('/products');
+    const items = res.data?.items || res.data || [];
+    return items.map((p: any) => ({
+      ...p,
+      image: p.image || p.imageUrl || p.thumbnail || (p.images && p.images[0]) || '',
+      originalPrice: p.originalPrice || p.mrp || p.price,
+      price: p.discountPrice || p.price,
+      reviews: p.reviewCount || p.totalReviews || p.reviews || 0,
+      rating: p.averageRating || p.rating || 0,
+    }));
+  } catch (err: any) {
+    console.error('Error fetching products:', err.message);
+    return [];
+  }
+}
+
+export async function getProductById(id: string): Promise<Product | null> {
+  try {
+    const res = await api.get(`/products/${id}`);
+    const p = res.data;
+    if (!p) return null;
+    return {
+      ...p,
+      image: p.image || p.imageUrl || p.thumbnail || (p.images && p.images[0]) || '',
+      originalPrice: p.originalPrice || p.mrp || p.price,
+      price: p.discountPrice || p.price,
+      reviews: p.reviewCount || p.totalReviews || p.reviews || 0,
+      rating: p.averageRating || p.rating || 0,
+    };
+  } catch {
+    try {
+      const res = await api.get(`/legacy/products/${id}`);
+      return res.data;
+    } catch {
+      return null;
+    }
+  }
+}
+
+export async function filterAndSortProducts(opts: FilterOptions): Promise<Product[]> {
+  let products = await getProducts();
+
+  if (opts.query?.trim()) {
+    const q = opts.query.toLowerCase().trim();
+    products = products.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      (p.brand && p.brand.toLowerCase().includes(q)) ||
+      (p.category && p.category.toLowerCase().includes(q)) ||
+      (p.description && p.description.toLowerCase().includes(q))
+    );
+  }
+
+  if (opts.categoryIds?.length) {
+    const cats = opts.categoryIds.map(c => c.toLowerCase());
+    products = products.filter(p =>
+      cats.includes((p.categoryId || '').toLowerCase()) ||
+      cats.includes((p.category || '').toLowerCase()) ||
+      cats.includes((p.slug || '').toLowerCase()) ||
+      cats.includes((p.id || '').toLowerCase())
+    );
+  }
+
+  if (opts.brands?.length) {
+    const brands = opts.brands.map(b => b.toLowerCase());
+    products = products.filter(p =>
+      brands.includes((p.brand || '').toLowerCase()) ||
+      brands.includes((p.brandId || '').toLowerCase())
+    );
+  }
+
+  if (opts.minPrice !== undefined) {
+    products = products.filter(p => p.price >= opts.minPrice!);
+  }
+  if (opts.maxPrice !== undefined) {
+    products = products.filter(p => p.price <= opts.maxPrice!);
+  }
+
+  if (opts.emiOnly) {
+    products = products.filter(p => p.emiAvailable);
+  }
+
+  if (opts.minRating !== undefined) {
+    products = products.filter(p => p.rating >= opts.minRating!);
+  }
+
+  if (opts.sort) {
+    switch (opts.sort) {
+      case 'price_asc':
+        products.sort((a, b) => a.price - b.price);
+        break;
+      case 'price_desc':
+        products.sort((a, b) => b.price - a.price);
+        break;
+      case 'rating':
+        products.sort((a, b) => b.rating - a.rating);
+        break;
+      case 'newest':
+        products.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+        break;
+      case 'discount':
+        products.sort((a, b) => (b.discountPercent || 0) - (a.discountPercent || 0));
+        break;
+    }
+  }
+
+  return products;
+}
+
+export async function getAllBrands(): Promise<string[]> {
+  const products = await getProducts();
+  const brands = new Set<string>();
+  for (const p of products) {
+    if (p.brand) brands.add(p.brand);
+  }
+  return Array.from(brands).sort();
+}
+
+export async function getPriceRange(): Promise<{ min: number; max: number }> {
+  const products = await getProducts();
+  if (products.length === 0) return { min: 0, max: 100000 };
+  const prices = products.map(p => p.price);
+  return {
+    min: Math.min(...prices),
+    max: Math.max(...prices),
+  };
+}
+
+export async function searchProducts(query: string): Promise<Product[]> {
+  return filterAndSortProducts({ query });
+}
+
+export async function getAllProducts(): Promise<Product[]> { return getProducts(); }
+export async function getProductsByCategory(categoryId: string): Promise<Product[]> {
+  return filterAndSortProducts({ categoryIds: [categoryId] });
+}
+export async function getFeaturedProducts(): Promise<Product[]> { return getProducts(); }
+export async function getDeals(): Promise<Product[]> { return getProducts(); }
+export async function getTrendingProducts(): Promise<Product[]> { return getProducts(); }
+export async function getRecommendedProducts(): Promise<Product[]> { return getProducts(); }
+export async function getNewArrivals(): Promise<Product[]> { return getProducts(); }
+
+export async function createProduct() { throw new Error('Not implemented'); }
+export async function updateProduct() { throw new Error('Not implemented'); }
+export async function deleteProduct() { throw new Error('Not implemented'); }
