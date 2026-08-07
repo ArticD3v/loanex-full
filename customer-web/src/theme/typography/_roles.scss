@@ -1,0 +1,86 @@
+/* Typography role classes — apply to any element; no Angular components. */
+
+.lx-h1 {
+  font-family: var(--lx-font-family);
+  font-size: var(--lx-text-h1);
+  font-weight: var(--lx-font-weight-bold);
+  line-height: var(--lx-leading-tight);
+  letter-spacing: var(--lx-tracking-tight);
+  color: var(--lx-color-text);
+  margin: 0;
+}
+
+.lx-h2 {
+  font-family: var(--lx-font-family);
+  font-size: var(--lx-text-h2);
+  font-weight: var(--lx-font-weight-bold);
+  line-height: var(--lx-leading-tight);
+  letter-spacing: var(--lx-tracking-tight);
+  color: var(--lx-color-text);
+  margin: 0;
+}
+
+.lx-h3 {
+  font-family: var(--lx-font-family);
+  font-size: var(--lx-text-h3);
+  font-weight: var(--lx-font-weight-semibold);
+  line-height: var(--lx-leading-snug);
+  color: var(--lx-color-text);
+  margin: 0;
+}
+
+.lx-h4 {
+  font-family: var(--lx-font-family);
+  font-size: var(--lx-text-h4);
+  font-weight: var(--lx-font-weight-semibold);
+  line-height: var(--lx-leading-snug);
+  color: var(--lx-color-text);
+  margin: 0;
+}
+
+.lx-body-lg {
+  font-family: var(--lx-font-family);
+  font-size: var(--lx-text-body-lg);
+  font-weight: var(--lx-font-weight-regular);
+  line-height: var(--lx-leading-relaxed);
+  color: var(--lx-color-text);
+  margin: 0;
+}
+
+.lx-body {
+  font-family: var(--lx-font-family);
+  font-size: var(--lx-text-body);
+  font-weight: var(--lx-font-weight-regular);
+  line-height: var(--lx-leading-normal);
+  color: var(--lx-color-text);
+  margin: 0;
+}
+
+.lx-text-sm,
+.lx-small {
+  font-family: var(--lx-font-family);
+  font-size: var(--lx-text-sm);
+  font-weight: var(--lx-font-weight-regular);
+  line-height: var(--lx-leading-normal);
+  color: var(--lx-color-text-secondary);
+  margin: 0;
+}
+
+.lx-caption {
+  font-family: var(--lx-font-family);
+  font-size: var(--lx-text-caption);
+  font-weight: var(--lx-font-weight-medium);
+  line-height: var(--lx-leading-normal);
+  letter-spacing: var(--lx-tracking-wide);
+  color: var(--lx-color-text-secondary);
+  margin: 0;
+  text-transform: none;
+}
+
+.lx-text-muted {
+  color: var(--lx-color-text-secondary);
+}
+
+.lx-text-inverse {
+  color: var(--lx-color-text-inverse);
+}

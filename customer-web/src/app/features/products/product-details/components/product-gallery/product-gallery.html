@@ -1,0 +1,45 @@
+@let image = activeImage();
+
+<div class="lx-gallery" aria-label="Product images">
+  <div class="lx-gallery__thumbs" role="list">
+    @for (thumb of visibleThumbs(); track thumb.id; let i = $index) {
+      <button
+        type="button"
+        class="lx-gallery__thumb"
+        role="listitem"
+        [class.is-active]="activeIndex() === i"
+        [attr.aria-label]="'View image ' + (i + 1)"
+        [attr.aria-pressed]="activeIndex() === i"
+        (click)="selectImage(i)"
+      >
+        <img [src]="thumb.src" [alt]="thumb.alt" width="72" height="72" />
+      </button>
+    }
+
+    @if (hiddenCount() > 0) {
+      <button type="button" class="lx-gallery__more" aria-label="View all product images">
+        +{{ hiddenCount() }} View all
+      </button>
+    }
+  </div>
+
+  <div class="lx-gallery__main">
+    <div
+      class="lx-gallery__viewport"
+      (mousemove)="onZoomMove($event)"
+      (mouseleave)="onZoomLeave()"
+    >
+      <img
+        [src]="image.src"
+        [alt]="image.alt || productName()"
+        [ngStyle]="zoomStyle()"
+        width="640"
+        height="640"
+      />
+    </div>
+    <p class="lx-gallery__hint">
+      <i class="pi pi-search" aria-hidden="true"></i>
+      Roll over image to zoom in
+    </p>
+  </div>
+</div>

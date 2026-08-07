@@ -1,0 +1,144 @@
+.lx-auth-card {
+  background: #ffffff;
+  border: 1px solid #e5e9f0;
+  border-radius: 1rem;
+  box-shadow: 0 16px 40px rgba(10, 46, 111, 0.08);
+  padding: 1.6rem 1.45rem 1.4rem;
+  animation: lx-auth-in 360ms ease both;
+}
+
+@keyframes lx-auth-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lx-auth-card__header {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+  margin-bottom: 1.35rem;
+
+  img {
+    border-radius: 0.65rem;
+  }
+
+  h1 {
+    margin: 0;
+    color: #0a2e6f;
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    margin: 0.2rem 0 0;
+    color: #6b7280;
+    font-size: 0.86rem;
+  }
+}
+
+.lx-auth-card__form {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.lx-auth-card__password {
+  position: relative;
+
+  .lx-input {
+    padding-right: 2.75rem;
+  }
+}
+
+.lx-auth-card__eye {
+  position: absolute;
+  right: 0.55rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: #6b7280;
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border-radius: 0.4rem;
+
+  &:hover {
+    color: #0a2e6f;
+    background: #f3f5f8;
+  }
+}
+
+.lx-auth-card__row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -0.25rem;
+}
+
+.lx-auth-card__link,
+.lx-auth-card__footer a {
+  color: #0a2e6f;
+  font-weight: 700;
+  text-decoration: none;
+  font-size: 0.86rem;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.lx-auth-card__footer {
+  margin: 1.15rem 0 0;
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.88rem;
+}
+
+.lx-input-prefix {
+  display: flex;
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: #fff;
+}
+
+.lx-input-prefix__addon {
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  border-right: 1px solid #cbd5e1;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.lx-input-prefix__control {
+  border: none !important;
+  flex: 1;
+  padding: 0.75rem 1rem;
+  outline: none;
+  font-size: 1rem;
+  font-weight: 500;
+  box-shadow: none !important;
+}
+
+@media (max-width: 479.98px) {
+  .lx-auth-card {
+    padding: 1.25rem 1rem 1.15rem;
+  }
+
+  .lx-auth-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+}

@@ -1,0 +1,91 @@
+@use '../mixins' as *;
+
+/* Responsive visibility helpers */
+.lx-hide-sm {
+  @include lx-breakpoint-down(sm) {
+    display: none !important;
+  }
+}
+
+.lx-hide-md {
+  @include lx-breakpoint-down(md) {
+    display: none !important;
+  }
+}
+
+.lx-hide-lg {
+  @include lx-breakpoint-down(lg) {
+    display: none !important;
+  }
+}
+
+.lx-show-sm {
+  display: none !important;
+
+  @include lx-breakpoint-up(sm) {
+    display: initial !important;
+  }
+}
+
+.lx-show-md {
+  display: none !important;
+
+  @include lx-breakpoint-up(md) {
+    display: initial !important;
+  }
+}
+
+.lx-show-lg {
+  display: none !important;
+
+  @include lx-breakpoint-up(lg) {
+    display: initial !important;
+  }
+}
+
+.lx-container-sm {
+  @include lx-breakpoint-up(sm) {
+    max-width: 640px;
+  }
+}
+
+.lx-container-md {
+  @include lx-breakpoint-up(md) {
+    max-width: 768px;
+  }
+}
+
+.lx-container-lg {
+  @include lx-breakpoint-up(lg) {
+    max-width: 1024px;
+  }
+}
+
+.lx-stack-mobile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lx-space-16);
+
+  @include lx-breakpoint-up(md) {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.lx-grid-responsive {
+  display: grid;
+  gap: var(--lx-space-16);
+  grid-template-columns: 1fr;
+
+  @include lx-breakpoint-up(sm) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @include lx-breakpoint-up(lg) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @include lx-breakpoint-up(xl) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

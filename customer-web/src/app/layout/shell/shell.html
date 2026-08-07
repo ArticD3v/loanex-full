@@ -1,0 +1,21 @@
+<div class="lx-shell">
+  <app-navbar />
+
+  <div class="lx-shell__body">
+    @if (ui.showBreadcrumb()) {
+      <div class="lx-shell__breadcrumb lx-container">
+        <app-breadcrumb [items]="ui.breadcrumbItems()" />
+      </div>
+    }
+
+    <main
+      class="lx-shell__main"
+      [class.lx-shell__main--full]="fullWidthMain()"
+      id="main-content"
+    >
+      <router-outlet />
+    </main>
+  </div>
+
+  <app-footer />
+</div>

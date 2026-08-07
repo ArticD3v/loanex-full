@@ -1,0 +1,158 @@
+<div class="lx-track">
+  <section class="lx-track__card" aria-labelledby="lx-track-title">
+    <header class="lx-track__header">
+      <h1 id="lx-track-title">Track Your Order</h1>
+      <p>Monitor your financed order in real time.</p>
+    </header>
+
+    @if (error(); as err) {
+      <div class="lx-track__alert" role="alert">{{ err }}</div>
+      <div class="lx-track__actions">
+        <button type="button" class="lx-btn lx-btn--outline" (click)="goBack()">Back</button>
+        <a routerLink="/" class="lx-btn lx-btn--primary">Back to Home</a>
+      </div>
+    }
+
+    @if (info(); as message) {
+      <div class="lx-track__info" role="status">{{ message }}</div>
+    }
+
+    @if (loading() && !tracking()) {
+      <p class="lx-track__loading" aria-live="polite">Loading order tracking…</p>
+    }
+
+    @if (tracking(); as data) {
+      <div class="lx-track__product">
+        <img [src]="data.productImage" [alt]="data.productName || 'Product'" width="88" height="88" />
+        <div>
+          <p class="lx-track__product-name">{{ data.productName || data.productId }}</p>
+          <p class="lx-track__product-brand">{{ data.productBrand || 'LoanEx' }}</p>
+          <p class="lx-track__product-price">{{ formatMoney(data.productPrice) }}</p>
+        </div>
+      </div>
+
+      <dl class="lx-track__meta">
+        <div>
+          <dt>Order Number</dt>
+          <dd>{{ data.orderNumber }}</dd>
+        </div>
+        <div>
+          <dt>Application Number</dt>
+          <dd>{{ data.applicationNumber }}</dd>
+        </div>
+        <div>
+          <dt>Quantity</dt>
+          <dd>{{ data.quantity || 1 }}</dd>
+        </div>
+        <div>
+          <dt>Order Date</dt>
+          <dd>{{ formatDate(data.createdAt) }}</dd>
+        </div>
+        <div>
+          <dt>Estimated Delivery Date</dt>
+          <dd>{{ formatDeliveryDate(data.estimatedDeliveryDate) }}</dd>
+        </div>
+        <div>
+          <dt>Current Status</dt>
+          <dd><span class="lx-track__badge">{{ data.orderStatus.replaceAll('_', ' ') }}</span></dd>
+        </div>
+      </dl>
+
+      <section class="lx-track__timeline-wrap" aria-labelledby="lx-track-timeline-title">
+        <h2 id="lx-track-timeline-title">Delivery Timeline</h2>
+        <ol class="lx-track__timeline">
+          @for (step of data.steps; track step.status) {
+            <li
+              [class.is-done]="step.completed"
+              [class.is-active]="step.active"
+              [class.is-pending]="!step.completed"
+            >
+              <i
+                class="pi"
+                [class.pi-check]="step.completed"
+                [class.pi-circle]="!step.completed"
+                aria-hidden="true"
+              ></i>
+              <div>
+                <strong>{{ step.label }}</strong>
+                @if (step.timestamp) {
+                  <span>{{ formatDate(step.timestamp) }}</span>
+                } @else if (step.active) {
+                  <span>In progress</span>
+                } @else {
+                  <span>Pending</span>
+                }
+              </div>
+            </li>
+          }
+        </ol>
+      </section>
+
+      <section class="lx-track__shipping" aria-labelledby="lx-track-shipping-title">
+        <h2 id="lx-track-shipping-title">Shipping Details</h2>
+        <dl>
+          <div>
+            <dt>Courier Partner</dt>
+            <dd>{{ data.courierPartner || '—' }}</dd>
+          </div>
+          <div>
+            <dt>Tracking Number</dt>
+            <dd>{{ data.trackingNumber || '—' }}</dd>
+          </div>
+          <div>
+            <dt>Warehouse</dt>
+            <dd>{{ data.warehouse || '—' }}</dd>
+          </div>
+          <div>
+            <dt>Delivery Address</dt>
+            <dd>{{ data.deliveryAddress || '—' }}</dd>
+          </div>
+          <div>
+            <dt>Estimated Delivery Date</dt>
+            <dd>{{ formatDeliveryDate(data.estimatedDeliveryDate) }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      @if (!canOpenEmiDashboard()) {
+        <aside class="lx-track__notice" role="status">
+          <i class="pi pi-info-circle" aria-hidden="true"></i>
+          <p>Your EMI dashboard will be available once your order is marked as Delivered.</p>
+        </aside>
+      }
+
+      <div class="lx-track__actions">
+        <button
+          type="button"
+          class="lx-btn lx-btn--outline"
+          [class.is-loading]="refreshing()"
+          [disabled]="refreshing()"
+          (click)="refreshStatus()"
+        >
+          Refresh Status
+        </button>
+        <button type="button" class="lx-btn lx-btn--outline" (click)="contactSupport()">
+          Contact Support
+        </button>
+        <button
+          type="button"
+          class="lx-btn lx-btn--outline"
+          [class.is-loading]="downloading()"
+          [disabled]="downloading()"
+          (click)="downloadInvoice()"
+        >
+          Download Invoice
+        </button>
+        <button
+          type="button"
+          class="lx-btn lx-btn--primary"
+          [disabled]="!canOpenEmiDashboard()"
+          (click)="goToEmiDashboard()"
+        >
+          Go To EMI Dashboard
+        </button>
+        <button type="button" class="lx-btn lx-btn--outline" (click)="goBack()">Back</button>
+      </div>
+    }
+  </section>
+</div>

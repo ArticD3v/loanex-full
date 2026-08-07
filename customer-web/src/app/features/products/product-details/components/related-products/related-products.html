@@ -1,0 +1,11 @@
+<section class="lx-related" aria-labelledby="lx-related-heading">
+  <div class="lx-related__head">
+    <h2 id="lx-related-heading">You May Also Like</h2>
+  </div>
+
+  <div class="lx-related__track">
+    @for (product of items(); track product.id) {
+      <app-product-card [product]="product" (wishlistToggle)="syncWishlist($event)" />
+    }
+  </div>
+</section>

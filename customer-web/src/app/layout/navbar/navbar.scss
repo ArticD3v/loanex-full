@@ -1,0 +1,141 @@
+:host {
+  display: block;
+  position: sticky;
+  top: 0;
+  z-index: var(--lx-z-sticky);
+}
+
+.lx-navbar {
+  background: #ffffff;
+  border-bottom: 1px solid #e8eaee;
+  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.03);
+  transition: box-shadow 200ms ease;
+}
+
+.lx-navbar--scrolled {
+  box-shadow: 0 2px 8px rgba(17, 24, 39, 0.06);
+}
+
+.lx-navbar__top {
+  background: #ffffff;
+}
+
+.lx-navbar__row {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0.875rem 1.5rem;
+  min-height: 5.25rem;
+}
+
+.lx-navbar__left {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 0.75rem;
+}
+
+.lx-navbar__brand {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+  text-decoration: none;
+
+  &:focus-visible {
+    outline: 2px solid #0a2e6f;
+    outline-offset: 3px;
+    border-radius: 0.25rem;
+  }
+}
+
+.lx-navbar__logo {
+  display: block;
+  height: 4.25rem;
+  width: auto;
+  max-width: 12.5rem;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.lx-navbar__search {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+}
+
+.lx-navbar__right {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-left: 0.25rem;
+}
+
+.lx-navbar__menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  color: #0a2e6f;
+  cursor: pointer;
+
+  &:hover {
+    background: #f8fafc;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0a2e6f;
+    outline-offset: 2px;
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .lx-navbar__menu-btn {
+    display: inline-flex;
+  }
+
+  .lx-navbar__row {
+    gap: 1rem;
+    min-height: 4.5rem;
+    padding: 0.75rem 1.25rem;
+  }
+
+  .lx-navbar__logo {
+    height: 3.5rem;
+    max-width: 10.5rem;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .lx-navbar__row {
+    flex-wrap: wrap;
+    row-gap: 0.75rem;
+    padding: 0.75rem 1rem 0.875rem;
+    min-height: 0;
+  }
+
+  .lx-navbar__left {
+    order: 1;
+  }
+
+  .lx-navbar__right {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .lx-navbar__search {
+    order: 3;
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .lx-navbar__logo {
+    height: 3.15rem;
+    max-width: 9.5rem;
+  }
+}

@@ -1,0 +1,31 @@
+@let offer = content();
+
+@if (offer) {
+  <section class="lx-offer" aria-labelledby="lx-offer-heading">
+    <div class="lx-offer__banner">
+      <div class="lx-offer__media lx-offer__anim">
+        <img
+          class="lx-offer__image"
+          [src]="offer.imageSrc"
+          [alt]="offer.imageAlt"
+          width="420"
+          height="420"
+          decoding="async"
+          loading="lazy"
+        />
+      </div>
+
+      <div class="lx-offer__content lx-offer__anim lx-offer__anim--delay">
+        <h2 id="lx-offer-heading" class="lx-offer__title">
+          <span class="lx-offer__title-line">{{ offer.titleLine1 }}</span>
+          <span class="lx-offer__title-line lx-offer__title-line--accent">{{ offer.titleLine2 }}</span>
+        </h2>
+        <p class="lx-offer__desc">{{ offer.description }}</p>
+        <a class="lx-offer__cta" [routerLink]="offer.ctaPath">
+          <i class="pi pi-sparkles" aria-hidden="true"></i>
+          <span>{{ offer.ctaLabel }}</span>
+        </a>
+      </div>
+    </div>
+  </section>
+}

@@ -1,0 +1,225 @@
+:host {
+  display: contents;
+}
+
+:host ::ng-deep .lx-dialog.p-dialog {
+  border: none;
+  border-radius: 1.25rem;
+  box-shadow: 0 24px 60px rgba(10, 46, 111, 0.18);
+  overflow: hidden;
+}
+
+:host ::ng-deep .lx-dialog .p-dialog-header {
+  padding: 1.15rem 1.25rem 0.35rem;
+  border: none;
+  background: #fff;
+}
+
+:host ::ng-deep .lx-dialog .p-dialog-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #0a2e6f;
+  letter-spacing: -0.01em;
+}
+
+:host ::ng-deep .lx-dialog .p-dialog-header-actions .p-dialog-close-button,
+:host ::ng-deep .lx-dialog .p-dialog-header-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  color: #64748b;
+}
+
+:host ::ng-deep .lx-dialog .p-dialog-content {
+  padding: 0.5rem 1.25rem 1.35rem;
+  background: #fff;
+}
+
+.lx-otp-dialog {
+  display: grid;
+  gap: 1rem;
+}
+
+.lx-otp-dialog__copy {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.lx-otp-dialog__copy strong {
+  display: inline-block;
+  color: #0a2e6f;
+  font-weight: 800;
+}
+
+.lx-otp-group {
+  display: flex;
+  justify-content: center;
+  gap: clamp(0.25rem, 2vw, 0.5rem);
+  flex-wrap: nowrap;
+}
+
+.lx-otp-input {
+  width: clamp(2.15rem, 9vw, 2.7rem);
+  height: clamp(2.55rem, 10vw, 3rem);
+  border: 1.5px solid #dbe3f0;
+  border-radius: 0.75rem;
+  text-align: center;
+  font-size: clamp(1rem, 4vw, 1.2rem);
+  font-weight: 800;
+  color: #0a2e6f;
+  font-family: inherit;
+  background: #f8fafc;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+
+  &:focus {
+    background: #fff;
+    border-color: #0a2e6f;
+    box-shadow: 0 0 0 3px rgba(10, 46, 111, 0.14);
+  }
+
+  &:disabled {
+    background: #f1f5f9;
+    opacity: 0.8;
+  }
+}
+
+.lx-otp-dialog__error {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.75rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.lx-otp-dialog__verify {
+  width: 100%;
+  border: 0;
+  border-radius: 0.85rem;
+  padding: 0.85rem 1rem;
+  background: #0a2e6f;
+  color: #fff;
+  font-size: 0.98rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease, opacity 160ms ease;
+
+  &:hover:not(:disabled) {
+    background: #082455;
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &.is-loading {
+    opacity: 0.8;
+  }
+}
+
+.lx-otp-dialog__footer {
+  text-align: center;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.lx-otp-dialog__footer strong {
+  color: #d4a12a;
+}
+
+.lx-otp-dialog__resend {
+  border: 0;
+  background: none;
+  color: #0a2e6f;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0.25rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    text-decoration: none;
+  }
+}
+
+.lx-otp-dialog__success {
+  display: grid;
+  justify-items: center;
+  gap: 0.55rem;
+  padding: 0.75rem 0 0.35rem;
+  text-align: center;
+  animation: lx-otp-success-in 420ms ease both;
+
+  h3 {
+    margin: 0;
+    color: #0a2e6f;
+    font-size: 1.15rem;
+    font-weight: 800;
+  }
+
+  p {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.9rem;
+  }
+}
+
+.lx-otp-dialog__success-icon {
+  width: 3.6rem;
+  height: 3.6rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #16a34a;
+  color: #fff;
+  font-size: 1.4rem;
+  animation: lx-otp-pop 480ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+@keyframes lx-otp-success-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes lx-otp-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 479.98px) {
+  .lx-otp-group {
+    gap: 0.28rem;
+  }
+}

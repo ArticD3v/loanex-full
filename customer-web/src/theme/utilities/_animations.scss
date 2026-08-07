@@ -1,0 +1,67 @@
+/* Animation & motion utilities */
+.lx-transition-fast { transition: var(--lx-transition-fast); }
+.lx-transition-normal { transition: var(--lx-transition-normal); }
+.lx-transition-slow { transition: var(--lx-transition-slow); }
+.lx-transition-hover { transition: var(--lx-transition-hover); }
+.lx-transition-card { transition: var(--lx-transition-card); }
+.lx-transition-button { transition: var(--lx-transition-button); }
+
+.lx-anim-fade-in {
+  animation: lx-fade-in var(--lx-duration-normal) var(--lx-easing-decelerate) both;
+}
+
+.lx-anim-fade-up {
+  animation: lx-fade-up var(--lx-duration-normal) var(--lx-easing-decelerate) both;
+}
+
+.lx-anim-scale-in {
+  animation: lx-scale-in var(--lx-duration-normal) var(--lx-easing-emphasized) both;
+}
+
+.lx-anim-spin {
+  animation: lx-spin 0.8s linear infinite;
+}
+
+.lx-anim-pulse {
+  animation: lx-pulse 1.4s ease-in-out infinite;
+}
+
+.lx-hover-lift {
+  transition: var(--lx-transition-hover);
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+}
+
+.lx-card-interactive {
+  transition: var(--lx-transition-card);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--lx-shadow-hover);
+  }
+}
+
+.lx-btn-animated {
+  transition: var(--lx-transition-button);
+
+  &:active:not(:disabled) {
+    animation: lx-btn-press var(--lx-duration-fast) var(--lx-easing-emphasized);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lx-anim-fade-in,
+  .lx-anim-fade-up,
+  .lx-anim-scale-in,
+  .lx-anim-spin,
+  .lx-anim-pulse,
+  .lx-hover-lift,
+  .lx-card-interactive,
+  .lx-btn-animated {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

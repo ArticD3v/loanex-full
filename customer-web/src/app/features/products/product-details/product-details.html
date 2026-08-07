@@ -1,0 +1,112 @@
+@if (loading()) {
+  <div class="lx-pdp" aria-live="polite">
+    <div class="lx-loader-section">
+      <div class="lx-spinner" aria-hidden="true"></div>
+    </div>
+    <div class="lx-pdp__top">
+      <span class="lx-skeleton lx-skeleton--media"></span>
+      <div>
+        <span class="lx-skeleton lx-skeleton--title"></span>
+        <span class="lx-skeleton lx-skeleton--text"></span>
+        <span class="lx-skeleton lx-skeleton--text"></span>
+      </div>
+      <span class="lx-skeleton lx-skeleton--card"></span>
+    </div>
+  </div>
+} @else if (error(); as err) {
+  <div class="lx-pdp">
+    <div class="lx-catalog__alert" role="alert">{{ err }}</div>
+  </div>
+} @else if (!product()) {
+  <div class="lx-pdp">
+    <div class="lx-catalog__empty">
+      <i class="pi pi-box" aria-hidden="true"></i>
+      <h2>Product not found</h2>
+      <p>This product is unavailable or no longer listed.</p>
+    </div>
+  </div>
+} @else {
+  @let p = product()!;
+
+  <div class="lx-pdp">
+    @if (cartNotice(); as notice) {
+      <div class="lx-pdp__notice" role="status">{{ notice }}</div>
+    }
+    <div class="lx-pdp__top">
+      <div class="lx-pdp__gallery">
+        <app-product-gallery [images]="p.images" [productName]="p.name" />
+      </div>
+
+      <div class="lx-pdp__details">
+        <app-product-info
+          [product]="p"
+          [wishlistActive]="wishlistActive()"
+          [apiRating]="reviewSummary()?.averageRating ?? null"
+          [apiReviewCount]="reviewSummary()?.totalReviews ?? null"
+          (variantChange)="onVariantChange($event)"
+          (addToCart)="onAddToCart()"
+          (wishlistToggle)="onWishlistToggle()"
+        />
+      </div>
+
+      <div class="lx-pdp__emi">
+        <app-emi-calculator
+          [productId]="p.id"
+          [variantId]="p.selectedVariantId"
+          [productName]="p.name"
+          [productPrice]="p.price"
+          [inStock]="p.inStock"
+          [tenureOptions]="tenureOptions"
+          [downPaymentOptions]="downPaymentOptions"
+          [emiPlans]="p.emiPlans || []"
+        />
+      </div>
+    </div>
+
+    <section class="lx-pdp__trust" aria-label="Shopping guarantees">
+      @for (badge of trustBadges; track badge.id) {
+        <div class="lx-pdp__trust-item">
+          <i [class]="badge.icon" aria-hidden="true"></i>
+          <div>
+            <strong>{{ badge.title }}</strong>
+            <span>{{ badge.subtitle }}</span>
+          </div>
+        </div>
+      }
+    </section>
+
+    <div class="lx-pdp__lower">
+      <div class="lx-pdp__tabs">
+        <app-specification
+          [product]="p"
+          [productId]="productId()"
+          (ratingSummaryChange)="reviewSummary.set($event)"
+        />
+      </div>
+
+      <section class="lx-pdp__delivery" aria-labelledby="lx-delivery-heading">
+        <h2 id="lx-delivery-heading">How Delivery Works</h2>
+        <ol class="lx-pdp__steps">
+          @for (step of deliverySteps; track step.id; let last = $last) {
+            <li class="lx-pdp__step">
+              <div class="lx-pdp__step-icon">
+                <i [class]="step.icon" aria-hidden="true"></i>
+              </div>
+              <div>
+                <strong>{{ step.label }}</strong>
+                <span>{{ step.description }}</span>
+              </div>
+            </li>
+            @if (!last) {
+              <li class="lx-pdp__arrow" aria-hidden="true">
+                <i class="pi pi-arrow-right"></i>
+              </li>
+            }
+          }
+        </ol>
+      </section>
+    </div>
+
+    <app-related-products [products]="relatedProducts()" />
+  </div>
+}

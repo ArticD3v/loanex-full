@@ -1,0 +1,96 @@
+/* —— Loaders & skeletons —— */
+
+.lx-loader-page {
+  position: fixed;
+  inset: 0;
+  z-index: var(--lx-z-overlay, 1200);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(248, 250, 252, 0.82);
+  backdrop-filter: blur(2px);
+}
+
+.lx-loader-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 12rem;
+  width: 100%;
+  padding: var(--lx-space-32);
+}
+
+.lx-spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid var(--lx-primary-100);
+  border-top-color: var(--lx-color-primary);
+  border-radius: 50%;
+  animation: lx-spin 0.75s linear infinite;
+}
+
+.lx-spinner--sm {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-width: 2px;
+}
+
+.lx-spinner--lg {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-width: 4px;
+}
+
+.lx-btn-loader {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: lx-spin 0.7s linear infinite;
+}
+
+.lx-skeleton {
+  display: block;
+  background: linear-gradient(
+    90deg,
+    var(--lx-color-bg) 0%,
+    #eef2f7 40%,
+    var(--lx-color-bg) 80%
+  );
+  background-size: 200% 100%;
+  animation: lx-shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--lx-radius-md);
+}
+
+.lx-skeleton--text {
+  height: 0.875rem;
+  width: 100%;
+  margin-bottom: var(--lx-space-8);
+}
+
+.lx-skeleton--title {
+  height: 1.25rem;
+  width: 60%;
+  margin-bottom: var(--lx-space-12);
+}
+
+.lx-skeleton--avatar {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--lx-radius-pill);
+}
+
+.lx-skeleton--card {
+  height: 10rem;
+  width: 100%;
+}
+
+.lx-skeleton--media {
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  border-radius: var(--lx-radius-lg);
+}

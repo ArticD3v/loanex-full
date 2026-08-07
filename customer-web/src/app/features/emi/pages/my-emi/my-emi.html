@@ -1,0 +1,271 @@
+<div class="lx-emi-dash">
+  <section class="lx-emi-dash__card" aria-labelledby="lx-emi-dash-title">
+    <header class="lx-emi-dash__header">
+      <h1 id="lx-emi-dash-title">My EMI</h1>
+      <p>Manage your active loan.</p>
+    </header>
+
+    @if (error(); as err) {
+      <div class="lx-emi-dash__alert" role="alert">{{ err }}</div>
+    }
+    @if (info(); as message) {
+      <div class="lx-emi-dash__info" role="status">{{ message }}</div>
+    }
+
+    @if (loading() && !dashboard()) {
+      <p class="lx-emi-dash__loading" aria-live="polite">Loading EMI dashboard…</p>
+    }
+
+    @if (!loading() && !dashboard() && error()) {
+      <div class="lx-emi-dash__actions">
+        <a routerLink="/order/confirmation" class="lx-btn lx-btn--outline">Order Confirmation</a>
+        <a routerLink="/" class="lx-btn lx-btn--primary">Back to Home</a>
+      </div>
+    }
+
+    @if (dashboard(); as data) {
+      <div class="lx-emi-dash__product">
+        <img
+          [src]="data.loan.productImage"
+          [alt]="data.loan.productName || 'Product'"
+          width="88"
+          height="88"
+        />
+        <div>
+          <p class="lx-emi-dash__product-name">{{ data.loan.productName || data.loan.productId }}</p>
+          <p class="lx-emi-dash__product-price">{{ formatMoney(data.loan.productPrice) }}</p>
+        </div>
+      </div>
+
+      <section aria-labelledby="lx-emi-loan-summary-title">
+        <h2 id="lx-emi-loan-summary-title" class="lx-emi-dash__section-title">Loan Summary</h2>
+        <dl class="lx-emi-dash__meta">
+          <div>
+            <dt>Loan Account Number</dt>
+            <dd>{{ data.loan.loanAccountNumber }}</dd>
+          </div>
+          <div>
+            <dt>Application Number</dt>
+            <dd>{{ data.loan.applicationNumber }}</dd>
+          </div>
+          <div>
+            <dt>Loan Amount</dt>
+            <dd>{{ formatMoney(data.loan.loanAmount) }}</dd>
+          </div>
+          <div>
+            <dt>Down Payment Paid</dt>
+            <dd class="is-gold">{{ formatMoney(data.loan.downPaymentPaid) }}</dd>
+          </div>
+          <div>
+            <dt>Processing Fee</dt>
+            <dd>{{ formatMoney(data.loan.processingFee) }}</dd>
+          </div>
+          <div>
+            <dt>Interest Rate</dt>
+            <dd>{{ data.loan.interestRate }}%</dd>
+          </div>
+          <div>
+            <dt>Loan Tenure</dt>
+            <dd>{{ data.loan.loanTenure }} months</dd>
+          </div>
+          <div>
+            <dt>Loan Start Date</dt>
+            <dd>{{ formatDate(data.loan.loanStartDate) }}</dd>
+          </div>
+          <div>
+            <dt>Loan End Date</dt>
+            <dd>{{ formatDate(data.loan.loanEndDate) }}</dd>
+          </div>
+          <div>
+            <dt>Loan Status</dt>
+            <dd>
+              <span class="lx-emi-dash__badge" [class.is-active]="hasActiveLoan()">
+                {{ formatStatus(data.loan.loanStatus) }}
+              </span>
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section aria-labelledby="lx-emi-cards-title">
+        <h2 id="lx-emi-cards-title" class="lx-emi-dash__section-title">Summary</h2>
+        <div class="lx-emi-dash__cards">
+          <article>
+            <span>Outstanding Balance</span>
+            <strong>{{ formatMoney(data.summary.outstandingBalance) }}</strong>
+          </article>
+          <article>
+            <span>Total Loan Amount</span>
+            <strong>{{ formatMoney(data.summary.totalLoanAmount) }}</strong>
+          </article>
+          <article>
+            <span>Total Interest</span>
+            <strong>{{ formatMoney(data.summary.totalInterest) }}</strong>
+          </article>
+          <article>
+            <span>Total Payable</span>
+            <strong>{{ formatMoney(data.summary.totalPayable) }}</strong>
+          </article>
+          <article>
+            <span>EMIs Paid</span>
+            <strong>{{ data.summary.emisPaid }}</strong>
+          </article>
+          <article>
+            <span>Remaining EMIs</span>
+            <strong>{{ data.summary.remainingEmis }}</strong>
+          </article>
+          <article>
+            <span>Next EMI Amount</span>
+            <strong class="is-gold">{{ formatMoney(data.summary.nextEmiAmount) }}</strong>
+          </article>
+          <article>
+            <span>Next EMI Due Date</span>
+            <strong>{{ formatDate(data.summary.nextEmiDueDate) }}</strong>
+          </article>
+        </div>
+      </section>
+
+      @if (data.nextEmi; as next) {
+        <section class="lx-emi-dash__next" aria-labelledby="lx-emi-next-title">
+          <h2 id="lx-emi-next-title">Next EMI</h2>
+          <dl>
+            <div>
+              <dt>EMI Number</dt>
+              <dd>#{{ next.emiNumber }}</dd>
+            </div>
+            <div>
+              <dt>Amount</dt>
+              <dd class="is-gold">{{ formatMoney(next.amount) }}</dd>
+            </div>
+            <div>
+              <dt>Due Date</dt>
+              <dd>{{ formatDate(next.dueDate) }}</dd>
+            </div>
+            <div>
+              <dt>Days Remaining</dt>
+              <dd>{{ next.daysRemaining }}</dd>
+            </div>
+            <div>
+              <dt>Status</dt>
+              <dd>
+                <span class="lx-emi-dash__badge">{{ formatStatus(next.status) }}</span>
+              </dd>
+            </div>
+          </dl>
+          <button
+            type="button"
+            class="lx-btn lx-btn--primary"
+            [disabled]="!data.canPayEmi"
+            (click)="payEmi()"
+          >
+            Pay EMI
+          </button>
+        </section>
+      }
+
+      <section aria-labelledby="lx-emi-payments-title">
+        <h2 id="lx-emi-payments-title" class="lx-emi-dash__section-title">Recent Payments</h2>
+        @if (data.recentPayments.length === 0) {
+          <p class="lx-emi-dash__empty">No EMI payments yet. Your first instalment will appear here after payment.</p>
+        } @else {
+          <div class="lx-emi-dash__table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>EMI Number</th>
+                  <th>Due Date</th>
+                  <th>Paid Date</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Receipt</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (payment of data.recentPayments; track payment.emiNumber) {
+                  <tr>
+                    <td data-label="EMI Number">#{{ payment.emiNumber }}</td>
+                    <td data-label="Due Date">{{ formatDate(payment.dueDate) }}</td>
+                    <td data-label="Paid Date">{{ formatDate(payment.paidDate) }}</td>
+                    <td data-label="Amount">{{ formatMoney(payment.amount) }}</td>
+                    <td data-label="Status">{{ formatStatus(payment.status) }}</td>
+                    <td data-label="Receipt">{{ payment.receiptAvailable ? 'Available' : '—' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+
+      @if (showSchedule()) {
+        <section id="lx-emi-schedule" aria-labelledby="lx-emi-schedule-title">
+          <h2 id="lx-emi-schedule-title" class="lx-emi-dash__section-title">EMI Schedule</h2>
+          <div class="lx-emi-dash__table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>EMI #</th>
+                  <th>Due Date</th>
+                  <th>Principal</th>
+                  <th>Interest</th>
+                  <th>EMI</th>
+                  <th>Balance</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of data.schedule; track row.id) {
+                  <tr>
+                    <td data-label="EMI #">#{{ row.emiNumber }}</td>
+                    <td data-label="Due Date">{{ formatDate(row.dueDate) }}</td>
+                    <td data-label="Principal">{{ formatMoney(row.principalAmount) }}</td>
+                    <td data-label="Interest">{{ formatMoney(row.interestAmount) }}</td>
+                    <td data-label="EMI">{{ formatMoney(row.emiAmount) }}</td>
+                    <td data-label="Balance">{{ formatMoney(row.remainingBalance) }}</td>
+                    <td data-label="Status">{{ formatStatus(row.paymentStatus) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+
+      <section aria-labelledby="lx-emi-actions-title">
+        <h2 id="lx-emi-actions-title" class="lx-emi-dash__section-title">Quick Actions</h2>
+        <div class="lx-emi-dash__actions">
+          <button type="button" class="lx-btn lx-btn--primary" [disabled]="!data.canPayEmi" (click)="payEmi()">
+            Pay EMI
+          </button>
+          <button type="button" class="lx-btn lx-btn--outline" (click)="viewSchedule()">
+            View EMI Schedule
+          </button>
+          <a routerLink="/my-emi/payment-history" class="lx-btn lx-btn--outline">Payment History</a>
+          <a routerLink="/my-emi/statement" class="lx-btn lx-btn--outline">Loan Statement</a>
+          <button
+            type="button"
+            class="lx-btn lx-btn--outline"
+            [disabled]="downloading()"
+            (click)="downloadStatement()"
+          >
+            Download Loan Statement
+          </button>
+          <button
+            type="button"
+            class="lx-btn lx-btn--outline"
+            [disabled]="downloading()"
+            (click)="downloadAgreement()"
+          >
+            Download Agreement
+          </button>
+          <button type="button" class="lx-btn lx-btn--outline" (click)="contactSupport()">
+            Contact Support
+          </button>
+          <a routerLink="/my-emi/autopay" class="lx-btn lx-btn--outline">Enable AutoPay</a>
+          <button type="button" class="lx-btn lx-btn--outline" (click)="refresh()">Refresh</button>
+          <a routerLink="/" class="lx-btn lx-btn--outline">Back to Home</a>
+        </div>
+      </section>
+    }
+  </section>
+</div>

@@ -1,0 +1,149 @@
+<div class="lx-summary">
+  <header class="lx-summary__header">
+    <h1>Verification Summary</h1>
+    <p>Please review your verified information before submitting your EMI application.</p>
+  </header>
+
+  @if (error(); as err) {
+    <div class="lx-summary__alert" role="alert">{{ err }}</div>
+  }
+
+  @if (loading() && !review()) {
+    <div class="lx-summary__loading" aria-live="polite">Loading verification summary…</div>
+  }
+
+  @if (review(); as ctx) {
+    <div class="lx-summary__grid">
+      <section class="lx-summary__card" aria-labelledby="lx-personal-title">
+        <h2 id="lx-personal-title">Personal Details</h2>
+        <dl class="lx-summary__dl">
+          <div>
+            <dt>Full Name</dt>
+            <dd>{{ ctx.personal.fullName }}</dd>
+          </div>
+          <div>
+            <dt>Mobile Number</dt>
+            <dd>+91 {{ ctx.personal.mobile }}</dd>
+          </div>
+          <div>
+            <dt>Email</dt>
+            <dd>{{ ctx.personal.email }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="lx-summary__card" aria-labelledby="lx-aadhaar-title">
+        <div class="lx-summary__card-top">
+          <h2 id="lx-aadhaar-title">Aadhaar</h2>
+          <span class="lx-summary__chip" [class.is-ok]="ctx.aadhaar.verified">{{ ctx.aadhaar.status }}</span>
+        </div>
+        <dl class="lx-summary__dl">
+          <div>
+            <dt>Masked Aadhaar Number</dt>
+            <dd>{{ ctx.aadhaar.aadhaarNumberMasked || '—' }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="lx-summary__card" aria-labelledby="lx-pan-title">
+        <div class="lx-summary__card-top">
+          <h2 id="lx-pan-title">PAN</h2>
+          <span class="lx-summary__chip" [class.is-ok]="ctx.pan.verified">{{ ctx.pan.status }}</span>
+        </div>
+        <dl class="lx-summary__dl">
+          <div>
+            <dt>Masked PAN Number</dt>
+            <dd>{{ ctx.pan.panNumberMasked || '—' }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <!-- Bank Details — temporarily hidden while bank verification is disabled
+      <section class="lx-summary__card" aria-labelledby="lx-bank-title">
+        <div class="lx-summary__card-top">
+          <h2 id="lx-bank-title">Bank Details</h2>
+          <span class="lx-summary__chip" [class.is-ok]="ctx.bank.verified">{{ ctx.bank.status }}</span>
+        </div>
+        <dl class="lx-summary__dl">
+          <div>
+            <dt>Account Holder Name</dt>
+            <dd>{{ ctx.bank.accountHolderName || '—' }}</dd>
+          </div>
+          <div>
+            <dt>Bank Name</dt>
+            <dd>{{ ctx.bank.bankName || '—' }}</dd>
+          </div>
+          <div>
+            <dt>Masked Account Number</dt>
+            <dd>{{ ctx.bank.accountNumberMasked || '—' }}</dd>
+          </div>
+          <div>
+            <dt>IFSC Code</dt>
+            <dd>{{ ctx.bank.ifscCode || '—' }}</dd>
+          </div>
+        </dl>
+      </section>
+      -->
+
+      @if (product(); as plan) {
+        <section class="lx-summary__card lx-summary__card--wide" aria-labelledby="lx-product-title">
+          <h2 id="lx-product-title">Product Summary</h2>
+          <dl class="lx-summary__dl lx-summary__dl--grid">
+            <div>
+              <dt>Product Name</dt>
+              <dd>{{ plan.productName }}</dd>
+            </div>
+            <div>
+              <dt>Selling Price</dt>
+              <dd>{{ formatInr(plan.sellingPrice) }}</dd>
+            </div>
+            <div>
+              <dt>Requested Loan Amount</dt>
+              <dd>{{ formatInr(plan.requestedAmount) }}</dd>
+            </div>
+            <div>
+              <dt>Requested Down Payment</dt>
+              <dd>{{ formatInr(plan.requestedDownPayment) }}</dd>
+            </div>
+            <div>
+              <dt>Requested EMI Tenure</dt>
+              <dd>{{ plan.requestedTenure }} months</dd>
+            </div>
+            <div>
+              <dt>Monthly EMI (estimated)</dt>
+              <dd>{{ formatInr(plan.estimatedMonthlyEmi) }}</dd>
+            </div>
+          </dl>
+        </section>
+      }
+
+      <section class="lx-summary__card lx-summary__card--wide" aria-labelledby="lx-declare-title">
+        <h2 id="lx-declare-title">Declaration</h2>
+        <label class="lx-summary__consent">
+          <input
+            type="checkbox"
+            [checked]="accepted()"
+            (change)="onAcceptChange($event)"
+          />
+          <span>
+            I confirm that all the information provided is accurate and I agree to the Terms &amp;
+            Conditions.
+          </span>
+        </label>
+
+        <div class="lx-summary__actions">
+          <a routerLink="/verification" class="lx-btn lx-btn--outline">Back</a>
+          <button
+            type="button"
+            class="lx-btn lx-btn--primary"
+            [class.is-loading]="submitting()"
+            [disabled]="!canSubmit()"
+            (click)="submitApplication()"
+          >
+            Submit EMI Application
+          </button>
+        </div>
+      </section>
+    </div>
+  }
+</div>

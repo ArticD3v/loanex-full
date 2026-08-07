@@ -1,0 +1,193 @@
+<div class="lx-ph">
+  <section class="lx-ph__card" aria-labelledby="lx-ph-title">
+    <header class="lx-ph__header">
+      <h1 id="lx-ph-title">Payment History</h1>
+      <p>View all EMI transactions and download receipts.</p>
+    </header>
+
+    @if (error(); as err) {
+      <div class="lx-ph__alert" role="alert">{{ err }}</div>
+    }
+    @if (info(); as message) {
+      <div class="lx-ph__info" role="status">{{ message }}</div>
+    }
+
+    @if (loading() && !history()) {
+      <p class="lx-ph__loading" aria-live="polite">Loading payment history…</p>
+    }
+
+    @if (history(); as data) {
+      <section aria-labelledby="lx-ph-summary-title">
+        <h2 id="lx-ph-summary-title" class="lx-ph__section-title">Summary</h2>
+        <div class="lx-ph__cards">
+          <article>
+            <span>Loan Account Number</span>
+            <strong>{{ data.summary.loanAccountNumber }}</strong>
+          </article>
+          <article>
+            <span>Application Number</span>
+            <strong>{{ data.summary.applicationNumber }}</strong>
+          </article>
+          <article>
+            <span>Total Loan Amount</span>
+            <strong>{{ formatMoney(data.summary.totalLoanAmount) }}</strong>
+          </article>
+          <article>
+            <span>Total Paid</span>
+            <strong class="is-gold">{{ formatMoney(data.summary.totalPaid) }}</strong>
+          </article>
+          <article>
+            <span>Outstanding Balance</span>
+            <strong>{{ formatMoney(data.summary.outstandingBalance) }}</strong>
+          </article>
+          <article>
+            <span>Total EMIs</span>
+            <strong>{{ data.summary.totalEmis }}</strong>
+          </article>
+          <article>
+            <span>Paid EMIs</span>
+            <strong>{{ data.summary.paidEmis }}</strong>
+          </article>
+          <article>
+            <span>Pending EMIs</span>
+            <strong>{{ data.summary.pendingEmis }}</strong>
+          </article>
+          <article>
+            <span>Overdue EMIs</span>
+            <strong>{{ data.summary.overdueEmis }}</strong>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="lx-ph-filters-title">
+        <h2 id="lx-ph-filters-title" class="lx-ph__section-title">Filters</h2>
+        <form class="lx-ph__filters" [formGroup]="filterForm" (ngSubmit)="applyFilters()">
+          <label>
+            <span>Date From</span>
+            <input type="date" formControlName="dateFrom" />
+          </label>
+          <label>
+            <span>Date To</span>
+            <input type="date" formControlName="dateTo" />
+          </label>
+          <label>
+            <span>Payment Status</span>
+            <select formControlName="status">
+              <option value="">All</option>
+              <option value="SUCCESS">SUCCESS</option>
+              <option value="FAILED">FAILED</option>
+              <option value="PENDING">PENDING</option>
+              <option value="REFUNDED">REFUNDED</option>
+            </select>
+          </label>
+          <label>
+            <span>Payment Type</span>
+            <select formControlName="paymentType">
+              <option value="EMI">EMI</option>
+              <option value="DOWN_PAYMENT">DOWN PAYMENT</option>
+            </select>
+          </label>
+          <label class="lx-ph__search">
+            <span>Search</span>
+            <input type="search" formControlName="search" placeholder="Txn ID / EMI #" />
+          </label>
+          <div class="lx-ph__filter-actions">
+            <button type="submit" class="lx-btn lx-btn--primary">Apply</button>
+            <button type="button" class="lx-btn lx-btn--outline" (click)="resetFilters()">Reset</button>
+          </div>
+        </form>
+      </section>
+
+      <section aria-labelledby="lx-ph-table-title">
+        <div class="lx-ph__table-head">
+          <h2 id="lx-ph-table-title" class="lx-ph__section-title">Payments</h2>
+          <div class="lx-ph__export">
+            <button
+              type="button"
+              class="lx-btn lx-btn--outline"
+              [disabled]="downloading()"
+              (click)="downloadHistoryPdf()"
+            >
+              Download PDF
+            </button>
+            <button
+              type="button"
+              class="lx-btn lx-btn--outline"
+              [disabled]="downloading()"
+              (click)="downloadHistoryExcel()"
+            >
+              Download Excel
+            </button>
+          </div>
+        </div>
+
+        @if (data.items.length === 0) {
+          <p class="lx-ph__empty">No payments found for the selected filters.</p>
+        } @else {
+          <div class="lx-ph__table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>EMI Number</th>
+                  <th>Due Date</th>
+                  <th>Paid Date</th>
+                  <th>Amount</th>
+                  <th>Principal</th>
+                  <th>Interest</th>
+                  <th>Penalty</th>
+                  <th>Payment Method</th>
+                  <th>Transaction ID</th>
+                  <th>Status</th>
+                  <th>Receipt</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of data.items; track item.id) {
+                  <tr>
+                    <td data-label="EMI Number">{{ item.emiNumber ? '#' + item.emiNumber : '—' }}</td>
+                    <td data-label="Due Date">{{ formatDate(item.dueDate) }}</td>
+                    <td data-label="Paid Date">{{ formatDate(item.paidDate) }}</td>
+                    <td data-label="Amount">{{ formatMoney(item.amount) }}</td>
+                    <td data-label="Principal">{{ formatMoney(item.principal) }}</td>
+                    <td data-label="Interest">{{ formatMoney(item.interest) }}</td>
+                    <td data-label="Penalty">{{ formatMoney(item.penalty) }}</td>
+                    <td data-label="Payment Method">{{ item.paymentMethod }}</td>
+                    <td class="lx-ph__txn" data-label="Transaction ID">{{ item.transactionId || '—' }}</td>
+                    <td data-label="Status">
+                      <span
+                        class="lx-ph__badge"
+                        [class.is-success]="item.status === 'SUCCESS'"
+                        [class.is-failed]="item.status === 'FAILED'"
+                      >
+                        {{ formatStatus(item.status) }}
+                      </span>
+                    </td>
+                    <td data-label="Receipt">
+                      @if (item.receiptAvailable) {
+                        <button
+                          type="button"
+                          class="lx-ph__link"
+                          [disabled]="downloading()"
+                          (click)="downloadReceipt(item)"
+                        >
+                          Download
+                        </button>
+                      } @else {
+                        —
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+    }
+
+    <div class="lx-ph__actions">
+      <a routerLink="/my-emi/statement" class="lx-btn lx-btn--primary">Loan Statement</a>
+      <a routerLink="/my-emi" class="lx-btn lx-btn--outline">Back to My EMI</a>
+    </div>
+  </section>
+</div>

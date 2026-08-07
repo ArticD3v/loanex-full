@@ -1,0 +1,20 @@
+<nav class="lx-nav-links" aria-label="Primary">
+  <div class="lx-nav-links__inner">
+    @for (item of items(); track item.id) {
+      <a
+        class="lx-nav-links__item"
+        [routerLink]="item.path"
+        [fragment]="item.fragment"
+        routerLinkActive="is-active"
+        [routerLinkActiveOptions]="{
+          paths: 'exact',
+          queryParams: 'ignored',
+          fragment: 'exact',
+          matrixParams: 'ignored',
+        }"
+      >
+        {{ item.label }}
+      </a>
+    }
+  </div>
+</nav>

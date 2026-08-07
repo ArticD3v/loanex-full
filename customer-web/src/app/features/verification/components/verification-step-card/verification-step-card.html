@@ -1,0 +1,25 @@
+@let item = step();
+
+<article class="lx-vcard" [class.is-done]="item.completed">
+  <div class="lx-vcard__icon" aria-hidden="true">
+    <i [class]="item.icon"></i>
+  </div>
+
+  <div class="lx-vcard__body">
+    <div class="lx-vcard__top">
+      <h3>{{ item.title }}</h3>
+      <span class="lx-vcard__badge" [class.is-completed]="item.completed" [class.is-pending]="!item.completed">
+        {{ item.completed ? 'Completed' : 'Pending' }}
+      </span>
+    </div>
+    <p>{{ item.description }}</p>
+  </div>
+
+  <div class="lx-vcard__action">
+    @if (item.actionPath) {
+      <a class="lx-btn lx-btn--primary" [routerLink]="item.actionPath">{{ item.actionLabel }}</a>
+    } @else {
+      <button type="button" class="lx-btn lx-btn--outline">{{ item.actionLabel }}</button>
+    }
+  </div>
+</article>

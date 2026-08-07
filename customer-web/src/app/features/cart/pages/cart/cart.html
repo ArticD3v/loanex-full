@@ -1,0 +1,144 @@
+<div class="lx-cart">
+  <section class="lx-cart__card" aria-labelledby="lx-cart-title">
+    <header class="lx-cart__header">
+      <div>
+        <h1 id="lx-cart-title">My Cart</h1>
+        <p>Review items and proceed to checkout when ready.</p>
+      </div>
+      @if (cart()?.items?.length) {
+        <button
+          type="button"
+          class="lx-btn lx-btn--outline"
+          [disabled]="acting()"
+          (click)="clearCart()"
+        >
+          Clear Cart
+        </button>
+      }
+    </header>
+
+    @if (error(); as err) {
+      <div class="lx-cart__alert" role="alert">{{ err }}</div>
+    }
+    @if (info(); as message) {
+      <div class="lx-cart__info" role="status">{{ message }}</div>
+    }
+
+    @if (loading()) {
+      <p class="lx-cart__loading" aria-live="polite">Loading cart…</p>
+    } @else if (!cart()?.items?.length) {
+      <div class="lx-cart__empty">
+        <i class="pi pi-shopping-cart" aria-hidden="true"></i>
+        <h2>Your cart is empty</h2>
+        <p>Browse products and add items to continue.</p>
+        <a routerLink="/products" class="lx-btn lx-btn--primary">Continue Shopping</a>
+      </div>
+    } @else if (cart(); as data) {
+      <div class="lx-cart__layout">
+        <ul class="lx-cart__list">
+          @for (item of data.items; track item.id) {
+            <li class="lx-cart__item">
+              <img
+                [src]="item.product.imageUrl"
+                [alt]="item.product.name"
+                width="96"
+                height="96"
+              />
+              <div class="lx-cart__meta">
+                <p class="lx-cart__brand">{{ item.product.brand }}</p>
+                <h2>{{ item.product.name }}</h2>
+                @if (item.product.variant) {
+                  <p class="lx-cart__variant">Variant: {{ item.product.variant }}</p>
+                }
+                <p class="lx-cart__price">{{ formatInr(item.product.unitPrice) }}</p>
+                <p
+                  class="lx-cart__stock"
+                  [class.is-out]="item.product.stockStatus === 'OUT_OF_STOCK'"
+                  [class.is-low]="item.product.stockStatus === 'LOW_STOCK'"
+                >
+                  {{ stockLabel(item.product.stockStatus) }}
+                </p>
+
+                <div class="lx-cart__qty" role="group" aria-label="Quantity">
+                  <button
+                    type="button"
+                    [disabled]="acting() || item.quantity <= 1"
+                    (click)="decrease(item)"
+                    aria-label="Decrease quantity"
+                  >
+                    −
+                  </button>
+                  <span aria-live="polite">{{ item.quantity }}</span>
+                  <button
+                    type="button"
+                    [disabled]="acting() || !item.product.inStock"
+                    (click)="increase(item)"
+                    aria-label="Increase quantity"
+                  >
+                    +
+                  </button>
+                </div>
+
+                <div class="lx-cart__item-actions">
+                  <button type="button" [disabled]="acting()" (click)="moveToWishlist(item)">
+                    Move to Wishlist
+                  </button>
+                  <button type="button" [disabled]="acting()" (click)="remove(item)">
+                    Remove
+                  </button>
+                </div>
+              </div>
+              <strong class="lx-cart__line">{{ formatInr(item.lineSubtotal) }}</strong>
+            </li>
+          }
+        </ul>
+
+        <aside class="lx-cart__summary" aria-labelledby="lx-cart-summary-title">
+          <h2 id="lx-cart-summary-title">Order Summary</h2>
+          <div class="lx-cart__totals">
+            <div class="lx-cart__row">
+              <span>Total Items</span>
+              <strong>{{ data.summary.totalItems }}</strong>
+            </div>
+            <div class="lx-cart__row">
+              <span>Subtotal</span>
+              <strong>{{ formatInr(data.summary.subtotal) }}</strong>
+            </div>
+            <div class="lx-cart__row">
+              <span>Discount</span>
+              <strong class="is-discount">- {{ formatInr(data.summary.discount) }}</strong>
+            </div>
+            <div class="lx-cart__row">
+              <span>Delivery Charges</span>
+              <strong [class.is-free]="data.summary.deliveryCharges === 0">
+                @if (data.summary.deliveryCharges === 0) {
+                  Free
+                } @else {
+                  {{ formatInr(data.summary.deliveryCharges) }}
+                }
+              </strong>
+            </div>
+            <div class="lx-cart__row lx-cart__grand">
+              <span>Grand Total</span>
+              <strong>{{ formatInr(data.summary.grandTotal) }}</strong>
+            </div>
+          </div>
+
+          <div class="lx-cart__actions">
+            <a routerLink="/products" class="lx-btn lx-btn--outline lx-btn--block">
+              Continue Shopping
+            </a>
+            <button
+              type="button"
+              class="lx-btn lx-btn--primary lx-btn--block"
+              [disabled]="acting()"
+              (click)="proceedToCheckout()"
+            >
+              Proceed to Checkout
+            </button>
+          </div>
+        </aside>
+      </div>
+    }
+  </section>
+</div>

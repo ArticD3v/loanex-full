@@ -1,0 +1,145 @@
+:host {
+  display: block;
+}
+
+.lx-pending {
+  display: grid;
+  place-items: center;
+  padding: 1rem 0 2rem;
+  animation: lx-pending-in 380ms ease both;
+}
+
+@keyframes lx-pending-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lx-pending__card {
+  width: min(100%, 36rem);
+  background: #fff;
+  border: 1px solid #e5e9f0;
+  border-radius: 1rem;
+  padding: 1.75rem 1.5rem 1.5rem;
+  box-shadow: 0 12px 32px rgba(10, 46, 111, 0.08);
+  display: grid;
+  gap: 0.85rem;
+  justify-items: center;
+  text-align: center;
+}
+
+.lx-pending__icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #16a34a;
+  color: #fff;
+  font-size: 1.35rem;
+}
+
+.lx-pending__card h1 {
+  margin: 0;
+  color: #0a2e6f;
+  font-size: 1.55rem;
+  font-weight: 800;
+}
+
+.lx-pending__lead {
+  margin: 0;
+  color: #0a2e6f;
+  font-weight: 700;
+}
+
+.lx-pending__copy,
+.lx-pending__loading,
+.lx-pending__note {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.lx-pending__alert {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.7rem;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+  font-weight: 600;
+}
+
+.lx-pending__meta {
+  width: 100%;
+  margin: 0.35rem 0 0;
+  display: grid;
+  gap: 0.75rem;
+  text-align: left;
+
+  div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.7rem 0.85rem;
+    border-radius: 0.7rem;
+    background: #f8fafc;
+    border: 1px solid #e5e9f0;
+  }
+
+  dt {
+    color: #6b7280;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  dd {
+    margin: 0;
+    color: #0a2e6f;
+    font-weight: 800;
+    font-size: 0.9rem;
+  }
+}
+
+.lx-pending__badge {
+  display: inline-flex;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.lx-pending__eta {
+  margin: 0.25rem 0 0;
+  color: #6b7280;
+  font-size: 0.92rem;
+
+  strong {
+    display: block;
+    margin-top: 0.2rem;
+    color: #d4a12a;
+    font-size: 1.05rem;
+  }
+}
+
+.lx-pending__actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  padding-top: 0.25rem;
+}
+
+.lx-pending__note {
+  font-size: 0.84rem;
+}

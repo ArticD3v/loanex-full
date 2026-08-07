@@ -1,0 +1,9 @@
+@use '../variables' as *;
+
+:root {
+  --lx-radius-sm: #{$lx-radius-sm};
+  --lx-radius-md: #{$lx-radius-md};
+  --lx-radius-lg: #{$lx-radius-lg};
+  --lx-radius-xl: #{$lx-radius-xl};
+  --lx-radius-pill: #{$lx-radius-pill};
+}

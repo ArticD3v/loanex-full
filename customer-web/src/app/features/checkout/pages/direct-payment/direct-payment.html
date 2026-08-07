@@ -1,0 +1,76 @@
+<div class="lx-dp">
+  <section class="lx-dp__card" aria-labelledby="lx-dp-title">
+    <header class="lx-dp__header">
+      <h1 id="lx-dp-title">Direct Payment Checkout</h1>
+      <p>Pay the full amount to confirm your order.</p>
+    </header>
+
+    @if (error(); as err) {
+      <div class="lx-dp__alert" role="alert">{{ err }}</div>
+    }
+
+    @if (loading()) {
+      <p class="lx-dp__loading" aria-live="polite">Loading payment details…</p>
+    } @else if (data(); as payload) {
+      @if (payload.summary.items && payload.summary.items.length > 0) {
+        @for (item of payload.summary.items; track item.product.id) {
+          <article class="lx-dp__product">
+            <img
+              [src]="item.product.imageUrl"
+              [alt]="item.product.name"
+              width="96"
+              height="96"
+            />
+            <div>
+              <p class="lx-dp__brand">{{ item.product.brand }}</p>
+              <h2>{{ item.product.name }}</h2>
+              <p>Qty {{ item.quantity }} &middot; {{ payload.session.purchaseType }}</p>
+            </div>
+          </article>
+        }
+      } @else {
+        <article class="lx-dp__product">
+          <img
+            [src]="payload.summary.product.imageUrl"
+            [alt]="payload.summary.product.name"
+            width="96"
+            height="96"
+          />
+          <div>
+            <p class="lx-dp__brand">{{ payload.summary.product.brand }}</p>
+            <h2>{{ payload.summary.product.name }}</h2>
+            <p>Qty {{ payload.summary.quantity }} &middot; {{ payload.session.purchaseType }}</p>
+          </div>
+        </article>
+      }
+
+      <div class="lx-dp__amount">
+        <span>Amount Payable</span>
+        <strong>{{ formatInr(payload.session.totalAmount) }}</strong>
+      </div>
+
+      <div class="lx-dp__notice" role="status">
+        Razorpay direct-pay integration will process this amount. Your checkout session
+        <strong>{{ payload.session.id }}</strong> is ready.
+      </div>
+
+      <div class="lx-dp__actions">
+        <button type="button" class="lx-btn lx-btn--outline" (click)="goToCheckout()">
+          Back to Order Summary
+        </button>
+        <button
+          type="button"
+          class="lx-btn lx-btn--primary lx-btn--lg"
+          [disabled]="processing()"
+          (click)="payNow()"
+        >
+          @if (processing()) {
+            Processing Payment…
+          } @else {
+            Pay {{ formatInr(payload.session.totalAmount) }}
+          }
+        </button>
+      </div>
+    }
+  </section>
+</div>

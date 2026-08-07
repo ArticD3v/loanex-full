@@ -1,0 +1,54 @@
+:host {
+  display: block;
+}
+
+.lx-related {
+  padding-top: 0.5rem;
+}
+
+.lx-related__head {
+  margin-bottom: 1rem;
+}
+
+.lx-related__head h2 {
+  margin: 0;
+  color: #0a2e6f;
+  font-size: clamp(1.25rem, 2vw, 1.45rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.lx-related__track {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 1279.98px) {
+  .lx-related__track {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .lx-related__track {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .lx-related__track {
+    display: flex;
+    overflow-x: auto;
+    gap: 0.75rem;
+    padding-bottom: 0.35rem;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+
+    app-product-card {
+      flex: 0 0 min(14rem, 72vw);
+      scroll-snap-align: start;
+    }
+  }
+}

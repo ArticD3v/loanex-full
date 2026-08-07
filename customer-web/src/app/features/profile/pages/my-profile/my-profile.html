@@ -1,0 +1,195 @@
+<div class="lx-profile">
+  <section class="lx-profile__card" aria-labelledby="lx-profile-title">
+    <header class="lx-profile__header">
+      <div>
+        <h1 id="lx-profile-title">My Profile</h1>
+        <p>Manage your personal details and saved delivery addresses.</p>
+      </div>
+      <a routerLink="/profile/settings" class="lx-btn lx-btn--outline">Settings</a>
+    </header>
+
+    @if (error(); as err) {
+      <div class="lx-profile__alert" role="alert">{{ err }}</div>
+    }
+    @if (info(); as message) {
+      <div class="lx-profile__info" role="status">{{ message }}</div>
+    }
+
+    @if (loading()) {
+      <p class="lx-profile__loading" aria-live="polite">Loading your profile…</p>
+    } @else {
+      <form class="lx-profile__form" [formGroup]="personalForm" (ngSubmit)="savePersonal()">
+        <section class="lx-profile__section" aria-labelledby="lx-profile-personal-title">
+          <h2 id="lx-profile-personal-title">Personal Information</h2>
+
+          <div class="lx-profile__grid">
+            <div class="lx-profile__field">
+              <label for="lx-profile-name">Full Name</label>
+              <input id="lx-profile-name" class="lx-input" type="text" maxlength="100" formControlName="fullName" />
+            </div>
+            <div class="lx-profile__field">
+              <label for="lx-profile-mobile">Mobile Number</label>
+              <input id="lx-profile-mobile" class="lx-input" type="tel" formControlName="mobile" readonly />
+            </div>
+            <div class="lx-profile__field">
+              <label for="lx-profile-email">Email</label>
+              <input id="lx-profile-email" class="lx-input" type="email" maxlength="150" formControlName="email" />
+            </div>
+            <div class="lx-profile__field">
+              <label for="lx-profile-dob">Date of Birth</label>
+              <input id="lx-profile-dob" class="lx-input" type="date" formControlName="dob" />
+            </div>
+            <fieldset class="lx-profile__field lx-profile__field--full">
+              <legend>Gender</legend>
+              <div class="lx-profile__gender" role="radiogroup" aria-label="Gender">
+                <label class="lx-profile__choice">
+                  <input type="radio" formControlName="gender" value="MALE" />
+                  <span>Male</span>
+                </label>
+                <label class="lx-profile__choice">
+                  <input type="radio" formControlName="gender" value="FEMALE" />
+                  <span>Female</span>
+                </label>
+                <label class="lx-profile__choice">
+                  <input type="radio" formControlName="gender" value="OTHER" />
+                  <span>Other</span>
+                </label>
+                <label class="lx-profile__choice">
+                  <input type="radio" formControlName="gender" value="PREFER_NOT_TO_SAY" />
+                  <span>Prefer not to say</span>
+                </label>
+              </div>
+            </fieldset>
+          </div>
+
+          <div class="lx-profile__actions">
+            <button
+              type="submit"
+              class="lx-btn lx-btn--primary"
+              [disabled]="savingPersonal()"
+            >
+              Save Personal Details
+            </button>
+          </div>
+        </section>
+      </form>
+
+      <section
+        id="addresses"
+        class="lx-profile__section"
+        aria-labelledby="lx-profile-addresses-title"
+      >
+        <div class="lx-profile__section-head">
+          <h2 id="lx-profile-addresses-title">Saved Addresses</h2>
+          <button type="button" class="lx-btn lx-btn--outline" (click)="openAddAddress()">
+            Add New Address
+          </button>
+        </div>
+
+        @if (!addresses().length) {
+          <div class="lx-profile__empty">
+            <p>No saved addresses yet. Add one to use at checkout.</p>
+            <button type="button" class="lx-btn lx-btn--primary" (click)="openAddAddress()">
+              Add Address
+            </button>
+          </div>
+        } @else {
+          <ul class="lx-profile__address-list">
+            @for (address of addresses(); track address.id) {
+              <li class="lx-profile__address" [class.is-default]="address.isDefault">
+                <div class="lx-profile__address-body">
+                  @if (address.isDefault) {
+                    <span class="lx-profile__badge">Default</span>
+                  }
+                  <p>{{ formatAddress(address) }}</p>
+                  <p class="lx-profile__address-meta">{{ address.country }}</p>
+                </div>
+                <div class="lx-profile__address-actions">
+                  @if (!address.isDefault) {
+                    <button type="button" (click)="setDefault(address)" [disabled]="savingAddress()">
+                      Set as Default
+                    </button>
+                  }
+                  <button type="button" (click)="openEditAddress(address)" [disabled]="savingAddress()">
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    class="is-danger"
+                    (click)="removeAddress(address)"
+                    [disabled]="savingAddress() || addresses().length <= 1"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+
+        @if (showAddressForm()) {
+          <form class="lx-profile__address-form" [formGroup]="addressForm" (ngSubmit)="saveAddress()">
+            <h3>{{ editingAddressId() ? 'Edit Address' : 'Add New Address' }}</h3>
+            <div class="lx-profile__grid">
+              <div class="lx-profile__field">
+                <label for="lx-addr-house">House / Flat No.</label>
+                <input id="lx-addr-house" class="lx-input" type="text" maxlength="120" formControlName="addressLine1" />
+              </div>
+              <div class="lx-profile__field">
+                <label for="lx-addr-street">Street / Area</label>
+                <input id="lx-addr-street" class="lx-input" type="text" maxlength="200" formControlName="addressLine2" />
+              </div>
+              <div class="lx-profile__field lx-profile__field--full">
+                <label for="lx-addr-landmark">Landmark (Optional)</label>
+                <input id="lx-addr-landmark" class="lx-input" type="text" maxlength="150" formControlName="landmark" />
+              </div>
+              <div class="lx-profile__field">
+                <label for="lx-addr-city">City</label>
+                <input id="lx-addr-city" class="lx-input" type="text" maxlength="80" formControlName="city" />
+              </div>
+              <div class="lx-profile__field">
+                <label for="lx-addr-state">State</label>
+                <select id="lx-addr-state" class="lx-input" formControlName="state">
+                  <option value="">Select state</option>
+                  @for (state of states; track state) {
+                    <option [value]="state">{{ state }}</option>
+                  }
+                </select>
+              </div>
+              <div class="lx-profile__field">
+                <label for="lx-addr-pincode">Pincode</label>
+                <input
+                  id="lx-addr-pincode"
+                  class="lx-input"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="6"
+                  formControlName="pincode"
+                  (input)="onPincodeInput($event)"
+                />
+              </div>
+              <div class="lx-profile__field">
+                <label for="lx-addr-country">Country</label>
+                <input id="lx-addr-country" class="lx-input" type="text" formControlName="country" />
+              </div>
+            </div>
+
+            <label class="lx-profile__checkbox">
+              <input type="checkbox" formControlName="isDefault" />
+              <span>Make this my default delivery address</span>
+            </label>
+
+            <div class="lx-profile__actions">
+              <button type="button" class="lx-btn lx-btn--outline" (click)="cancelAddressForm()">
+                Cancel
+              </button>
+              <button type="submit" class="lx-btn lx-btn--primary" [disabled]="savingAddress()">
+                {{ editingAddressId() ? 'Update Address' : 'Save Address' }}
+              </button>
+            </div>
+          </form>
+        }
+      </section>
+    }
+  </section>
+</div>

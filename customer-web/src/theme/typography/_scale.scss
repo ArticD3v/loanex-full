@@ -1,0 +1,29 @@
+@use '../variables' as *;
+
+:root {
+  --lx-font-family: #{$lx-font-family};
+  --lx-font-family-mono: #{$lx-font-family-mono};
+
+  --lx-font-weight-regular: #{$lx-font-weight-regular};
+  --lx-font-weight-medium: #{$lx-font-weight-medium};
+  --lx-font-weight-semibold: #{$lx-font-weight-semibold};
+  --lx-font-weight-bold: #{$lx-font-weight-bold};
+
+  --lx-text-h1: #{$lx-text-h1};
+  --lx-text-h2: #{$lx-text-h2};
+  --lx-text-h3: #{$lx-text-h3};
+  --lx-text-h4: #{$lx-text-h4};
+  --lx-text-body-lg: #{$lx-text-body-lg};
+  --lx-text-body: #{$lx-text-body};
+  --lx-text-sm: #{$lx-text-sm};
+  --lx-text-caption: #{$lx-text-caption};
+
+  --lx-leading-tight: #{$lx-leading-tight};
+  --lx-leading-snug: #{$lx-leading-snug};
+  --lx-leading-normal: #{$lx-leading-normal};
+  --lx-leading-relaxed: #{$lx-leading-relaxed};
+
+  --lx-tracking-tight: -0.02em;
+  --lx-tracking-normal: 0;
+  --lx-tracking-wide: 0.02em;
+}

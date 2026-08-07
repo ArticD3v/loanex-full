@@ -1,0 +1,118 @@
+<div class="lx-co">
+
+  <section class="lx-co__card" aria-labelledby="lx-co-title">
+    <header class="lx-co__header">
+      <h1 id="lx-co-title">Order Summary</h1>
+      <p>Choose how you want to purchase this product.</p>
+    </header>
+
+    @if (error(); as err) {
+      <div class="lx-co__alert" role="alert">{{ err }}</div>
+    }
+
+    @if (loading()) {
+      <p class="lx-co__loading" aria-live="polite">Loading order summary…</p>
+    } @else if (summary(); as data) {
+      <div class="lx-co__items-list">
+        @for (item of data.items || [{product: data.product, quantity: data.quantity}]; track item.product.id) {
+          <article class="lx-co__product">
+            <img [src]="item.product.imageUrl" [alt]="item.product.name" width="80" height="80" />
+            <div>
+              <p class="lx-co__brand">{{ item.product.brand }}</p>
+              <h2>{{ item.product.name }}</h2>
+              @if (item.product.variant) {
+                <p class="lx-co__variant">Variant: {{ item.product.variant }}</p>
+              }
+              <p class="lx-co__qty">Quantity: {{ item.quantity }}</p>
+            </div>
+          </article>
+        }
+      </div>
+
+      <dl class="lx-co__pricing">
+        <div>
+          <dt>Product Price</dt>
+          <dd>{{ formatInr(data.pricing.productPrice) }}</dd>
+        </div>
+        <div>
+          <dt>Discount</dt>
+          <dd class="is-discount">- {{ formatInr(data.pricing.discount) }}</dd>
+        </div>
+        <div>
+          <dt>Delivery Charges</dt>
+          <dd>
+            @if (data.pricing.deliveryCharges === 0) {
+              Free
+            } @else {
+              {{ formatInr(data.pricing.deliveryCharges) }}
+            }
+          </dd>
+        </div>
+        <div class="lx-co__total">
+          <dt>Total Amount</dt>
+          <dd>{{ formatInr(data.pricing.totalAmount) }}</dd>
+        </div>
+      </dl>
+
+      <form class="lx-co__form" [formGroup]="form" (ngSubmit)="continueCheckout()">
+        <h2>Delivery Address</h2>
+        <div class="lx-co__addresses" role="radiogroup" aria-label="Delivery address">
+          @for (address of data.addresses ?? (data.address ? [data.address] : []); track address.id) {
+            <label
+              class="lx-co__address"
+              [class.is-active]="form.controls.addressId.value === address.id"
+            >
+              <input type="radio" formControlName="addressId" [value]="address.id" />
+              <span>
+                @if (address.isDefault) {
+                  <em>Default</em>
+                }
+                <strong>{{ formatAddress(address) }}</strong>
+                <small>{{ address.country }}</small>
+              </span>
+            </label>
+          }
+        </div>
+        <a routerLink="/profile" class="lx-co__manage-address">Manage addresses</a>
+
+        <h2>Select Purchase Option</h2>
+
+        @if (isMultipleProducts()) {
+          <div class="lx-co__info-badge" style="background: #fffbebf0; color: #b45309; padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 0.75rem; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; border: 1px solid #fcd34d;">
+            <i class="pi pi-exclamation-triangle"></i>
+            <span>EMI is available for single products only. Multiple items require Full Payment.</span>
+          </div>
+        }
+
+        <div class="lx-co__options" role="radiogroup" aria-label="Purchase option">
+          <label class="lx-co__option" [class.is-active]="form.controls.purchaseType.value === 'EMI'" [class.is-disabled]="isMultipleProducts()">
+            <input type="radio" formControlName="purchaseType" value="EMI" [disabled]="isMultipleProducts()" />
+            <span>
+              <strong>Buy with EMI</strong>
+              <small>Pay in easy monthly instalments after verification.</small>
+            </span>
+          </label>
+          <label class="lx-co__option" [class.is-active]="form.controls.purchaseType.value === 'DIRECT'">
+            <input type="radio" formControlName="purchaseType" value="DIRECT" />
+            <span>
+              <strong>Buy Direct (Full Payment)</strong>
+              <small>Pay the full amount now and complete your order.</small>
+            </span>
+          </label>
+        </div>
+
+        <div class="lx-co__actions">
+          <button type="button" class="lx-btn lx-btn--outline" (click)="goBack()">Back</button>
+          <button
+            type="submit"
+            class="lx-btn lx-btn--primary lx-btn--lg"
+            [class.is-loading]="submitting()"
+            [disabled]="submitting() || !data.product.inStock"
+          >
+            Continue
+          </button>
+        </div>
+      </form>
+    }
+  </section>
+</div>

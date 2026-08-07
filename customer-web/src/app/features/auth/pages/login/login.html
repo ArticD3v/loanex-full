@@ -1,0 +1,75 @@
+<section class="lx-auth-card" aria-labelledby="lx-login-title">
+  <header class="lx-auth-card__header">
+    <img src="assets/images/loanex-logo.png" alt="LoanEx" width="44" height="44" />
+    <div>
+      <h1 id="lx-login-title">Welcome back</h1>
+      <p>Log in with your mobile number and password.</p>
+    </div>
+  </header>
+
+  <form class="lx-auth-card__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="lx-field">
+      <label class="lx-label" for="login-mobile">Mobile Number</label>
+      <div class="lx-input-prefix">
+        <span class="lx-input-prefix__addon">+91</span>
+        <input
+          id="login-mobile"
+          class="lx-input lx-input-prefix__control"
+          type="tel"
+          formControlName="mobile"
+          placeholder="Enter 10-digit mobile number"
+          maxLength="10"
+          autocomplete="tel"
+          (input)="onMobileInput($event)"
+          [attr.aria-invalid]="form.controls.mobile.invalid && form.controls.mobile.touched"
+        />
+      </div>
+      <app-form-field-error [control]="form.controls.mobile" label="Mobile number" />
+    </div>
+
+    <div class="lx-field">
+      <label class="lx-label" for="login-password">Password</label>
+      <div class="lx-auth-card__password">
+        <input
+          id="login-password"
+          class="lx-input lx-input--password"
+          [type]="showPassword() ? 'text' : 'password'"
+          formControlName="password"
+          autocomplete="current-password"
+          placeholder="Enter your password"
+        />
+        <button
+          type="button"
+          class="lx-auth-card__eye"
+          (click)="togglePassword()"
+          [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+        >
+          <i class="pi" [class.pi-eye]="!showPassword()" [class.pi-eye-slash]="showPassword()" aria-hidden="true"></i>
+        </button>
+      </div>
+      <app-form-field-error [control]="form.controls.password" label="Password" />
+    </div>
+
+    <div class="lx-auth-card__row">
+      <a routerLink="/auth/forgot-password" [queryParams]="routeReturnParams">Forgot Password</a>
+    </div>
+
+    @if (error(); as err) {
+      <p class="lx-error-text" role="alert">{{ err }}</p>
+    }
+
+    <button
+      type="submit"
+      class="lx-btn lx-btn--primary lx-btn--block"
+      [class.is-loading]="loading()"
+      [disabled]="loading() || form.invalid"
+    >
+      Login
+    </button>
+  </form>
+
+  <p class="lx-auth-card__footer">
+    New to LoanEx?
+    <a routerLink="/auth/signup" [queryParams]="routeReturnParams">Create Account</a>
+  </p>
+</section>

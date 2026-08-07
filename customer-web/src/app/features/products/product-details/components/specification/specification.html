@@ -1,0 +1,174 @@
+@let p = product();
+@let reviews = reviewsData();
+
+<section class="lx-specs" id="product-overview" aria-label="Product details tabs">
+  <p-tabs [value]="activeTab()" (valueChange)="onTabChange($event)">
+    <p-tablist>
+      <p-tab value="overview">Overview</p-tab>
+      <p-tab value="specifications">Specifications</p-tab>
+      <p-tab value="reviews">Reviews ({{ reviewCountLabel() }})</p-tab>
+      <p-tab value="returns">Returns</p-tab>
+      <p-tab value="qa">Questions & Answers</p-tab>
+    </p-tablist>
+
+    <p-tabpanels>
+      <p-tabpanel value="overview">
+        <div class="lx-specs__panel">
+          <h3>{{ p.overviewTitle }}</h3>
+          <p>
+            {{
+              overviewExpanded()
+                ? p.overviewBody
+                : p.overviewBody.slice(0, 220) + (p.overviewBody.length > 220 ? '…' : '')
+            }}
+          </p>
+          <ul>
+            @for (point of p.overviewHighlights; track point) {
+              <li>{{ point }}</li>
+            }
+          </ul>
+          <button type="button" class="lx-specs__more" (click)="toggleOverview()">
+            {{ overviewExpanded() ? 'Show Less' : 'Show More' }}
+            <i
+              class="pi"
+              [class.pi-chevron-up]="overviewExpanded()"
+              [class.pi-chevron-down]="!overviewExpanded()"
+              aria-hidden="true"
+            ></i>
+          </button>
+        </div>
+      </p-tabpanel>
+
+      <p-tabpanel value="specifications">
+        <div class="lx-specs__panel">
+          <table class="lx-specs__table">
+            <caption class="sr-only">Technical specifications</caption>
+            <tbody>
+              @for (row of p.specifications; track row.label) {
+                <tr>
+                  <th scope="row">{{ row.label }}</th>
+                  <td>{{ row.value }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </p-tabpanel>
+
+      <p-tabpanel value="reviews">
+        <div class="lx-specs__panel">
+          @if (reviewsError(); as err) {
+            <div class="lx-specs__alert" role="alert">{{ err }}</div>
+          }
+          @if (reviewsInfo(); as message) {
+            <div class="lx-specs__info" role="status">{{ message }}</div>
+          }
+
+          @if (reviewsLoading()) {
+            <p class="lx-specs__loading">Loading reviews…</p>
+          } @else if (reviews) {
+            <p class="lx-specs__lead">
+              Customers rate this product {{ reviews.averageRating }}/5 based on
+              {{ reviews.totalReviews }} reviews.
+            </p>
+
+            @if (!reviews.myReview || editingReview()) {
+              <form class="lx-specs__form" [formGroup]="reviewForm" (ngSubmit)="submitReview()">
+                <h3>{{ editingReview() ? 'Edit your review' : 'Write a review' }}</h3>
+                <label class="lx-specs__field">
+                  <span>Rating</span>
+                  <select formControlName="rating">
+                    <option [value]="5">5 — Excellent</option>
+                    <option [value]="4">4 — Good</option>
+                    <option [value]="3">3 — Average</option>
+                    <option [value]="2">2 — Poor</option>
+                    <option [value]="1">1 — Terrible</option>
+                  </select>
+                </label>
+                <label class="lx-specs__field">
+                  <span>Your review</span>
+                  <textarea formControlName="review" rows="4" placeholder="Share your experience…"></textarea>
+                </label>
+                <div class="lx-specs__form-actions">
+                  <button
+                    type="submit"
+                    class="lx-btn lx-btn--primary"
+                    [class.is-loading]="submitting()"
+                    [disabled]="submitting()"
+                  >
+                    {{ editingReview() ? 'Update Review' : 'Submit Review' }}
+                  </button>
+                  @if (editingReview()) {
+                    <button type="button" class="lx-btn lx-btn--outline" (click)="cancelEdit()">
+                      Cancel
+                    </button>
+                  }
+                </div>
+              </form>
+            }
+
+            @if (reviews.myReview && !editingReview()) {
+              <article class="lx-specs__review lx-specs__review--own">
+                <header>
+                  <strong>Your review</strong>
+                  <span>{{ reviews.myReview.rating }}/5 · {{ formatReviewDate(reviews.myReview.createdAt) }}</span>
+                </header>
+                <p>{{ reviews.myReview.review }}</p>
+                <div class="lx-specs__review-actions">
+                  <button type="button" class="lx-btn lx-btn--outline" (click)="startEdit(reviews.myReview!)">
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    class="lx-btn lx-btn--outline"
+                    [disabled]="submitting()"
+                    (click)="deleteReview()"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </article>
+            }
+
+            <div class="lx-specs__reviews">
+              @for (review of reviews.items; track review.id) {
+                @if (!review.isOwn) {
+                  <article class="lx-specs__review">
+                    <header>
+                      <strong>{{ review.userName }}</strong>
+                      <span>{{ review.rating }}/5 · {{ formatReviewDate(review.createdAt) }}</span>
+                    </header>
+                    <p>{{ review.review }}</p>
+                  </article>
+                }
+              }
+            </div>
+          }
+        </div>
+      </p-tabpanel>
+
+      <p-tabpanel value="returns">
+        <div class="lx-specs__panel">
+          <ul>
+            @for (item of p.returnsPolicy; track item) {
+              <li>{{ item }}</li>
+            }
+          </ul>
+        </div>
+      </p-tabpanel>
+
+      <p-tabpanel value="qa">
+        <div class="lx-specs__panel">
+          <div class="lx-specs__qa">
+            @for (item of p.questions; track item.id) {
+              <article>
+                <h4>Q. {{ item.question }}</h4>
+                <p>A. {{ item.answer }}</p>
+              </article>
+            }
+          </div>
+        </div>
+      </p-tabpanel>
+    </p-tabpanels>
+  </p-tabs>
+</section>

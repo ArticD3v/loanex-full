@@ -1,0 +1,362 @@
+<div class="lx-idv">
+  <p-toast position="top-center" />
+
+  <header class="lx-idv__hero">
+    <p class="lx-idv__eyebrow">LoanEx KYC</p>
+    <h1>Identity Verification</h1>
+    <p class="lx-idv__subtitle">Complete your KYC to continue.</p>
+    @if (!bootstrapping()) {
+      <p class="lx-idv__step-hint">{{ kycStepLabel() }}</p>
+    }
+  </header>
+
+  @if (bootstrapping()) {
+    <p-card styleClass="lx-idv__card">
+      <div class="lx-idv__skeleton" aria-live="polite" aria-busy="true">
+        <p-skeleton width="40%" height="1.25rem" styleClass="mb-3" />
+        <p-skeleton width="100%" height="3rem" styleClass="mb-3" />
+        <p-skeleton width="100%" height="12rem" />
+      </div>
+    </p-card>
+  } @else {
+    <p-card styleClass="lx-idv__card">
+      
+      <!-- Section 1: Aadhaar via DigiLocker -->
+      <div class="lx-idv__panel mb-5">
+        <div class="lx-idv__panel-head">
+          <h2>Aadhaar Verification</h2>
+          <p>Verify your identity securely with Government DigiLocker.</p>
+        </div>
+
+        @if (aadhaarVerified()) {
+          <div
+            class="lx-idv__success"
+            role="status"
+          >
+            <span class="lx-idv__success-icon" aria-hidden="true">
+              <i class="pi pi-check"></i>
+            </span>
+            <div>
+              <strong>Aadhaar Verified via DigiLocker</strong>
+              <p>{{ maskedAadhaar() || 'XXXXXXXXXXXX' }}</p>
+            </div>
+          </div>
+
+          @if (digilockerKycData(); as data) {
+            <div class="lx-idv__kyc-details-card mt-3">
+              @if (data.profile_image) {
+                <img class="lx-idv__kyc-photo" [src]="'data:image/jpeg;base64,' + data.profile_image" alt="Aadhaar Photo" />
+              }
+              <div class="lx-idv__kyc-info">
+                <div class="lx-idv__kyc-row">
+                  <span class="lx-idv__kyc-label">Name</span>
+                  <span class="lx-idv__kyc-val">{{ data.name }}</span>
+                </div>
+                <div class="lx-idv__kyc-row">
+                  <span class="lx-idv__kyc-label">DOB</span>
+                  <span class="lx-idv__kyc-val">{{ data.dob }}</span>
+                </div>
+                <div class="lx-idv__kyc-row">
+                  <span class="lx-idv__kyc-label">Gender</span>
+                  <span class="lx-idv__kyc-val">{{ data.gender === 'M' ? 'Male' : data.gender === 'F' ? 'Female' : data.gender }}</span>
+                </div>
+              </div>
+            </div>
+          }
+        } @else {
+          <div class="lx-idv__digilocker-box mt-3">
+            <i class="pi pi-shield lx-idv__digilocker-icon"></i>
+            <h3>Official DigiLocker Digital KYC</h3>
+            <p>Click below to verify your identity securely with Government DigiLocker. Paperless & instant!</p>
+            
+            <p-button
+              icon="pi pi-link"
+              label="Verify via DigiLocker"
+              styleClass="lx-idv__dl-btn mt-3"
+              [loading]="verifyingAadhaar()"
+              (onClick)="startDigilocker()"
+            />
+          </div>
+
+          @if (digilockerStep() === 'redirect') {
+            <div class="lx-idv__dl-redirect-alert mt-4">
+              <i class="pi pi-spin pi-spinner"></i>
+              <div class="lx-idv__dl-redirect-text">
+                <p><strong>Awaiting DigiLocker Authorization...</strong></p>
+                <p>Please complete the process in the popup window.</p>
+                <button class="lx-idv__link-btn mt-2" (click)="continueDigilockerRedirect()">
+                  Re-open popup
+                </button>
+              </div>
+            </div>
+          }
+        }
+      </div>
+
+      <!-- Section 2: PAN & Credit Score (Experian) -->
+      @if (aadhaarVerified()) {
+        <hr class="mb-5" style="border: 0; border-top: 1px solid var(--surface-border);" />
+
+        <div class="lx-idv__panel">
+          <div class="lx-idv__panel-head">
+            <h2>PAN & Credit Score (Experian)</h2>
+            <p>Review the fields to fetch your Experian credit report.</p>
+          </div>
+
+          @if (panVerified()) {
+            <div
+              class="lx-idv__success"
+              [class.is-pulse]="panSuccessPulse()"
+              role="status"
+            >
+              <span class="lx-idv__success-icon" aria-hidden="true">
+                <i class="pi pi-check"></i>
+              </span>
+              <div>
+                <strong>PAN Card Verified & Credit Report Fetched</strong>
+                <p>Name: {{ experianForm.value.first_name }} {{ experianForm.value.last_name }}</p>
+                <p>PAN: {{ maskedPan() || 'XXXXXXXXXX' }}</p>
+              </div>
+            </div>
+
+            @if (creditScore() !== null) {
+              <div class="lx-idv__kyc-details-card mt-3">
+                <div class="lx-idv__kyc-info">
+                  <div class="lx-idv__kyc-row">
+                    <span class="lx-idv__kyc-label">Experian Credit Score</span>
+                    <span class="lx-idv__kyc-val" style="font-size: 1.5rem; font-weight: 700; color: var(--primary-color);">
+                      {{ creditScore() }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            }
+
+            <!-- Bank skipped for now — next step is EMI verification summary -->
+            <div class="lx-idv__actions mt-4">
+              <p-button
+                type="button"
+                label="Continue to Verification Summary"
+                icon="pi pi-arrow-right"
+                iconPos="right"
+                styleClass="lx-idv__btn w-full"
+                (onClick)="goToSummary()"
+              ></p-button>
+            </div>
+          } @else {
+            <form class="lx-idv__form mt-4" [formGroup]="experianForm" (ngSubmit)="verifyPanAndCredit()">
+              
+              <div class="grid formgrid p-fluid">
+                <div class="col-12 mb-4">
+                  <h4 class="mb-1">Personal Details</h4>
+                  <p class="text-color-secondary text-sm m-0">Please verify your details before fetching the credit report.</p>
+                </div>
+
+                <div class="field col-12 md:col-6 mb-4">
+                  <div class="flex flex-column gap-2">
+                    <label for="mobile_no" class="font-semibold text-700">Mobile No <span class="text-red-500">*</span></label>
+                    <input id="mobile_no" type="text" pInputText class="lx-idv__input w-full" formControlName="mobile_no" />
+                  </div>
+                </div>
+                
+                <div class="field col-12 md:col-6 mb-4">
+                  <div class="flex flex-column gap-2">
+                    <label for="pan" class="font-semibold text-700">PAN <span class="text-red-500">*</span></label>
+                    <input
+                      id="pan"
+                      type="text"
+                      pInputText
+                      class="lx-idv__input w-full"
+                      formControlName="pan"
+                      (input)="onPanInput($event)"
+                      style="text-transform: uppercase"
+                    />
+                  </div>
+                  @if (experianForm.controls.pan.invalid && experianForm.controls.pan.touched) {
+                    <small class="p-error block mt-1">Enter a valid 10-character PAN number.</small>
+                  }
+                </div>
+
+                <div class="field col-12 md:col-6 mb-4">
+                  <div class="flex flex-column gap-2">
+                    <label for="first_name" class="font-semibold text-700">First Name <span class="text-red-500">*</span></label>
+                    <input id="first_name" type="text" pInputText class="lx-idv__input w-full" formControlName="first_name" />
+                  </div>
+                </div>
+
+                <div class="field col-12 md:col-6 mb-4">
+                  <div class="flex flex-column gap-2">
+                    <label for="last_name" class="font-semibold text-700">Last Name <span class="text-red-500">*</span></label>
+                    <input id="last_name" type="text" pInputText class="lx-idv__input w-full" formControlName="last_name" />
+                  </div>
+                </div>
+
+                <div class="field col-12 mb-4">
+                  <div class="flex flex-column gap-2">
+                    <label for="dob" class="font-semibold text-700">Date of Birth (YYYY-MM-DD) <span class="text-red-500">*</span></label>
+                    <input id="dob" type="text" pInputText class="lx-idv__input w-full" formControlName="dob" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="lx-idv__actions mt-2">
+                <p-button
+                  type="submit"
+                  label="Verify PAN & Fetch Credit Score"
+                  [loading]="verifyingPan()"
+                  [disabled]="verifyingPan() || experianForm.invalid"
+                  icon="pi pi-check-circle"
+                  styleClass="lx-idv__btn w-full"
+                ></p-button>
+              </div>
+            </form>
+          }
+        </div>
+      }
+
+      <!-- Section 3: Bank Account Verification — temporarily disabled; KYC via Aadhaar for now
+      @if (panVerified()) {
+        <hr class="mb-5" style="border: 0; border-top: 1px solid var(--surface-border);" />
+
+        <div class="lx-idv__panel" id="lx-idv-bank">
+          <div class="lx-idv__panel-head">
+            <h2>Bank Account Verification</h2>
+            <p>Provide your bank account details to continue to EMI eligibility.</p>
+          </div>
+
+          @if (bankVerified()) {
+            <div
+              class="lx-idv__success"
+              [class.is-pulse]="bankSuccessPulse()"
+              role="status"
+            >
+              <span class="lx-idv__success-icon" aria-hidden="true">
+                <i class="pi pi-check"></i>
+              </span>
+              <div>
+                <strong>Bank Account Verified Successfully</strong>
+                <p>Account: {{ maskedBankAccount() || 'XXXXXXXXXXXX' }}</p>
+                <p>Bank: {{ verifiedBankName() || '—' }}</p>
+              </div>
+            </div>
+          } @else {
+            @if (bankFormError(); as bankErr) {
+              <div class="lx-idv__alert" role="alert">{{ bankErr }}</div>
+            }
+
+            <form class="lx-idv__form mt-4" [formGroup]="bankForm" (ngSubmit)="verifyBank()">
+              <div class="grid formgrid p-fluid">
+                <div class="field col-12 mb-4">
+                  <div class="flex flex-column gap-2">
+                    <label for="accountHolderName" class="font-semibold text-700">Account Holder Name <span class="text-red-500">*</span></label>
+                    <input id="accountHolderName" type="text" pInputText class="lx-idv__input w-full" formControlName="accountHolderName" autocomplete="name" />
+                  </div>
+                  @if (bankForm.controls.accountHolderName.touched && bankForm.controls.accountHolderName.invalid) {
+                    <small class="p-error block mt-1">Enter account holder name (3–100 characters).</small>
+                  }
+                </div>
+
+                <div class="field col-12 mb-4">
+                  <div class="flex flex-column gap-2">
+                    <label for="bankName" class="font-semibold text-700">Bank Name <span class="text-red-500">*</span></label>
+                    <input id="bankName" type="text" pInputText class="lx-idv__input w-full" formControlName="bankName" placeholder="State Bank of India" />
+                  </div>
+                  @if (bankForm.controls.bankName.touched && bankForm.controls.bankName.invalid) {
+                    <small class="p-error block mt-1">Bank name is required.</small>
+                  }
+                </div>
+
+                <div class="field col-12 md:col-6 mb-4">
+                  <div class="flex flex-column gap-2">
+                    <label for="accountNumber" class="font-semibold text-700">Account Number <span class="text-red-500">*</span></label>
+                    <input
+                      id="accountNumber"
+                      type="password"
+                      pInputText
+                      class="lx-idv__input w-full"
+                      formControlName="accountNumber"
+                      inputmode="numeric"
+                      autocomplete="off"
+                      (input)="onBankAccountInput('accountNumber', $event)"
+                    />
+                  </div>
+                  @if (bankForm.controls.accountNumber.touched && bankForm.controls.accountNumber.invalid) {
+                    <small class="p-error block mt-1">Enter an 8–18 digit account number.</small>
+                  }
+                </div>
+
+                <div class="field col-12 md:col-6 mb-4">
+                  <div class="flex flex-column gap-2">
+                    <label for="confirmAccountNumber" class="font-semibold text-700">Confirm Account Number <span class="text-red-500">*</span></label>
+                    <input
+                      id="confirmAccountNumber"
+                      type="text"
+                      pInputText
+                      class="lx-idv__input w-full"
+                      formControlName="confirmAccountNumber"
+                      inputmode="numeric"
+                      autocomplete="off"
+                      (input)="onBankAccountInput('confirmAccountNumber', $event)"
+                    />
+                  </div>
+                  @if (
+                    bankForm.controls.confirmAccountNumber.touched &&
+                    (bankForm.controls.confirmAccountNumber.invalid ||
+                      bankForm.controls.confirmAccountNumber.value !== bankForm.controls.accountNumber.value)
+                  ) {
+                    <small class="p-error block mt-1">Account numbers must match.</small>
+                  }
+                </div>
+
+                <div class="field col-12 md:col-6 mb-4">
+                  <div class="flex flex-column gap-2">
+                    <label for="ifscCode" class="font-semibold text-700">IFSC Code <span class="text-red-500">*</span></label>
+                    <input
+                      id="ifscCode"
+                      type="text"
+                      pInputText
+                      class="lx-idv__input w-full"
+                      formControlName="ifscCode"
+                      placeholder="SBIN0001234"
+                      (input)="onIfscInput($event)"
+                    />
+                  </div>
+                  @if (bankForm.controls.ifscCode.touched && bankForm.controls.ifscCode.invalid) {
+                    <small class="p-error block mt-1">Enter a valid IFSC (e.g. SBIN0001234).</small>
+                  }
+                </div>
+
+                <div class="field col-12 md:col-6 mb-4">
+                  <span class="font-semibold text-700 mb-2 block">Account Type <span class="text-red-500">*</span></span>
+                  <div class="lx-idv__radio-row" role="radiogroup" aria-label="Account type">
+                    <label class="lx-idv__radio">
+                      <input type="radio" formControlName="accountType" value="SAVINGS" />
+                      <span>Savings</span>
+                    </label>
+                    <label class="lx-idv__radio">
+                      <input type="radio" formControlName="accountType" value="CURRENT" />
+                      <span>Current</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="lx-idv__actions mt-2">
+                <p-button
+                  type="submit"
+                  label="Verify Bank Account"
+                  [loading]="verifyingBank()"
+                  [disabled]="verifyingBank() || bankForm.invalid"
+                  icon="pi pi-building"
+                  styleClass="lx-idv__btn w-full"
+                ></p-button>
+              </div>
+            </form>
+          }
+        </div>
+      }
+      -->
+
+    </p-card>
+  }
+</div>

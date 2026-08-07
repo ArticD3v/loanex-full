@@ -1,0 +1,85 @@
+<p-drawer
+  id="lx-mobile-drawer"
+  [visible]="visible()"
+  (visibleChange)="onVisibleChange($event)"
+  position="left"
+  [modal]="true"
+  [dismissible]="true"
+  [blockScroll]="true"
+  styleClass="lx-mobile-drawer"
+  ariaLabel="Mobile navigation"
+>
+  <ng-template #header>
+    <a routerLink="/" class="lx-mobile-brand" (click)="close()">
+      <img
+        class="lx-mobile-brand__logo"
+        [src]="company.logoSrc"
+        [alt]="company.logoAlt"
+        width="140"
+        height="48"
+        decoding="async"
+      />
+    </a>
+  </ng-template>
+
+  <div class="lx-mobile-nav">
+    @if (!isAuthenticated()) {
+      <a routerLink="/auth/login" class="lx-mobile-nav__login" (click)="close()">
+        <p-button label="Login / Sign Up" styleClass="w-full lx-mobile-nav__login-btn" />
+      </a>
+    } @else if (user(); as currentUser) {
+      <div class="lx-mobile-nav__user">
+        <span class="lx-mobile-nav__avatar" aria-hidden="true">{{ initials() }}</span>
+        <div>
+          <strong>{{ currentUser.fullName }}</strong>
+          <span>{{ currentUser.email }}</span>
+        </div>
+      </div>
+
+      <nav class="lx-mobile-nav__account" aria-label="Account">
+        <a routerLink="/profile" (click)="close()"><i class="pi pi-user" aria-hidden="true"></i> My Profile</a>
+        <a routerLink="/my-orders" (click)="close()"><i class="pi pi-shopping-bag" aria-hidden="true"></i> My Orders</a>
+        <a routerLink="/my-emis" (click)="close()"><i class="pi pi-credit-card" aria-hidden="true"></i> My EMIs</a>
+        <a routerLink="/profile/settings" (click)="close()"><i class="pi pi-cog" aria-hidden="true"></i> Settings</a>
+        <button type="button" (click)="logout()"><i class="pi pi-sign-out" aria-hidden="true"></i> Logout</button>
+      </nav>
+    }
+
+    <div class="lx-mobile-nav__quick">
+      <a routerLink="/wishlist" class="lx-mobile-nav__quick-item" (click)="close()">
+        <i class="pi pi-heart" aria-hidden="true"></i>
+        <span>Wishlist</span>
+        @if (ui.wishlistCount() > 0) {
+          <span class="lx-mobile-nav__count">{{ ui.wishlistCount() }}</span>
+        }
+      </a>
+      <a routerLink="/cart" class="lx-mobile-nav__quick-item" (click)="close()">
+        <i class="pi pi-shopping-cart" aria-hidden="true"></i>
+        <span>Cart</span>
+        @if (ui.cartCount() > 0) {
+          <span class="lx-mobile-nav__count">{{ ui.cartCount() }}</span>
+        }
+      </a>
+    </div>
+
+    <nav class="lx-mobile-nav__links" aria-label="Mobile primary">
+      @for (item of navItems; track item.id) {
+        <a
+          class="lx-mobile-nav__link"
+          [routerLink]="item.path"
+          [fragment]="item.fragment"
+          routerLinkActive="is-active"
+          [routerLinkActiveOptions]="{
+            paths: 'exact',
+            queryParams: 'ignored',
+            fragment: 'exact',
+            matrixParams: 'ignored',
+          }"
+          (click)="close()"
+        >
+          {{ item.label }}
+        </a>
+      }
+    </nav>
+  </div>
+</p-drawer>

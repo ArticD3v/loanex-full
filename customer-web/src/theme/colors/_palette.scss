@@ -1,0 +1,27 @@
+@use '../variables' as *;
+
+:root {
+  /* Primary scale (approximate for utilities / soft fills) */
+  --lx-primary-50: #eef3fb;
+  --lx-primary-100: #d5e1f5;
+  --lx-primary-200: #abc3eb;
+  --lx-primary-300: #7a9fd9;
+  --lx-primary-400: #4a78c0;
+  --lx-primary-500: #{$lx-color-primary};
+  --lx-primary-600: #{$lx-color-primary-hover};
+  --lx-primary-700: #061a3d;
+  --lx-primary-800: #04122c;
+  --lx-primary-900: #020b1c;
+
+  /* Secondary scale */
+  --lx-secondary-50: #fbf6e9;
+  --lx-secondary-100: #f5e8c4;
+  --lx-secondary-200: #ead289;
+  --lx-secondary-300: #e0bc55;
+  --lx-secondary-400: #{$lx-color-secondary};
+  --lx-secondary-500: #b8881f;
+  --lx-secondary-600: #926b18;
+  --lx-secondary-700: #6d5012;
+  --lx-secondary-800: #49360c;
+  --lx-secondary-900: #251b06;
+}

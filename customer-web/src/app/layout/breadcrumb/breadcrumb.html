@@ -1,0 +1,21 @@
+<nav class="lx-breadcrumb" aria-label="Breadcrumb">
+  <ol class="lx-breadcrumb__list">
+    @for (item of items(); track item.label; let last = $last) {
+      <li class="lx-breadcrumb__item">
+        @if (!last && item.path) {
+          <a
+            class="lx-breadcrumb__link"
+            [routerLink]="linkPath(item)"
+            [queryParams]="linkQueryParams(item)"
+          >{{ item.label }}</a>
+        } @else {
+          <span class="lx-breadcrumb__current" aria-current="page">{{ item.label }}</span>
+        }
+
+        @if (!last) {
+          <i class="pi pi-angle-right lx-breadcrumb__sep" aria-hidden="true"></i>
+        }
+      </li>
+    }
+  </ol>
+</nav>

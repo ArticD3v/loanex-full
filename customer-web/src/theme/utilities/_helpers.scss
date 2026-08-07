@@ -1,0 +1,114 @@
+@use '../mixins' as *;
+
+/* Helper classes */
+.lx-truncate {
+  @include lx-truncate(1);
+}
+
+.lx-line-clamp-2 {
+  @include lx-truncate(2);
+}
+
+.lx-line-clamp-3 {
+  @include lx-truncate(3);
+}
+
+.lx-sr-only {
+  @include lx-visually-hidden;
+}
+
+.lx-flex {
+  display: flex !important;
+}
+
+.lx-inline-flex {
+  display: inline-flex !important;
+}
+
+.lx-grid {
+  display: grid !important;
+}
+
+.lx-hidden {
+  display: none !important;
+}
+
+.lx-block {
+  display: block !important;
+}
+
+.lx-items-center {
+  align-items: center !important;
+}
+
+.lx-justify-center {
+  justify-content: center !important;
+}
+
+.lx-justify-between {
+  justify-content: space-between !important;
+}
+
+.lx-flex-col {
+  flex-direction: column !important;
+}
+
+.lx-flex-wrap {
+  flex-wrap: wrap !important;
+}
+
+.lx-w-full {
+  width: 100% !important;
+}
+
+.lx-h-full {
+  height: 100% !important;
+}
+
+.lx-min-h-screen {
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+}
+
+.lx-relative {
+  position: relative !important;
+}
+
+.lx-absolute {
+  position: absolute !important;
+}
+
+.lx-sticky {
+  position: sticky !important;
+}
+
+.lx-overflow-hidden {
+  overflow: hidden !important;
+}
+
+.lx-pointer {
+  cursor: pointer !important;
+}
+
+.lx-disabled {
+  opacity: 0.55;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+.lx-divider {
+  width: 100%;
+  height: 1px;
+  border: 0;
+  background: var(--lx-color-border);
+  margin: var(--lx-space-16) 0;
+}
+
+.lx-container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--lx-space-16);
+  padding-right: var(--lx-space-16);
+  max-width: 1280px;
+}

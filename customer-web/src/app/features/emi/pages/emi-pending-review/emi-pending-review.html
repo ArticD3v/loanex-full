@@ -1,0 +1,60 @@
+<div class="lx-pending">
+  <section class="lx-pending__card" aria-labelledby="lx-pending-title">
+    <div class="lx-pending__icon" aria-hidden="true">
+      <i class="pi pi-check"></i>
+    </div>
+
+    <h1 id="lx-pending-title">Verification Completed</h1>
+    <p class="lx-pending__lead">Your EMI application has been submitted successfully.</p>
+    <p class="lx-pending__copy">Our finance team is reviewing your application.</p>
+
+    @if (error(); as err) {
+      <div class="lx-pending__alert" role="alert">{{ err }}</div>
+    }
+
+    @if (loading() && !application()) {
+      <p class="lx-pending__loading" aria-live="polite">Loading application status…</p>
+    }
+
+    @if (application(); as app) {
+      <dl class="lx-pending__meta">
+        <div>
+          <dt>Application Number</dt>
+          <dd>{{ app.applicationNumber }}</dd>
+        </div>
+        <div>
+          <dt>Submission Date</dt>
+          <dd>{{ formatDate(app.submittedAt) }}</dd>
+        </div>
+        <div>
+          <dt>Status</dt>
+          <dd>
+            <span class="lx-pending__badge">{{ app.status }}</span>
+          </dd>
+        </div>
+      </dl>
+    }
+
+    <p class="lx-pending__eta">
+      Estimated review time
+      <strong>24–48 Hours</strong>
+    </p>
+
+    <div class="lx-pending__actions">
+      <button
+        type="button"
+        class="lx-btn lx-btn--outline"
+        [class.is-loading]="refreshing()"
+        [disabled]="refreshing()"
+        (click)="load()"
+      >
+        Refresh Status
+      </button>
+      <a routerLink="/" class="lx-btn lx-btn--primary">Back to Home</a>
+    </div>
+
+    <p class="lx-pending__note">
+      Down payment and payment actions remain disabled until an admin approves your application.
+    </p>
+  </section>
+</div>

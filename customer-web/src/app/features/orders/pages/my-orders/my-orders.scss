@@ -1,0 +1,267 @@
+:host {
+  display: block;
+}
+
+.lx-mo {
+  display: grid;
+  place-items: center;
+  padding: 0.35rem 0 2.25rem;
+  animation: lx-mo-in 360ms ease both;
+}
+
+@keyframes lx-mo-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lx-mo__card {
+  width: min(100%, 64rem);
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  background: #fff;
+  border: 1px solid #e5e9f0;
+  border-radius: 1rem;
+  padding: 1.65rem 1.6rem 1.5rem;
+  box-shadow: 0 12px 32px rgba(10, 46, 111, 0.07);
+  display: grid;
+  gap: 1.2rem;
+  overflow: hidden;
+}
+
+.lx-mo__header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.85rem;
+  align-items: flex-start;
+
+  h1 {
+    margin: 0;
+    color: #0a2e6f;
+    font-size: clamp(1.5rem, 2.3vw, 1.85rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    margin: 0.4rem 0 0;
+    color: #6b7280;
+    font-size: 0.95rem;
+  }
+
+  .lx-btn--outline {
+    min-height: 2.35rem;
+    padding: 0.45rem 1rem;
+    font-size: 0.88rem;
+  }
+}
+
+.lx-mo__alert,
+.lx-mo__info {
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.7rem;
+  font-weight: 600;
+}
+
+.lx-mo__alert {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.lx-mo__info {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.lx-mo__loading {
+  margin: 0;
+  text-align: center;
+  color: #6b7280;
+  padding: 1.5rem 0;
+}
+
+.lx-mo__empty {
+  display: grid;
+  justify-items: center;
+  gap: 0.55rem;
+  text-align: center;
+  padding: 2rem 1rem;
+
+  i {
+    font-size: 2rem;
+    color: #0a2e6f;
+  }
+
+  h2 {
+    margin: 0;
+    color: #0a2e6f;
+  }
+
+  p {
+    margin: 0 0 0.5rem;
+    color: #6b7280;
+  }
+}
+
+.lx-mo__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.lx-mo__item {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+  padding: 1rem 1.05rem;
+  border: 1px solid #e8eef6;
+  border-radius: 0.95rem;
+  background: #f7f9fc;
+  min-width: 0;
+}
+
+.lx-mo__image-link {
+  display: block;
+  width: 7rem;
+  height: 7rem;
+  border-radius: 0.7rem;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #eef2f7;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+}
+
+.lx-mo__meta {
+  min-width: 0;
+
+  h2 {
+    margin: 0.2rem 0 0;
+    font-size: 1rem;
+    font-weight: 800;
+    line-height: 1.4;
+
+    a {
+      color: #0a2e6f;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
+.lx-mo__brand {
+  margin: 0;
+  color: #d4a12a;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lx-mo__details {
+  margin: 0.65rem 0 0;
+  display: grid;
+  gap: 0.35rem;
+
+  div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+    align-items: baseline;
+  }
+
+  dt {
+    color: #6b7280;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  dd {
+    margin: 0;
+    color: #0a2e6f;
+    font-weight: 700;
+    font-size: 0.88rem;
+  }
+}
+
+.lx-mo__badge {
+  display: inline-flex;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.lx-mo__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+  align-items: center;
+
+  .lx-btn {
+    min-height: 2.35rem;
+    padding: 0.45rem 0.95rem;
+    font-size: 0.86rem;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .lx-mo__card {
+    padding: 1.15rem 1rem 1.1rem;
+  }
+
+  .lx-mo__item {
+    grid-template-columns: 5.25rem minmax(0, 1fr);
+  }
+
+  .lx-mo__image-link {
+    width: 5.25rem;
+    height: 5.25rem;
+  }
+
+  .lx-mo__actions {
+    flex-direction: column;
+    align-items: stretch;
+
+    .lx-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}
+
+@media (max-width: 379.98px) {
+  .lx-mo__item {
+    grid-template-columns: 1fr;
+  }
+
+  .lx-mo__image-link {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+    max-height: 10rem;
+  }
+}

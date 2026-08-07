@@ -1,0 +1,11 @@
+<article class="lx-feature-card">
+  <div class="lx-feature-card__icon" aria-hidden="true">
+    <i [class]="icon()"></i>
+  </div>
+  <div class="lx-feature-card__body">
+    <h3 class="lx-feature-card__title">{{ title() }}</h3>
+    @if (description()) {
+      <p class="lx-feature-card__desc">{{ description() }}</p>
+    }
+  </div>
+</article>

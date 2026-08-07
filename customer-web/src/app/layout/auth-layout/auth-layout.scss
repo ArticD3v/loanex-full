@@ -1,0 +1,20 @@
+:host {
+  display: block;
+  min-height: 100%;
+}
+
+.lx-auth-layout {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: clamp(0.85rem, 3vw, var(--lx-space-24));
+  background:
+    radial-gradient(circle at 20% 20%, rgba(212, 161, 42, 0.12), transparent 36%),
+    radial-gradient(circle at 80% 10%, rgba(10, 46, 111, 0.14), transparent 40%),
+    var(--lx-color-bg);
+}
+
+.lx-auth-layout__panel {
+  width: min(100%, 30rem);
+}

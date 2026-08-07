@@ -1,0 +1,25 @@
+@use '../variables' as *;
+
+:root {
+  --lx-duration-fast: #{$lx-duration-fast};
+  --lx-duration-normal: #{$lx-duration-normal};
+  --lx-duration-slow: #{$lx-duration-slow};
+  --lx-easing-standard: #{$lx-easing-standard};
+  --lx-easing-emphasized: #{$lx-easing-emphasized};
+  --lx-easing-decelerate: #{$lx-easing-decelerate};
+
+  --lx-transition-fast: var(--lx-duration-fast) var(--lx-easing-standard);
+  --lx-transition-normal: var(--lx-duration-normal) var(--lx-easing-standard);
+  --lx-transition-slow: var(--lx-duration-slow) var(--lx-easing-emphasized);
+
+  --lx-transition-hover: color var(--lx-transition-fast), background-color var(--lx-transition-fast),
+    border-color var(--lx-transition-fast), box-shadow var(--lx-transition-normal),
+    transform var(--lx-transition-normal), opacity var(--lx-transition-fast);
+
+  --lx-transition-card: box-shadow var(--lx-transition-normal), transform var(--lx-transition-normal),
+    border-color var(--lx-transition-fast);
+
+  --lx-transition-button: background-color var(--lx-transition-fast), color var(--lx-transition-fast),
+    border-color var(--lx-transition-fast), box-shadow var(--lx-transition-fast),
+    transform var(--lx-duration-fast) var(--lx-easing-emphasized);
+}

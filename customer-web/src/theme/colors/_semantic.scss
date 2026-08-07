@@ -1,0 +1,46 @@
+@use '../variables' as *;
+
+:root {
+  /* Brand */
+  --lx-color-primary: #{$lx-color-primary};
+  --lx-color-primary-hover: #{$lx-color-primary-hover};
+  --lx-color-primary-rgb: 10, 46, 111;
+  --lx-color-secondary: #{$lx-color-secondary};
+  --lx-color-secondary-rgb: 212, 161, 42;
+
+  /* Feedback */
+  --lx-color-success: #{$lx-color-success};
+  --lx-color-success-soft: #dcfce7;
+  --lx-color-danger: #{$lx-color-danger};
+  --lx-color-danger-soft: #fee2e2;
+  --lx-color-warning: #{$lx-color-warning};
+  --lx-color-warning-soft: #fef3c7;
+  --lx-color-info: #{$lx-color-info};
+  --lx-color-info-soft: #e0f2fe;
+
+  /* Surfaces */
+  --lx-color-bg: #{$lx-color-bg};
+  --lx-color-surface: #{$lx-color-surface};
+  --lx-color-border: #{$lx-color-border};
+  --lx-color-border-strong: #d1d5db;
+  --lx-color-overlay: rgba(17, 24, 39, 0.45);
+
+  /* Text */
+  --lx-color-text: #{$lx-color-text};
+  --lx-color-text-secondary: #{$lx-color-text-secondary};
+  --lx-color-text-inverse: #{$lx-color-white};
+  --lx-color-text-disabled: #9ca3af;
+  --lx-color-placeholder: #9ca3af;
+
+  /* Focus */
+  --lx-color-focus-ring: rgba(10, 46, 111, 0.35);
+
+  /* Status (badges / chips) */
+  --lx-status-success: #{$lx-color-success};
+  --lx-status-pending: #{$lx-color-warning};
+  --lx-status-rejected: #{$lx-color-danger};
+  --lx-status-approved: #{$lx-color-success};
+  --lx-status-new: #{$lx-color-info};
+  --lx-status-offer: #{$lx-color-secondary};
+  --lx-status-emi: #{$lx-color-primary};
+}

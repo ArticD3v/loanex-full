@@ -1,0 +1,11 @@
+@use '../../styles/auth-card';
+
+:host {
+  display: block;
+}
+
+.lx-optional {
+  font-weight: 400;
+  color: #64748b;
+  font-size: 0.85em;
+}

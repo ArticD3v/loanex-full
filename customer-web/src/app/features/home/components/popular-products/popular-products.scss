@@ -1,0 +1,233 @@
+:host {
+  display: block;
+}
+
+.lx-popular {
+  width: 100%;
+  padding: 2rem 0 0.5rem;
+}
+
+.lx-popular__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.lx-popular__title {
+  margin: 0;
+  font-size: clamp(1.4rem, 2vw, 1.7rem);
+  font-weight: 700;
+  color: #0a2e6f;
+  letter-spacing: -0.02em;
+}
+
+.lx-popular__view-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0a2e6f;
+  text-decoration: none;
+
+  &:hover {
+    color: #082455;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--lx-color-primary);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+}
+
+.lx-popular__grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.lx-popular__card {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #e8eaee;
+  border-radius: 0.95rem;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 4px 14px rgba(10, 46, 111, 0.05);
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+
+  &:hover {
+    transform: translateY(-4px);
+    border-color: rgba(10, 46, 111, 0.14);
+    box-shadow: 0 14px 28px rgba(10, 46, 111, 0.1);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--lx-color-primary);
+    outline-offset: 2px;
+  }
+}
+
+.lx-popular__media {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: #f8fafc;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    padding: 0.75rem;
+    display: block;
+    transition: transform 280ms ease;
+  }
+}
+
+.lx-popular__card:hover .lx-popular__media img {
+  transform: scale(1.04);
+}
+
+.lx-popular__wish {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #9ca3af;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(17, 24, 39, 0.1);
+  transition: color 180ms ease, transform 180ms ease;
+
+  &:hover {
+    transform: scale(1.06);
+    color: #dc2626;
+  }
+
+  &.is-active {
+    color: #dc2626;
+  }
+}
+
+.lx-popular__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.85rem 0.85rem 1rem;
+}
+
+.lx-popular__name {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #111827;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.45em;
+}
+
+.lx-popular__price {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.lx-popular__emi {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 0.28rem 0.6rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #0a2e6f;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.lx-popular__delivery {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0.1rem 0 0;
+  font-size: 0.72rem;
+  color: #6b7280;
+
+  i {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 1279.98px) {
+  .lx-popular__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.05rem;
+  }
+
+  .lx-popular__name {
+    font-size: 0.92rem;
+  }
+
+  .lx-popular__emi {
+    font-size: 0.74rem;
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .lx-popular__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .lx-popular {
+    padding-top: 1.35rem;
+  }
+
+  .lx-popular__header {
+    align-items: flex-start;
+  }
+
+  .lx-popular__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .lx-popular__body {
+    padding: 0.7rem 0.7rem 0.85rem;
+  }
+
+  .lx-popular__name {
+    font-size: 0.78rem;
+    min-height: 2.3em;
+  }
+
+  .lx-popular__price {
+    font-size: 0.9rem;
+  }
+
+  .lx-popular__emi {
+    font-size: 0.65rem;
+    padding: 0.22rem 0.5rem;
+  }
+}
+
+@media (max-width: 379.98px) {
+  .lx-popular__grid {
+    grid-template-columns: 1fr;
+  }
+}

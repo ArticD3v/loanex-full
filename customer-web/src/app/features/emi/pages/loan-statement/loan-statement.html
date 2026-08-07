@@ -1,0 +1,153 @@
+<div class="lx-ls">
+  <section class="lx-ls__card" aria-labelledby="lx-ls-title">
+    <header class="lx-ls__header">
+      <h1 id="lx-ls-title">Loan Statement</h1>
+      <p>Review your loan progress, interest summary, and repayment status.</p>
+    </header>
+
+    @if (error(); as err) {
+      <div class="lx-ls__alert" role="alert">{{ err }}</div>
+    }
+    @if (info(); as message) {
+      <div class="lx-ls__info" role="status">{{ message }}</div>
+    }
+
+    @if (loading() && !statement()) {
+      <p class="lx-ls__loading" aria-live="polite">Loading loan statement…</p>
+    }
+
+    @if (statement(); as data) {
+      <div class="lx-ls__product">
+        <img
+          [src]="data.loan.productImage"
+          [alt]="data.loan.productName || 'Product'"
+          width="72"
+          height="72"
+        />
+        <div>
+          <p class="lx-ls__product-name">{{ data.loan.productName || data.loan.productId }}</p>
+          <p class="lx-ls__muted">{{ data.loan.loanAccountNumber }}</p>
+        </div>
+      </div>
+
+      <section aria-labelledby="lx-ls-summary-title">
+        <h2 id="lx-ls-summary-title" class="lx-ls__section-title">Loan Summary</h2>
+        <dl class="lx-ls__meta">
+          <div>
+            <dt>Loan Account Number</dt>
+            <dd>{{ data.loan.loanAccountNumber }}</dd>
+          </div>
+          <div>
+            <dt>Application Number</dt>
+            <dd>{{ data.loan.applicationNumber }}</dd>
+          </div>
+          <div>
+            <dt>Loan Amount</dt>
+            <dd>{{ formatMoney(data.loan.loanAmount) }}</dd>
+          </div>
+          <div>
+            <dt>Interest Rate</dt>
+            <dd>{{ data.loan.interestRate }}%</dd>
+          </div>
+          <div>
+            <dt>Tenure</dt>
+            <dd>{{ data.loan.loanTenure }} months</dd>
+          </div>
+          <div>
+            <dt>Loan Status</dt>
+            <dd>{{ formatStatus(data.loan.loanStatus) }}</dd>
+          </div>
+          <div>
+            <dt>Start Date</dt>
+            <dd>{{ formatDate(data.loan.loanStartDate) }}</dd>
+          </div>
+          <div>
+            <dt>End Date</dt>
+            <dd>{{ formatDate(data.loan.loanEndDate) }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section aria-labelledby="lx-ls-interest-title">
+        <h2 id="lx-ls-interest-title" class="lx-ls__section-title">Interest Summary</h2>
+        <div class="lx-ls__cards">
+          <article>
+            <span>Total Interest</span>
+            <strong>{{ formatMoney(data.interestSummary.totalInterest) }}</strong>
+          </article>
+          <article>
+            <span>Interest Paid</span>
+            <strong class="is-gold">{{ formatMoney(data.interestSummary.interestPaid) }}</strong>
+          </article>
+          <article>
+            <span>Interest Remaining</span>
+            <strong>{{ formatMoney(data.interestSummary.interestRemaining) }}</strong>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="lx-ls-progress-title">
+        <h2 id="lx-ls-progress-title" class="lx-ls__section-title">Repayment Progress</h2>
+        <div class="lx-ls__cards">
+          <article>
+            <span>Principal Paid</span>
+            <strong>{{ formatMoney(data.principalSummary.principalPaid) }}</strong>
+          </article>
+          <article>
+            <span>Interest Paid</span>
+            <strong>{{ formatMoney(data.interestSummary.interestPaid) }}</strong>
+          </article>
+          <article>
+            <span>Outstanding Amount</span>
+            <strong>{{ formatMoney(data.outstandingAmount) }}</strong>
+          </article>
+          <article>
+            <span>Loan Completion %</span>
+            <strong class="is-gold">{{ data.loanCompletionPercent }}%</strong>
+          </article>
+          <article>
+            <span>EMIs Paid</span>
+            <strong>{{ data.emis.paid }} / {{ data.emis.total }}</strong>
+          </article>
+          <article>
+            <span>Pending / Overdue</span>
+            <strong>{{ data.emis.pending }} / {{ data.emis.overdue }}</strong>
+          </article>
+        </div>
+
+        <div class="lx-ls__progress" aria-hidden="true">
+          <div class="lx-ls__progress-bar" [style.width.%]="data.loanCompletionPercent"></div>
+        </div>
+      </section>
+
+      <div class="lx-ls__actions">
+        <button
+          type="button"
+          class="lx-btn lx-btn--primary"
+          [disabled]="downloading()"
+          (click)="downloadStatementPdf()"
+        >
+          Download Loan Statement (PDF)
+        </button>
+        <button
+          type="button"
+          class="lx-btn lx-btn--outline"
+          [disabled]="downloading()"
+          (click)="downloadHistoryPdf()"
+        >
+          Download Payment History (PDF)
+        </button>
+        <button
+          type="button"
+          class="lx-btn lx-btn--outline"
+          [disabled]="downloading()"
+          (click)="downloadHistoryExcel()"
+        >
+          Download Payment History (Excel)
+        </button>
+        <a routerLink="/my-emi/payment-history" class="lx-btn lx-btn--outline">Payment History</a>
+        <a routerLink="/my-emi" class="lx-btn lx-btn--outline">Back to My EMI</a>
+      </div>
+    }
+  </section>
+</div>

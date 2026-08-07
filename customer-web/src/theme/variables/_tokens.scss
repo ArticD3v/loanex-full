@@ -1,0 +1,98 @@
+// LoanEx Design System — SCSS compile-time variables
+// Prefer CSS custom properties at runtime; use these for Sass math/mixins.
+
+// —— Brand & semantic colors ——
+$lx-color-primary: #0a2e6f !default;
+$lx-color-primary-hover: #082455 !default;
+$lx-color-secondary: #d4a12a !default;
+$lx-color-success: #16a34a !default;
+$lx-color-danger: #dc2626 !default;
+$lx-color-warning: #f59e0b !default;
+$lx-color-info: #0284c7 !default;
+
+$lx-color-bg: #f8fafc !default;
+$lx-color-surface: #ffffff !default;
+$lx-color-border: #e5e7eb !default;
+$lx-color-text: #111827 !default;
+$lx-color-text-secondary: #6b7280 !default;
+$lx-color-white: #ffffff !default;
+$lx-color-black: #000000 !default;
+
+// —— Typography ——
+$lx-font-family: 'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, sans-serif !default;
+$lx-font-family-mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace !default;
+
+$lx-font-weight-regular: 400 !default;
+$lx-font-weight-medium: 500 !default;
+$lx-font-weight-semibold: 600 !default;
+$lx-font-weight-bold: 700 !default;
+
+$lx-text-h1: 2.25rem !default; // 36px
+$lx-text-h2: 1.875rem !default; // 30px
+$lx-text-h3: 1.5rem !default; // 24px
+$lx-text-h4: 1.25rem !default; // 20px
+$lx-text-body-lg: 1.125rem !default; // 18px
+$lx-text-body: 1rem !default; // 16px
+$lx-text-sm: 0.875rem !default; // 14px
+$lx-text-caption: 0.75rem !default; // 12px
+
+$lx-leading-tight: 1.25 !default;
+$lx-leading-snug: 1.375 !default;
+$lx-leading-normal: 1.5 !default;
+$lx-leading-relaxed: 1.625 !default;
+
+// —— Spacing scale (px) ——
+$lx-space-4: 0.25rem !default;
+$lx-space-8: 0.5rem !default;
+$lx-space-12: 0.75rem !default;
+$lx-space-16: 1rem !default;
+$lx-space-20: 1.25rem !default;
+$lx-space-24: 1.5rem !default;
+$lx-space-32: 2rem !default;
+$lx-space-40: 2.5rem !default;
+$lx-space-48: 3rem !default;
+$lx-space-64: 4rem !default;
+
+$lx-spacing: (
+  4: $lx-space-4,
+  8: $lx-space-8,
+  12: $lx-space-12,
+  16: $lx-space-16,
+  20: $lx-space-20,
+  24: $lx-space-24,
+  32: $lx-space-32,
+  40: $lx-space-40,
+  48: $lx-space-48,
+  64: $lx-space-64,
+) !default;
+
+// —— Radius ——
+$lx-radius-sm: 0.25rem !default;
+$lx-radius-md: 0.5rem !default;
+$lx-radius-lg: 0.75rem !default;
+$lx-radius-xl: 1rem !default;
+$lx-radius-pill: 9999px !default;
+
+// —— Motion ——
+$lx-duration-fast: 150ms !default;
+$lx-duration-normal: 250ms !default;
+$lx-duration-slow: 400ms !default;
+$lx-easing-standard: cubic-bezier(0.4, 0, 0.2, 1) !default;
+$lx-easing-emphasized: cubic-bezier(0.2, 0, 0, 1) !default;
+$lx-easing-decelerate: cubic-bezier(0, 0, 0.2, 1) !default;
+
+// —— Breakpoints ——
+$lx-bp-sm: 640px !default;
+$lx-bp-md: 768px !default;
+$lx-bp-lg: 1024px !default;
+$lx-bp-xl: 1280px !default;
+$lx-bp-2xl: 1536px !default;
+
+// —— Z-index ——
+$lx-z-base: 0 !default;
+$lx-z-dropdown: 1000 !default;
+$lx-z-sticky: 1100 !default;
+$lx-z-overlay: 1200 !default;
+$lx-z-modal: 1300 !default;
+$lx-z-toast: 1400 !default;
+$lx-z-tooltip: 1500 !default;

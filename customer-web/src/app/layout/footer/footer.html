@@ -1,0 +1,71 @@
+<footer class="lx-footer">
+  <div class="lx-footer__glow" aria-hidden="true"></div>
+
+  <div class="lx-footer__inner">
+    <div class="lx-footer__brand">
+      <a routerLink="/" class="lx-footer__logo">
+        <img
+          class="lx-footer__logo-img"
+          [src]="company.logoSrc"
+          [alt]="company.logoAlt"
+          width="120"
+          height="40"
+          decoding="async"
+        />
+      </a>
+      <p class="lx-footer__tagline">{{ company.tagline }}</p>
+      <p class="lx-footer__about">{{ company.description }}</p>
+    </div>
+
+    <div class="lx-footer__links">
+      @for (section of sections; track section.id) {
+        <div class="lx-footer__col">
+          <h3 class="lx-footer__col-title">{{ section.title }}</h3>
+          <ul>
+            @for (link of section.links; track link.id) {
+              <li>
+                <a [routerLink]="link.path">{{ link.label }}</a>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+    </div>
+
+    <div class="lx-footer__newsletter">
+      <h3 class="lx-footer__col-title">Stay in the loop</h3>
+      <p class="lx-footer__newsletter-copy">
+        Get EMI offers, curated picks, and product drops — UI only for now.
+      </p>
+
+      @if (!newsletterSubmitted()) {
+        <form class="lx-footer__newsletter-form" (submit)="onNewsletterSubmit($event)">
+          <label class="lx-sr-only" for="lx-newsletter-email">Email address</label>
+          <div class="lx-footer__newsletter-controls">
+            <input
+              id="lx-newsletter-email"
+              type="email"
+              name="email"
+              placeholder="Enter your email"
+              required
+              [ngModel]="newsletterEmail()"
+              (ngModelChange)="newsletterEmail.set($event)"
+            />
+            <button type="submit" class="lx-footer__subscribe">Subscribe</button>
+          </div>
+        </form>
+      } @else {
+        <p class="lx-footer__newsletter-success" role="status">
+          Thanks — you’re on the list (mock confirmation).
+        </p>
+      }
+    </div>
+  </div>
+
+  <div class="lx-footer__bottom">
+    <div class="lx-footer__bottom-inner">
+      <p>© {{ year }} {{ company.name }}. All rights reserved.</p>
+      <p class="lx-footer__legal-note">Premium FinTech commerce · Designed for clarity and trust.</p>
+    </div>
+  </div>
+</footer>

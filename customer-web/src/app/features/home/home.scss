@@ -1,0 +1,17 @@
+:host {
+  display: block;
+}
+
+.lx-home {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-bottom: 2rem;
+}
+
+#categories,
+#how-it-works,
+#offers {
+  scroll-margin-top: 6.5rem;
+}

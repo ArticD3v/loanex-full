@@ -1,0 +1,51 @@
+/* —— Badges —— */
+
+.lx-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lx-space-4);
+  min-height: 1.5rem;
+  padding: 0 var(--lx-space-8);
+  border-radius: var(--lx-radius-pill);
+  font-size: var(--lx-text-caption);
+  font-weight: var(--lx-font-weight-semibold);
+  line-height: 1;
+  letter-spacing: var(--lx-tracking-wide);
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.lx-badge--success {
+  background: var(--lx-color-success-soft);
+  color: var(--lx-color-success);
+}
+
+.lx-badge--pending {
+  background: var(--lx-color-warning-soft);
+  color: #b45309;
+}
+
+.lx-badge--rejected {
+  background: var(--lx-color-danger-soft);
+  color: var(--lx-color-danger);
+}
+
+.lx-badge--approved {
+  background: var(--lx-color-success-soft);
+  color: #15803d;
+}
+
+.lx-badge--new {
+  background: var(--lx-color-info-soft);
+  color: var(--lx-color-info);
+}
+
+.lx-badge--offer {
+  background: var(--lx-secondary-100);
+  color: var(--lx-secondary-700);
+}
+
+.lx-badge--emi {
+  background: var(--lx-primary-100);
+  color: var(--lx-color-primary);
+}

@@ -1,0 +1,72 @@
+<div class="lx-nav-actions">
+  <a routerLink="/wishlist" class="lx-nav-actions__icon" aria-label="Wishlist">
+    <i class="pi pi-heart" aria-hidden="true"></i>
+    @if (wishlistCount() > 0) {
+      <span class="lx-nav-actions__badge">{{ wishlistCount() }}</span>
+    }
+  </a>
+
+  <a routerLink="/cart" class="lx-nav-actions__icon" aria-label="Cart">
+    <i class="pi pi-shopping-cart" aria-hidden="true"></i>
+    @if (cartCount() > 0) {
+      <span class="lx-nav-actions__badge">{{ cartCount() }}</span>
+    }
+  </a>
+
+  @if (showLogin()) {
+    <a routerLink="/auth/login" class="lx-nav-actions__login">Login / Sign Up</a>
+  } @else if (user(); as currentUser) {
+    <div class="lx-nav-actions__account">
+      <button
+        type="button"
+        class="lx-nav-actions__profile"
+        [attr.aria-expanded]="menuOpen()"
+        aria-haspopup="menu"
+        aria-controls="lx-account-menu"
+        (click)="toggleMenu()"
+      >
+        <span class="lx-nav-actions__avatar" aria-hidden="true">{{ initials() }}</span>
+        <span class="lx-nav-actions__name">{{ currentUser.fullName }}</span>
+        <i class="pi pi-chevron-down" aria-hidden="true"></i>
+      </button>
+
+      @if (menuOpen()) {
+        <div id="lx-account-menu" class="lx-nav-actions__menu" role="menu">
+          <div class="lx-nav-actions__menu-head">
+            <strong>{{ currentUser.fullName }}</strong>
+            <span>{{ currentUser.email }}</span>
+          </div>
+
+          <a routerLink="/notifications" role="menuitem" (click)="closeMenu()">
+            <i class="pi pi-bell" aria-hidden="true"></i>
+            Notifications
+          </a>
+          <a routerLink="/profile" role="menuitem" (click)="closeMenu()">
+            <i class="pi pi-user" aria-hidden="true"></i>
+            My Profile
+          </a>
+          <a routerLink="/my-orders" role="menuitem" (click)="closeMenu()">
+            <i class="pi pi-shopping-bag" aria-hidden="true"></i>
+            My Orders
+          </a>
+          <a routerLink="/my-emis" role="menuitem" (click)="closeMenu()">
+            <i class="pi pi-credit-card" aria-hidden="true"></i>
+            My EMIs
+          </a>
+          <a routerLink="/wishlist" role="menuitem" (click)="closeMenu()">
+            <i class="pi pi-heart" aria-hidden="true"></i>
+            Wishlist
+          </a>
+          <a routerLink="/profile/settings" role="menuitem" (click)="closeMenu()">
+            <i class="pi pi-cog" aria-hidden="true"></i>
+            Settings
+          </a>
+          <button type="button" class="lx-nav-actions__logout" role="menuitem" (click)="logout()">
+            <i class="pi pi-sign-out" aria-hidden="true"></i>
+            Logout
+          </button>
+        </div>
+      }
+    </div>
+  }
+</div>

@@ -1,0 +1,23 @@
+@if (path(); as href) {
+  <a
+    class="lx-cta"
+    [class]="['lx-cta--' + variant(), block() ? 'lx-cta--block' : '']"
+    [routerLink]="href"
+  >
+    @if (icon(); as iconClass) {
+      <i [class]="iconClass" aria-hidden="true"></i>
+    }
+    <span>{{ label() }}</span>
+  </a>
+} @else {
+  <button
+    class="lx-cta"
+    [class]="['lx-cta--' + variant(), block() ? 'lx-cta--block' : '']"
+    [attr.type]="type()"
+  >
+    @if (icon(); as iconClass) {
+      <i [class]="iconClass" aria-hidden="true"></i>
+    }
+    <span>{{ label() }}</span>
+  </button>
+}

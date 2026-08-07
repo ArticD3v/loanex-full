@@ -1,0 +1,146 @@
+<div class="lx-catalog">
+  <section class="lx-catalog__card" aria-labelledby="lx-catalog-title">
+    <header class="lx-catalog__header">
+      <div>
+        <h1 id="lx-catalog-title">{{ pageTitle() }}</h1>
+        <p>{{ pageSubtitle() }}</p>
+      </div>
+    </header>
+
+    @if (error(); as err) {
+      <div class="lx-catalog__alert" role="alert">{{ err }}</div>
+    }
+
+    <div class="lx-catalog__layout">
+      <aside class="lx-catalog__filters" aria-label="Product filters">
+        <h2>Filters</h2>
+        <form [formGroup]="filterForm" (ngSubmit)="applyFilters()">
+          <label class="lx-catalog__field">
+            <span>Search</span>
+            <input type="search" formControlName="search" placeholder="Search products…" />
+          </label>
+
+          <label class="lx-catalog__field">
+            <span>Brand</span>
+            <select formControlName="brand">
+              <option value="">All brands</option>
+              @for (brand of catalog()?.filters?.brands ?? []; track brand) {
+                <option [value]="brand">{{ brand }}</option>
+              }
+            </select>
+          </label>
+
+          <label class="lx-catalog__field" [class.lx-catalog__field--active]="!!activeCategory()">
+            <span>Category</span>
+            <select formControlName="category">
+              <option value="">All categories</option>
+              @for (category of catalog()?.filters?.categories ?? []; track category) {
+                <option [value]="category">{{ category }}</option>
+              }
+            </select>
+          </label>
+
+          <div class="lx-catalog__row">
+            <label class="lx-catalog__field">
+              <span>Min price</span>
+              <input type="number" formControlName="minPrice" min="0" placeholder="0" />
+            </label>
+            <label class="lx-catalog__field">
+              <span>Max price</span>
+              <input type="number" formControlName="maxPrice" min="0" placeholder="Any" />
+            </label>
+          </div>
+
+          <label class="lx-catalog__field">
+            <span>Availability</span>
+            <select formControlName="availability">
+              <option value="ALL">All</option>
+              <option value="IN_STOCK">In stock</option>
+              <option value="OUT_OF_STOCK">Out of stock</option>
+            </select>
+          </label>
+
+          <label class="lx-catalog__check">
+            <input type="checkbox" formControlName="emiAvailable" />
+            <span>EMI available only</span>
+          </label>
+
+          <label class="lx-catalog__field">
+            <span>Sort by</span>
+            <select formControlName="sort">
+              <option value="latest">Latest</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+              <option value="name">Name</option>
+            </select>
+          </label>
+
+          <div class="lx-catalog__filter-actions">
+            <button type="submit" class="lx-btn lx-btn--primary">Apply</button>
+            <button type="button" class="lx-btn lx-btn--outline" (click)="resetFilters()">
+              Reset
+            </button>
+          </div>
+        </form>
+      </aside>
+
+      <div class="lx-catalog__results">
+        @if (loading()) {
+          <p class="lx-catalog__loading" aria-live="polite">Loading products…</p>
+        } @else if (!cardItems().length) {
+          <div class="lx-catalog__empty">
+            <i class="pi pi-search" aria-hidden="true"></i>
+            <h2>No Products Found</h2>
+            <p>
+              @if (activeCategory(); as category) {
+                No products match “{{ category }}”. Try another category or clear filters.
+              } @else {
+                Try adjusting your filters or search terms.
+              }
+            </p>
+            <button type="button" class="lx-btn lx-btn--primary" (click)="resetFilters()">
+              Clear filters
+            </button>
+          </div>
+        } @else {
+          <p class="lx-catalog__count">
+            Showing {{ catalog()?.items?.length ?? 0 }} of
+            {{ catalog()?.pagination?.total ?? 0 }} products
+          </p>
+
+          <div class="lx-catalog__grid">
+            @for (item of cardItems(); track item.id) {
+              <app-product-card [product]="item" (wishlistToggle)="onWishlistToggle($event)" />
+            }
+          </div>
+
+          @if (catalog(); as data) {
+            @if (data.pagination.totalPages > 1) {
+              <nav class="lx-catalog__pagination" aria-label="Product pagination">
+                <button
+                  type="button"
+                  class="lx-btn lx-btn--outline"
+                  [disabled]="data.pagination.page <= 1"
+                  (click)="goToPage(data.pagination.page - 1)"
+                >
+                  Previous
+                </button>
+                <span>
+                  Page {{ data.pagination.page }} of {{ data.pagination.totalPages }}
+                </span>
+                <button
+                  type="button"
+                  class="lx-btn lx-btn--outline"
+                  [disabled]="data.pagination.page >= data.pagination.totalPages"
+                  (click)="goToPage(data.pagination.page + 1)"
+                >
+                  Next
+                </button>
+              </nav>
+            }
+          }
+        }
+      </div>
+    </div>
+  </section>
+</div>

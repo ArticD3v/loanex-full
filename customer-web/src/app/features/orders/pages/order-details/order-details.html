@@ -1,0 +1,484 @@
+<div class="lx-od">
+
+  <section class="lx-od__card" aria-labelledby="lx-od-title">
+
+    <header class="lx-od__header">
+
+      <div>
+
+        <h1 id="lx-od-title">Order Details</h1>
+
+        <p>Complete order information and delivery progress.</p>
+
+      </div>
+
+      <a routerLink="/my-orders" class="lx-btn lx-btn--outline">Back to Orders</a>
+
+    </header>
+
+
+
+    @if (error(); as err) {
+
+      <div class="lx-od__alert" role="alert">{{ err }}</div>
+
+    }
+
+    @if (info(); as message) {
+
+      <div class="lx-od__info" role="status">{{ message }}</div>
+
+    }
+
+
+
+    @if (loading()) {
+
+      <p class="lx-od__loading" aria-live="polite">Loading order details…</p>
+
+    }
+
+
+
+    @if (order(); as data) {
+
+      @if (data.items && data.items.length > 0) {
+        @for (item of data.items; track item.productId) {
+          <div class="lx-od__product" style="margin-bottom: 1rem;">
+            <img [src]="item.productImage" [alt]="item.productName" width="88" height="88" />
+            <div>
+              <p class="lx-od__product-name">{{ item.productName }}</p>
+              <p class="lx-od__product-brand">{{ item.productBrand }}</p>
+              <p class="lx-od__product-price">{{ formatMoney(item.unitPrice) }} <span style="font-size: 0.875rem; color: #666;">(Qty: {{ item.quantity }})</span></p>
+            </div>
+          </div>
+        }
+      } @else {
+        <div class="lx-od__product">
+          <img [src]="data.productImage" [alt]="data.productName || 'Product'" width="88" height="88" />
+          <div>
+            <p class="lx-od__product-name">{{ data.productName || data.productId }}</p>
+            <p class="lx-od__product-brand">{{ data.productBrand || 'LoanEx' }}</p>
+            <p class="lx-od__product-price">{{ formatMoney(data.productPrice) }}</p>
+          </div>
+        </div>
+      }
+
+
+
+      <dl class="lx-od__meta">
+
+        <div>
+
+          <dt>Order Number</dt>
+
+          <dd>{{ data.orderNumber }}</dd>
+
+        </div>
+
+        <div>
+
+          <dt>Application Number</dt>
+
+          <dd>{{ data.applicationNumber }}</dd>
+
+        </div>
+
+        <div>
+
+          <dt>Order Date</dt>
+
+          <dd>{{ formatDate(data.createdAt) }}</dd>
+
+        </div>
+
+        <div>
+
+          <dt>Order Status</dt>
+
+          <dd><span class="lx-od__badge">{{ statusLabel(data.orderStatus) }}</span></dd>
+
+        </div>
+
+        @if (data.loanStatus) {
+
+          <div>
+
+            <dt>Loan Status</dt>
+
+            <dd><span class="lx-od__badge lx-od__badge--loan">{{ statusLabel(data.loanStatus) }}</span></dd>
+
+          </div>
+
+        }
+
+        <div>
+
+          <dt>Payment Type</dt>
+
+          <dd>{{ data.paymentType || '—' }}</dd>
+
+        </div>
+
+        <div>
+
+          <dt>Payment Method</dt>
+
+          <dd>{{ data.paymentMethod || '—' }}</dd>
+
+        </div>
+
+        <div>
+
+          <dt>Amount Paid</dt>
+
+          <dd>{{ formatMoney(data.amountPaid) }}</dd>
+
+        </div>
+
+        <div>
+
+          <dt>Estimated Delivery</dt>
+
+          <dd>{{ formatDeliveryDate(data.estimatedDeliveryDate) }}</dd>
+
+        </div>
+
+      </dl>
+
+
+
+      @if (data.customer; as customer) {
+
+        <section class="lx-od__section" aria-labelledby="lx-od-customer-title">
+
+          <h2 id="lx-od-customer-title">Customer Information</h2>
+
+          <dl class="lx-od__addresses">
+
+            <div>
+
+              <dt>Full Name</dt>
+
+              <dd>{{ customer.fullName }}</dd>
+
+            </div>
+
+            <div>
+
+              <dt>Email</dt>
+
+              <dd>{{ customer.email }}</dd>
+
+            </div>
+
+            <div>
+
+              <dt>Mobile</dt>
+
+              <dd>{{ customer.mobile }}</dd>
+
+            </div>
+
+          </dl>
+
+        </section>
+
+      }
+
+
+
+      <section class="lx-od__section" aria-labelledby="lx-od-address-title">
+
+        <h2 id="lx-od-address-title">Shipping & Billing</h2>
+
+        <dl class="lx-od__addresses">
+
+          <div>
+
+            <dt>Shipping Address</dt>
+
+            <dd>{{ data.shippingAddress || data.deliveryAddress || '—' }}</dd>
+
+          </div>
+
+          <div>
+
+            <dt>Billing Address</dt>
+
+            <dd>{{ data.billingAddress || data.deliveryAddress || '—' }}</dd>
+
+          </div>
+
+        </dl>
+
+      </section>
+
+
+
+      @if (data.paymentType === 'EMI' && data.emi; as emi) {
+
+        <section class="lx-od__section" aria-labelledby="lx-od-emi-title">
+
+          <h2 id="lx-od-emi-title">EMI Details</h2>
+
+          <dl class="lx-od__emi">
+
+            <div>
+
+              <dt>Loan Amount</dt>
+
+              <dd>{{ formatMoney(emi.loanAmount) }}</dd>
+
+            </div>
+
+            <div>
+
+              <dt>Down Payment</dt>
+
+              <dd>{{ formatMoney(emi.downPayment) }}</dd>
+
+            </div>
+
+            <div>
+
+              <dt>Tenure</dt>
+
+              <dd>{{ emi.tenure ? emi.tenure + ' months' : '—' }}</dd>
+
+            </div>
+
+            @if (emi.monthlyEmi !== null && emi.monthlyEmi !== undefined) {
+
+              <div>
+
+                <dt>Monthly EMI</dt>
+
+                <dd>{{ formatMoney(emi.monthlyEmi) }}</dd>
+
+              </div>
+
+            }
+
+            @if (hasInterestRate()) {
+
+              <div>
+
+                <dt>Interest Rate</dt>
+
+                <dd>{{ formatRate(emi.interestRate) }}</dd>
+
+              </div>
+
+            }
+
+            @if (hasProcessingFee()) {
+
+              <div>
+
+                <dt>Processing Fee</dt>
+
+                <dd>{{ formatMoney(emi.processingFee) }}</dd>
+
+              </div>
+
+            }
+
+          </dl>
+
+        </section>
+
+      }
+
+
+
+      @if (tracking(); as track) {
+
+        <section class="lx-od__section" aria-labelledby="lx-od-timeline-title">
+
+          <h2 id="lx-od-timeline-title">Delivery Timeline</h2>
+
+          <ol class="lx-od__timeline">
+
+            @for (step of track.steps; track step.status) {
+
+              <li
+
+                [class.is-done]="step.completed"
+
+                [class.is-active]="step.active"
+
+                [class.is-pending]="!step.completed"
+
+              >
+
+                <i
+
+                  class="pi"
+
+                  [class.pi-check]="step.completed"
+
+                  [class.pi-circle]="!step.completed"
+
+                  aria-hidden="true"
+
+                ></i>
+
+                <div>
+
+                  <strong>{{ step.label }}</strong>
+
+                  @if (step.timestamp) {
+
+                    <span>{{ formatDate(step.timestamp) }}</span>
+
+                  } @else if (step.active) {
+
+                    <span>In progress</span>
+
+                  } @else {
+
+                    <span>Pending</span>
+
+                  }
+
+                </div>
+
+              </li>
+
+            }
+
+          </ol>
+
+        </section>
+
+
+
+        <section class="lx-od__section" aria-labelledby="lx-od-shipping-title">
+
+          <h2 id="lx-od-shipping-title">Shipping Details</h2>
+
+          <dl class="lx-od__shipping">
+
+            <div>
+
+              <dt>Courier Partner</dt>
+
+              <dd>{{ track.courierPartner || '—' }}</dd>
+
+            </div>
+
+            <div>
+
+              <dt>Tracking Number</dt>
+
+              <dd>{{ track.trackingNumber || '—' }}</dd>
+
+            </div>
+
+            <div>
+
+              <dt>Warehouse</dt>
+
+              <dd>{{ track.warehouse || '—' }}</dd>
+
+            </div>
+
+          </dl>
+
+        </section>
+
+      }
+
+
+
+      <div class="lx-od__actions">
+
+        @if (data.canPayDownPayment) {
+
+          <button
+
+            type="button"
+
+            class="lx-btn lx-btn--primary"
+
+            [class.is-loading]="paying()"
+
+            [disabled]="paying()"
+
+            (click)="payDownPayment()"
+
+          >
+
+            {{ payLabel() }}
+
+          </button>
+
+        }
+
+        <button
+
+          type="button"
+
+          class="lx-btn lx-btn--outline"
+
+          [class.is-loading]="downloading()"
+
+          [disabled]="downloading() || !data.invoiceAvailable"
+
+          (click)="downloadInvoice()"
+
+        >
+
+          Download Invoice
+
+        </button>
+
+        <a routerLink="/support" class="lx-btn lx-btn--outline">Contact Support</a>
+
+      </div>
+
+    }
+
+  </section>
+
+</div>
+
+
+
+<p-dialog
+  styleClass="lx-dialog"
+  header="Enable AutoPay?"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [dismissableMask]="true"
+  [style]="{ width: 'min(92vw, 26rem)' }"
+  [visible]="showAutopayDialog()"
+  (visibleChange)="showAutopayDialog.set($event)"
+>
+  <p class="lx-od__dialog-copy">
+    Enable AutoPay to automatically pay your monthly EMIs on the due date.
+  </p>
+
+  <div class="lx-od__dialog-actions">
+    <button
+      type="button"
+      class="lx-btn lx-btn--outline"
+      [disabled]="autopaySubmitting()"
+      (click)="dismissAutopay()"
+    >
+      Maybe Later
+    </button>
+    <button
+      type="button"
+      class="lx-btn lx-btn--primary"
+      [class.is-loading]="autopaySubmitting()"
+      [disabled]="autopaySubmitting()"
+      (click)="enableAutopay()"
+    >
+      Enable AutoPay
+    </button>
+  </div>
+</p-dialog>
+

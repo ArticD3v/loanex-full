@@ -1,0 +1,20 @@
+<section class="lx-why" aria-labelledby="lx-why-heading">
+  <div class="lx-why__inner">
+    <header class="lx-why__header lx-why__anim">
+      <h2 id="lx-why-heading" class="lx-why__title">Why Customers Choose LoanEx</h2>
+      <p class="lx-why__subtitle">Built for simple, flexible, and trustworthy EMI shopping</p>
+    </header>
+
+    <div class="lx-why__grid">
+      @for (card of cards(); track card.id; let i = $index) {
+        <article class="lx-why__card lx-why__anim" [style.--lx-delay]="i * 70 + 'ms'">
+          <div class="lx-why__icon" aria-hidden="true">
+            <i [class]="card.icon"></i>
+          </div>
+          <h3 class="lx-why__card-title">{{ card.title }}</h3>
+          <p class="lx-why__card-desc">{{ card.description }}</p>
+        </article>
+      }
+    </div>
+  </div>
+</section>

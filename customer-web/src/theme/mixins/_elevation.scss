@@ -1,0 +1,27 @@
+@mixin lx-elevation($level: card) {
+  @if $level == sm {
+    box-shadow: var(--lx-shadow-sm);
+  } @else if $level == md {
+    box-shadow: var(--lx-shadow-md);
+  } @else if $level == lg {
+    box-shadow: var(--lx-shadow-lg);
+  } @else if $level == hover {
+    box-shadow: var(--lx-shadow-hover);
+  } @else {
+    box-shadow: var(--lx-shadow-card);
+  }
+}
+
+@mixin lx-interactive-card {
+  transition: var(--lx-transition-card);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--lx-shadow-hover);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: var(--lx-shadow-card);
+  }
+}

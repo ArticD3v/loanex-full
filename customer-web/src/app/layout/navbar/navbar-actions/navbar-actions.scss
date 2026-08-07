@@ -1,0 +1,250 @@
+:host {
+  display: block;
+}
+
+.lx-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.125rem;
+}
+
+.lx-nav-actions__icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  color: #0a2e6f;
+  text-decoration: none;
+  border-radius: 0.375rem;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease;
+
+  i {
+    font-size: 1.35rem;
+    line-height: 1;
+  }
+
+  &:hover {
+    color: #082455;
+    background: transparent;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0a2e6f;
+    outline-offset: 2px;
+  }
+}
+
+.lx-nav-actions__badge {
+  position: absolute;
+  top: -0.2rem;
+  right: -0.35rem;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: #d4a12a;
+  color: #111827;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1.125rem;
+  text-align: center;
+  box-shadow: 0 0 0 1.5px #ffffff;
+  pointer-events: none;
+}
+
+.lx-nav-actions__login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.5rem;
+  padding: 0 1.375rem;
+  border: 1px solid #0a2e6f;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0a2e6f;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+
+  &:hover {
+    background: #f8fafc;
+    border-color: #082455;
+    color: #082455;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0a2e6f;
+    outline-offset: 2px;
+  }
+}
+
+.lx-nav-actions__account {
+  position: relative;
+}
+
+.lx-nav-actions__profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  height: 2.5rem;
+  padding: 0 0.7rem 0 0.35rem;
+  border: 1px solid #dbe3f0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0a2e6f;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background-color 150ms ease;
+
+  &:hover {
+    border-color: rgba(10, 46, 111, 0.35);
+    background: #f8fafc;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0a2e6f;
+    outline-offset: 2px;
+  }
+
+  .pi-chevron-down {
+    font-size: 0.7rem;
+    color: #6b7280;
+  }
+}
+
+.lx-nav-actions__avatar {
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #0a2e6f;
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.lx-nav-actions__name {
+  max-width: 7.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.lx-nav-actions__menu {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  z-index: 50;
+  width: 15.5rem;
+  padding: 0.45rem;
+  border: 1px solid #e5e9f0;
+  border-radius: 0.85rem;
+  background: #ffffff;
+  box-shadow: 0 14px 32px rgba(10, 46, 111, 0.12);
+  display: grid;
+  gap: 0.15rem;
+  animation: lx-account-in 160ms ease both;
+
+  a,
+  .lx-nav-actions__logout {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: 100%;
+    padding: 0.7rem 0.75rem;
+    border: 0;
+    border-radius: 0.55rem;
+    background: transparent;
+    color: #0a2e6f;
+    font-family: inherit;
+    font-size: 0.86rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    text-align: left;
+
+    i {
+      width: 1rem;
+      color: #6b7280;
+    }
+
+    &:hover {
+      background: #f3f6fb;
+    }
+  }
+}
+
+.lx-nav-actions__menu-head {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.65rem 0.75rem 0.75rem;
+  margin-bottom: 0.15rem;
+  border-bottom: 1px solid #eef1f5;
+
+  strong {
+    color: #0a2e6f;
+    font-size: 0.9rem;
+  }
+
+  span {
+    color: #6b7280;
+    font-size: 0.75rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.lx-nav-actions__logout {
+  color: #dc2626 !important;
+
+  i {
+    color: #dc2626 !important;
+  }
+}
+
+@keyframes lx-account-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .lx-nav-actions {
+    gap: 0.875rem;
+  }
+
+  .lx-nav-actions__login {
+    display: none;
+  }
+
+  .lx-nav-actions__name {
+    display: none;
+  }
+
+  .lx-nav-actions__profile {
+    padding-right: 0.45rem;
+  }
+}

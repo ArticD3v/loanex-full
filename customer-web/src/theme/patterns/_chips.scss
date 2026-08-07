@@ -1,0 +1,49 @@
+/* —— Chips —— */
+
+.lx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lx-space-8);
+  min-height: 2rem;
+  padding: 0 var(--lx-space-12);
+  border-radius: var(--lx-radius-pill);
+  border: 1px solid var(--lx-color-border);
+  background: var(--lx-color-surface);
+  color: var(--lx-color-text);
+  font-size: var(--lx-text-sm);
+  font-weight: var(--lx-font-weight-medium);
+  transition: var(--lx-transition-hover);
+  cursor: default;
+
+  &.is-selectable {
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--lx-color-primary);
+      color: var(--lx-color-primary);
+    }
+
+    &.is-active {
+      background: rgba(var(--lx-color-primary-rgb), 0.08);
+      border-color: var(--lx-color-primary);
+      color: var(--lx-color-primary);
+    }
+  }
+}
+
+.lx-chip--category {
+  background: var(--lx-color-bg);
+}
+
+.lx-chip--brand {
+  border-color: transparent;
+  background: var(--lx-primary-50);
+  color: var(--lx-color-primary);
+  font-weight: var(--lx-font-weight-semibold);
+}
+
+.lx-chip--status {
+  border-color: transparent;
+  background: var(--lx-color-bg);
+  color: var(--lx-color-text-secondary);
+}

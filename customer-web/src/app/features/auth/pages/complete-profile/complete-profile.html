@@ -1,0 +1,126 @@
+<section class="lx-auth-card" aria-labelledby="lx-complete-title">
+  <header class="lx-auth-card__header">
+    <img src="assets/images/loanex-logo.png" alt="LoanEx" width="44" height="44" />
+    <div>
+      <h1 id="lx-complete-title">Complete your profile</h1>
+      <p>
+        Step 2 of 2 —
+        @if (mobile()) {
+          verified {{ mobile() }}
+        } @else {
+          add your details to finish signup
+        }
+      </p>
+    </div>
+  </header>
+
+  <form class="lx-auth-card__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="lx-field">
+      <label class="lx-label" for="complete-name">Full Name</label>
+      <input
+        id="complete-name"
+        class="lx-input"
+        type="text"
+        formControlName="fullName"
+        autocomplete="name"
+        placeholder="Rahul Sharma"
+        [class.is-error]="isInvalid('fullName')"
+      />
+      <app-form-field-error [control]="form.controls.fullName" [submitted]="submitted()" label="Full name" />
+    </div>
+
+    <div class="lx-field">
+      <label class="lx-label" for="complete-email">Email</label>
+      <input
+        id="complete-email"
+        class="lx-input"
+        type="email"
+        formControlName="email"
+        autocomplete="email"
+        placeholder="you@email.com"
+        [class.is-error]="isInvalid('email')"
+      />
+      <app-form-field-error [control]="form.controls.email" [submitted]="submitted()" label="Email" />
+    </div>
+
+    <div class="lx-field">
+      <label class="lx-label" for="complete-password">Password</label>
+      <div class="lx-auth-card__password">
+        <input
+          id="complete-password"
+          class="lx-input lx-input--password"
+          [type]="showPassword() ? 'text' : 'password'"
+          formControlName="password"
+          autocomplete="new-password"
+          placeholder="e.g. Password1"
+          [class.is-error]="isInvalid('password')"
+        />
+        <button
+          type="button"
+          class="lx-auth-card__eye"
+          (click)="togglePassword()"
+          [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+        >
+          <i class="pi" [class.pi-eye]="!showPassword()" [class.pi-eye-slash]="showPassword()" aria-hidden="true"></i>
+        </button>
+      </div>
+      <p class="lx-hint">Use at least 8 characters with uppercase, lowercase, and a number.</p>
+      <app-form-field-error [control]="form.controls.password" [submitted]="submitted()" label="Password" />
+    </div>
+
+    <div class="lx-field">
+      <label class="lx-label" for="complete-confirm">Confirm Password</label>
+      <input
+        id="complete-confirm"
+        class="lx-input lx-input--password"
+        type="password"
+        formControlName="confirmPassword"
+        autocomplete="new-password"
+        placeholder="Re-enter password"
+        [class.is-error]="isInvalid('confirmPassword') || (form.hasError('fieldsMismatch') && form.controls.confirmPassword.touched)"
+      />
+      @if (form.hasError('fieldsMismatch') && form.controls.confirmPassword.touched) {
+        <p class="lx-error-text" role="alert">Passwords do not match</p>
+      } @else {
+        <app-form-field-error [control]="form.controls.confirmPassword" [submitted]="submitted()" label="Confirm password" />
+      }
+    </div>
+
+    <div class="lx-field">
+      <label class="lx-label" for="complete-dob">Date of Birth <span class="lx-optional">(optional)</span></label>
+      <input id="complete-dob" class="lx-input" type="date" formControlName="dob" />
+    </div>
+
+    <div class="lx-field">
+      <label class="lx-label" for="complete-gender">Gender <span class="lx-optional">(optional)</span></label>
+      <select id="complete-gender" class="lx-input" formControlName="gender">
+        <option value="">Prefer not to say</option>
+        <option value="MALE">Male</option>
+        <option value="FEMALE">Female</option>
+        <option value="OTHER">Other</option>
+        <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+      </select>
+    </div>
+
+    @if (formError(); as localErr) {
+      <p class="lx-error-text" role="alert">{{ localErr }}</p>
+    }
+
+    @if (error(); as err) {
+      <p class="lx-error-text" role="alert">{{ err }}</p>
+    }
+
+    <button
+      type="submit"
+      class="lx-btn lx-btn--primary lx-btn--block"
+      [class.is-loading]="loading()"
+      [disabled]="loading()"
+    >
+      Create Account
+    </button>
+  </form>
+
+  <p class="lx-auth-card__footer">
+    <a routerLink="/auth/login">Back to login</a>
+  </p>
+</section>

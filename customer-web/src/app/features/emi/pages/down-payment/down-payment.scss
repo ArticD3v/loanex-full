@@ -1,0 +1,249 @@
+:host {
+  display: block;
+}
+
+.lx-dp {
+  display: grid;
+  place-items: center;
+  padding: 1rem 0 2rem;
+  animation: lx-dp-in 380ms ease both;
+}
+
+@keyframes lx-dp-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lx-dp__card {
+  width: min(100%, 42rem);
+  background: #fff;
+  border: 1px solid #e5e9f0;
+  border-radius: 1rem;
+  padding: 1.75rem 1.5rem 1.5rem;
+  box-shadow: 0 12px 32px rgba(10, 46, 111, 0.08);
+  display: grid;
+  gap: 0.95rem;
+}
+
+.lx-dp__header {
+  text-align: center;
+
+  h1 {
+    margin: 0;
+    color: #0a2e6f;
+    font-size: clamp(1.35rem, 2.2vw, 1.7rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    margin: 0.35rem 0 0;
+    color: #6b7280;
+    line-height: 1.55;
+  }
+}
+
+.lx-dp__alert {
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.7rem;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+  font-weight: 600;
+}
+
+.lx-dp__loading,
+.lx-dp__dev {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.lx-dp__product {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 0.9rem;
+  align-items: center;
+  padding: 0.85rem;
+  border-radius: 0.9rem;
+  border: 1px solid #e5e9f0;
+  background: #f8fafc;
+
+  img {
+    width: 5.5rem;
+    height: 5.5rem;
+    object-fit: contain;
+    border-radius: 0.7rem;
+    background: #fff;
+    border: 1px solid #eef2f7;
+  }
+}
+
+.lx-dp__product-name {
+  margin: 0;
+  color: #0a2e6f;
+  font-weight: 800;
+  font-size: 1rem;
+}
+
+.lx-dp__product-price {
+  margin: 0.25rem 0 0;
+  color: #d4a12a;
+  font-weight: 800;
+}
+
+.lx-dp__meta {
+  margin: 0;
+  display: grid;
+  gap: 0.55rem;
+
+  div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.65rem 0.8rem;
+    border-radius: 0.7rem;
+    background: #f8fafc;
+    border: 1px solid #e5e9f0;
+  }
+
+  dt {
+    color: #6b7280;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  dd {
+    margin: 0;
+    color: #0a2e6f;
+    font-weight: 800;
+    font-size: 0.9rem;
+    text-align: right;
+
+    &.is-gold {
+      color: #d4a12a;
+    }
+  }
+}
+
+.lx-dp__panel {
+  border: 1px solid #e5e9f0;
+  border-radius: 0.9rem;
+  padding: 1rem;
+  background: linear-gradient(180deg, #fbfdff 0%, #f8fafc 100%);
+
+  h2 {
+    margin: 0 0 0.75rem;
+    color: #0a2e6f;
+    font-size: 1rem;
+    font-weight: 800;
+  }
+}
+
+.lx-dp__summary {
+  margin: 0;
+  display: grid;
+  gap: 0.45rem;
+
+  div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid #eef2f7;
+
+    &:last-child {
+      border-bottom: 0;
+    }
+
+    &.is-total {
+      padding-top: 0.7rem;
+      margin-top: 0.15rem;
+      border-top: 1px dashed #d4a12a;
+      border-bottom: 0;
+
+      dt,
+      dd {
+        color: #0a2e6f;
+        font-weight: 800;
+        font-size: 1rem;
+      }
+    }
+  }
+
+  dt {
+    color: #6b7280;
+    font-size: 0.86rem;
+    font-weight: 600;
+  }
+
+  dd {
+    margin: 0;
+    color: #0a2e6f;
+    font-weight: 700;
+  }
+}
+
+.lx-dp__method {
+  padding: 0.85rem 0.95rem;
+  border-radius: 0.85rem;
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+}
+
+.lx-dp__razorpay {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  strong {
+    color: #0a2e6f;
+    font-size: 0.95rem;
+  }
+
+  p {
+    margin: 0.15rem 0 0;
+    color: #1d4ed8;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+}
+
+.lx-dp__razorpay-mark {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.65rem;
+  display: grid;
+  place-items: center;
+  background: #0a2e6f;
+  color: #fff;
+  font-weight: 800;
+}
+
+.lx-dp__actions {
+  padding-top: 0.15rem;
+}
+
+@media (max-width: 639.98px) {
+  .lx-dp__product {
+    grid-template-columns: 4.5rem minmax(0, 1fr);
+  }
+
+  .lx-dp__actions {
+    display: flex;
+    flex-direction: column;
+
+    .lx-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}

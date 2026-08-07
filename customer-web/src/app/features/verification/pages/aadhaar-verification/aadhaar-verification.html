@@ -1,0 +1,210 @@
+<div class="lx-aadhaar">
+  <!-- Header -->
+  <div class="lx-aadhaar__header">
+    <div class="lx-aadhaar__badge">AADHAAR KYC</div>
+    <h1 class="lx-aadhaar__title">Aadhaar Verification</h1>
+    <p class="lx-aadhaar__subtitle">
+      Verify your identity securely using DigiLocker — India's official document wallet.
+    </p>
+  </div>
+
+  <!-- Step indicator -->
+  <div class="lx-aadhaar__steps">
+    <div class="lx-aadhaar__step" [class.lx-aadhaar__step--active]="step() === 'enter'" [class.lx-aadhaar__step--done]="step() !== 'enter'">
+      <span class="lx-aadhaar__step-num">1</span>
+      <span class="lx-aadhaar__step-label">Enter Aadhaar</span>
+    </div>
+    <div class="lx-aadhaar__step-line"></div>
+    <div class="lx-aadhaar__step" [class.lx-aadhaar__step--active]="step() === 'redirect'" [class.lx-aadhaar__step--done]="step() === 'fetching' || step() === 'done'">
+      <span class="lx-aadhaar__step-num">2</span>
+      <span class="lx-aadhaar__step-label">Open DigiLocker</span>
+    </div>
+    <div class="lx-aadhaar__step-line"></div>
+    <div class="lx-aadhaar__step" [class.lx-aadhaar__step--active]="step() === 'fetching' || step() === 'done'" [class.lx-aadhaar__step--done]="step() === 'done'">
+      <span class="lx-aadhaar__step-num">3</span>
+      <span class="lx-aadhaar__step-label">Verification</span>
+    </div>
+  </div>
+
+  <!-- Error -->
+  @if (pageError()) {
+    <div class="lx-aadhaar__error" role="alert">
+      <i class="pi pi-exclamation-circle"></i>
+      {{ pageError() }}
+    </div>
+  }
+
+  <!-- STEP 1: Enter Aadhaar -->
+  @if (step() === 'enter') {
+    <div class="lx-aadhaar__card">
+      <div class="lx-aadhaar__card-icon">
+        <i class="pi pi-id-card"></i>
+      </div>
+      <h2 class="lx-aadhaar__card-title">Enter Your Aadhaar Number</h2>
+      <p class="lx-aadhaar__card-desc">
+        Your Aadhaar number will be used to generate a secure DigiLocker link. We do not store your full Aadhaar number.
+      </p>
+
+      <div class="lx-aadhaar__field">
+        <label for="lx-aadhaar-input" class="lx-aadhaar__label">Aadhaar Number</label>
+        <input
+          id="lx-aadhaar-input"
+          type="text"
+          class="lx-aadhaar__input"
+          [class.lx-aadhaar__input--error]="aadhaarControl.invalid && aadhaarControl.touched"
+          placeholder="XXXX  XXXX  XXXX"
+          maxlength="14"
+          inputmode="numeric"
+          autocomplete="off"
+          (input)="onAadhaarInput($event)"
+        />
+        @if (aadhaarControl.invalid && aadhaarControl.touched) {
+          <span class="lx-aadhaar__field-error">Please enter a valid 12-digit Aadhaar number.</span>
+        }
+      </div>
+
+      <!-- Consent -->
+      <label class="lx-aadhaar__consent">
+        <input type="checkbox" [checked]="consent()" (change)="consent.set(!consent())" />
+        <span>
+          I consent to share my Aadhaar details for identity verification as per
+          <strong>UIDAI guidelines</strong>. This data will be stored securely.
+        </span>
+      </label>
+
+      <button
+        type="button"
+        class="lx-aadhaar__btn lx-aadhaar__btn--primary"
+        [disabled]="loading() || !consent()"
+        (click)="generateDigilocker()"
+      >
+        @if (loading()) {
+          <i class="pi pi-spin pi-spinner"></i> Generating link...
+        } @else {
+          <i class="pi pi-external-link"></i> Continue with DigiLocker
+        }
+      </button>
+
+      <!-- DigiLocker info -->
+      <div class="lx-aadhaar__info-box">
+        <i class="pi pi-shield"></i>
+        <div>
+          <strong>What is DigiLocker?</strong>
+          <p>DigiLocker is India's official digital document wallet by the Government of India. Your Aadhaar data is fetched directly from UIDAI — 100% secure and paperless.</p>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- STEP 2: Redirect to DigiLocker -->
+  @if (step() === 'redirect') {
+    <div class="lx-aadhaar__card">
+      <div class="lx-aadhaar__card-icon lx-aadhaar__card-icon--blue">
+        <i class="pi pi-external-link"></i>
+      </div>
+      <h2 class="lx-aadhaar__card-title">Open DigiLocker to Continue</h2>
+      <p class="lx-aadhaar__card-desc">
+        Click the button below to open DigiLocker in a new tab. Log in with your Aadhaar-registered mobile and grant access. Once done, return here and click <strong>"I've Completed Verification"</strong>.
+      </p>
+
+      <div class="lx-aadhaar__steps-guide">
+        <div class="lx-aadhaar__guide-step">
+          <span class="lx-aadhaar__guide-num">1</span>
+          <span>Click "Open DigiLocker" — a new tab will open</span>
+        </div>
+        <div class="lx-aadhaar__guide-step">
+          <span class="lx-aadhaar__guide-num">2</span>
+          <span>Log in with your mobile OTP on DigiLocker</span>
+        </div>
+        <div class="lx-aadhaar__guide-step">
+          <span class="lx-aadhaar__guide-num">3</span>
+          <span>Grant permission to share your Aadhaar XML data</span>
+        </div>
+        <div class="lx-aadhaar__guide-step">
+          <span class="lx-aadhaar__guide-num">4</span>
+          <span>Come back here and click "I've Completed Verification"</span>
+        </div>
+      </div>
+
+      @if (digilockerUrl()) {
+        <button type="button" class="lx-aadhaar__btn lx-aadhaar__btn--digilocker" (click)="openDigilocker()">
+          <i class="pi pi-external-link"></i> Open DigiLocker
+        </button>
+      }
+
+      <button
+        type="button"
+        class="lx-aadhaar__btn lx-aadhaar__btn--primary"
+        [disabled]="loading()"
+        (click)="fetchAadhaarDetails()"
+      >
+        @if (loading()) {
+          <i class="pi pi-spin pi-spinner"></i> Fetching your details...
+        } @else {
+          <i class="pi pi-check-circle"></i> I've Completed Verification
+        }
+      </button>
+
+      <button type="button" class="lx-aadhaar__btn lx-aadhaar__btn--ghost" (click)="startOver()">
+        <i class="pi pi-arrow-left"></i> Start Over
+      </button>
+    </div>
+  }
+
+  <!-- STEP 3: Fetching -->
+  @if (step() === 'fetching') {
+    <div class="lx-aadhaar__card lx-aadhaar__card--center">
+      <div class="lx-aadhaar__spinner">
+        <i class="pi pi-spin pi-spinner"></i>
+      </div>
+      <h2 class="lx-aadhaar__card-title">Fetching Your Details…</h2>
+      <p class="lx-aadhaar__card-desc">Please wait while we securely retrieve your Aadhaar information from DigiLocker.</p>
+    </div>
+  }
+
+  <!-- STEP 4: Done / Verified -->
+  @if (step() === 'done') {
+    <div class="lx-aadhaar__card lx-aadhaar__card--success">
+      <div class="lx-aadhaar__success-icon">
+        <i class="pi pi-check-circle"></i>
+      </div>
+      <h2 class="lx-aadhaar__card-title">Aadhaar Verified Successfully!</h2>
+
+      @if (kycData(); as data) {
+        <div class="lx-aadhaar__result">
+          @if (data.profile_image) {
+            <img class="lx-aadhaar__photo" [src]="'data:image/jpeg;base64,' + data.profile_image" alt="Aadhaar photo" />
+          }
+          <div class="lx-aadhaar__result-grid">
+            <div class="lx-aadhaar__result-row">
+              <span class="lx-aadhaar__result-label">Name</span>
+              <span class="lx-aadhaar__result-value">{{ data.name }}</span>
+            </div>
+            <div class="lx-aadhaar__result-row">
+              <span class="lx-aadhaar__result-label">Aadhaar</span>
+              <span class="lx-aadhaar__result-value">{{ data.masked_aadhaar }}</span>
+            </div>
+            <div class="lx-aadhaar__result-row">
+              <span class="lx-aadhaar__result-label">Date of Birth</span>
+              <span class="lx-aadhaar__result-value">{{ data.dob }}</span>
+            </div>
+            <div class="lx-aadhaar__result-row">
+              <span class="lx-aadhaar__result-label">Gender</span>
+              <span class="lx-aadhaar__result-value">{{ data.gender === 'M' ? 'Male' : data.gender === 'F' ? 'Female' : data.gender }}</span>
+            </div>
+            @if (data.father_name) {
+              <div class="lx-aadhaar__result-row">
+                <span class="lx-aadhaar__result-label">Father / Guardian</span>
+                <span class="lx-aadhaar__result-value">{{ data.father_name }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <button type="button" class="lx-aadhaar__btn lx-aadhaar__btn--primary" (click)="continueToPan()">
+        Continue to PAN Verification <i class="pi pi-arrow-right"></i>
+      </button>
+    </div>
+  }
+</div>

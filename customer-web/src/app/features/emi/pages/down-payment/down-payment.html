@@ -1,0 +1,117 @@
+<div class="lx-dp">
+  <section class="lx-dp__card" aria-labelledby="lx-dp-title">
+    <header class="lx-dp__header">
+      <h1 id="lx-dp-title">Down Payment</h1>
+      <p>Complete your down payment to confirm your order.</p>
+    </header>
+
+    @if (error(); as err) {
+      <div class="lx-dp__alert" role="alert">{{ err }}</div>
+    }
+
+    @if (loading() && !context()) {
+      <p class="lx-dp__loading" aria-live="polite">Loading payment details…</p>
+    }
+
+    @if (context(); as data) {
+      <div class="lx-dp__product">
+        <img
+          [src]="data.productImage"
+          [alt]="data.productName || 'Product'"
+          width="96"
+          height="96"
+        />
+        <div>
+          <p class="lx-dp__product-name">{{ data.productName || 'Product' }}</p>
+          <p class="lx-dp__product-price">{{ formatMoney(data.productPrice) }}</p>
+        </div>
+      </div>
+
+      <dl class="lx-dp__meta">
+        <div>
+          <dt>Application Number</dt>
+          <dd>{{ data.applicationNumber }}</dd>
+        </div>
+        <div>
+          <dt>Order Number</dt>
+          <dd>{{ data.orderNumber || 'Assigned after payment' }}</dd>
+        </div>
+        <div>
+          <dt>Approved Loan Amount</dt>
+          <dd>{{ formatMoney(data.approvedLoanAmount) }}</dd>
+        </div>
+        <div>
+          <dt>Approved Down Payment</dt>
+          <dd class="is-gold">{{ formatMoney(data.approvedDownPayment) }}</dd>
+        </div>
+        <div>
+          <dt>Remaining Financed Amount</dt>
+          <dd>{{ formatMoney(data.remainingFinancedAmount) }}</dd>
+        </div>
+      </dl>
+
+      <section class="lx-dp__panel" aria-labelledby="lx-dp-summary-title">
+        <h2 id="lx-dp-summary-title">Payment Summary</h2>
+        <dl class="lx-dp__summary">
+          <div>
+            <dt>Product Price</dt>
+            <dd>{{ formatMoney(data.paymentSummary.productPrice) }}</dd>
+          </div>
+          <div>
+            <dt>Loan Amount</dt>
+            <dd>{{ formatMoney(data.paymentSummary.loanAmount) }}</dd>
+          </div>
+          <div>
+            <dt>Down Payment</dt>
+            <dd>{{ formatMoney(data.paymentSummary.downPayment) }}</dd>
+          </div>
+          @if (data.paymentSummary.processingFee > 0) {
+            <div>
+              <dt>Processing Fee</dt>
+              <dd>{{ formatMoney(data.paymentSummary.processingFee) }}</dd>
+            </div>
+          }
+          @if (data.paymentSummary.gst > 0) {
+            <div>
+              <dt>GST ({{ data.paymentSummary.gstPercent }}%)</dt>
+              <dd>{{ formatMoney(data.paymentSummary.gst) }}</dd>
+            </div>
+          }
+          <div class="is-total">
+            <dt>Total Payable Today</dt>
+            <dd>{{ formatMoney(data.paymentSummary.totalPayableToday) }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="lx-dp__method" aria-label="Payment method">
+        <div class="lx-dp__razorpay">
+          <span class="lx-dp__razorpay-mark" aria-hidden="true">R</span>
+          <div>
+            <strong>Razorpay</strong>
+            <p>Payment secured by Razorpay</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="lx-dp__actions">
+        <button
+          type="button"
+          class="lx-btn lx-btn--primary lx-btn--lg lx-btn--block"
+          [class.is-loading]="paying()"
+          [disabled]="paying()"
+          (click)="pay()"
+        >
+          {{ payLabel() }}
+        </button>
+      </div>
+
+      @if (data.paymentDevBypass) {
+        <p class="lx-dp__dev">
+          Dev mode: payment will complete securely via backend signature verification without opening
+          the Razorpay checkout UI.
+        </p>
+      }
+    }
+  </section>
+</div>

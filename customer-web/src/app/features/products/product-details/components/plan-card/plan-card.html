@@ -1,0 +1,22 @@
+@let item = plan();
+
+<button
+  type="button"
+  class="lx-plan"
+  [class.is-active]="selected()"
+  [class.is-recommended]="item.recommended"
+  [attr.aria-pressed]="selected()"
+  (click)="onSelect()"
+>
+  @if (item.recommended) {
+    <span class="lx-plan__ribbon">Recommended</span>
+  }
+
+  <strong class="lx-plan__months">{{ item.months }} Months</strong>
+  <span class="lx-plan__emi">
+    {{ formatInr(item.monthlyEmi) }}
+    <small>/month</small>
+  </span>
+  <span class="lx-plan__fee">Processing Fee {{ formatInr(item.processingFee) }}</span>
+  <span class="lx-plan__total">Total Payable {{ formatInr(item.totalPayable) }}</span>
+</button>

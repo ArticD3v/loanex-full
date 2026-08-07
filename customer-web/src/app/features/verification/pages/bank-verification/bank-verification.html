@@ -1,0 +1,230 @@
+<div class="lx-bank">
+  <div class="lx-bank__secure" role="status">
+    <i class="pi pi-shield" aria-hidden="true"></i>
+    <div>
+      <strong>Secure Verification</strong>
+      <span>Your data is safe and encrypted.</span>
+    </div>
+    <span class="lx-bank__online" aria-hidden="true"></span>
+  </div>
+
+  <div class="lx-bank__layout">
+    <section class="lx-bank__main" aria-labelledby="lx-bank-title">
+      <nav class="lx-bank__stepper" aria-label="Verification progress">
+        @for (step of steps; track step.key) {
+          <div
+            class="lx-bank__step"
+            [class.is-active]="step.key === 'bank'"
+            [class.is-done]="
+              step.key === 'mobile' ||
+              step.key === 'aadhaar' ||
+              step.key === 'pan' ||
+              (step.key === 'bank' && verified())
+            "
+            [attr.aria-current]="step.key === 'bank' ? 'step' : null"
+          >
+            <span class="lx-bank__step-index">
+              @if (
+                step.key === 'mobile' ||
+                step.key === 'aadhaar' ||
+                step.key === 'pan' ||
+                (step.key === 'bank' && verified())
+              ) {
+                <i class="pi pi-check" aria-hidden="true"></i>
+              } @else {
+                {{ step.index }}
+              }
+            </span>
+            <span class="lx-bank__step-label">{{ step.label }}</span>
+          </div>
+          @if (!$last) {
+            <span class="lx-bank__step-line" aria-hidden="true"></span>
+          }
+        }
+      </nav>
+
+      <header class="lx-bank__header">
+        <h1 id="lx-bank-title">Verify Your Bank Account</h1>
+        <p>Provide your bank account details to receive EMI approval.</p>
+      </header>
+
+      @if (pageError(); as err) {
+        <div class="lx-bank__alert" role="alert">{{ err }}</div>
+      }
+
+      @if (verified()) {
+        <div class="lx-bank__success" role="status" aria-live="polite">
+          <div class="lx-bank__success-icon" aria-hidden="true">
+            <i class="pi pi-check"></i>
+          </div>
+          <div>
+            <h2>Bank Account Verified Successfully</h2>
+            <div class="lx-bank__success-grid">
+              <div>
+                <span>Account Number</span>
+                <strong>{{ maskedAccount() || 'XXXXXXXX9012' }}</strong>
+              </div>
+              <div>
+                <span>Bank</span>
+                <strong>{{ bankName() || '—' }}</strong>
+              </div>
+              <div>
+                <span>Status</span>
+                <strong>Verified</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="lx-bank__redirect">Redirecting to Verification Summary…</p>
+      } @else {
+        <form class="lx-bank__form" [formGroup]="form" (ngSubmit)="verifyBank()">
+          <div class="lx-bank__field">
+            <label for="lx-bank-holder">Account Holder Name</label>
+            <input
+              id="lx-bank-holder"
+              class="lx-input"
+              type="text"
+              maxlength="100"
+              autocomplete="name"
+              formControlName="accountHolderName"
+            />
+            @if (form.controls.accountHolderName.touched && form.controls.accountHolderName.invalid) {
+              <p class="lx-error-text" role="alert">Enter account holder name (3–100 characters).</p>
+            }
+          </div>
+
+          <div class="lx-bank__field">
+            <label for="lx-bank-name">Bank Name</label>
+            <input
+              id="lx-bank-name"
+              class="lx-input"
+              type="text"
+              maxlength="100"
+              formControlName="bankName"
+              placeholder="State Bank of India"
+            />
+            @if (form.controls.bankName.touched && form.controls.bankName.invalid) {
+              <p class="lx-error-text" role="alert">Bank name is required.</p>
+            }
+          </div>
+
+          <div class="lx-bank__field">
+            <label for="lx-bank-account">Account Number</label>
+            <input
+              id="lx-bank-account"
+              class="lx-input"
+              type="password"
+              inputmode="numeric"
+              maxlength="18"
+              autocomplete="off"
+              formControlName="accountNumber"
+              (input)="onAccountInput('accountNumber', $event)"
+            />
+            @if (form.controls.accountNumber.touched && form.controls.accountNumber.invalid) {
+              <p class="lx-error-text" role="alert">Enter an 8–18 digit account number.</p>
+            }
+          </div>
+
+          <div class="lx-bank__field">
+            <label for="lx-bank-confirm">Confirm Account Number</label>
+            <input
+              id="lx-bank-confirm"
+              class="lx-input"
+              type="text"
+              inputmode="numeric"
+              maxlength="18"
+              autocomplete="off"
+              formControlName="confirmAccountNumber"
+              (input)="onAccountInput('confirmAccountNumber', $event)"
+            />
+            @if (
+              form.controls.confirmAccountNumber.touched &&
+              (form.controls.confirmAccountNumber.invalid ||
+                form.controls.confirmAccountNumber.value !== form.controls.accountNumber.value)
+            ) {
+              <p class="lx-error-text" role="alert">Account numbers must match.</p>
+            }
+          </div>
+
+          <div class="lx-bank__field">
+            <label for="lx-bank-ifsc">IFSC Code</label>
+            <input
+              id="lx-bank-ifsc"
+              class="lx-input"
+              type="text"
+              maxlength="11"
+              autocomplete="off"
+              placeholder="SBIN0001234"
+              formControlName="ifscCode"
+              (input)="onIfscInput($event)"
+            />
+            @if (form.controls.ifscCode.touched && form.controls.ifscCode.invalid) {
+              <p class="lx-error-text" role="alert">Enter a valid IFSC (e.g. SBIN0001234).</p>
+            }
+          </div>
+
+          <fieldset class="lx-bank__field">
+            <legend>Account Type</legend>
+            <div class="lx-bank__types" role="radiogroup" aria-label="Account type">
+              <label class="lx-bank__type">
+                <input type="radio" formControlName="accountType" value="SAVINGS" />
+                <span>Savings</span>
+              </label>
+              <label class="lx-bank__type">
+                <input type="radio" formControlName="accountType" value="CURRENT" />
+                <span>Current</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <button
+            type="submit"
+            class="lx-btn lx-btn--primary lx-btn--block lx-btn--lg"
+            [class.is-loading]="verifying()"
+            [disabled]="verifying() || form.invalid"
+          >
+            <i class="pi pi-lock" aria-hidden="true"></i>
+            Verify Bank Account
+          </button>
+        </form>
+      }
+
+      <div class="lx-bank__footer-actions">
+        <a routerLink="/verification/pan" class="lx-bank__back">← Back</a>
+        <a routerLink="/verification" class="lx-bank__exit">
+          <i class="pi pi-sign-out" aria-hidden="true"></i>
+          Save &amp; Exit
+        </a>
+      </div>
+    </section>
+
+    <aside class="lx-bank__aside" aria-label="Helpful information">
+      <article class="lx-bank__card">
+        <div class="lx-bank__card-icon lx-bank__card-icon--help" aria-hidden="true">
+          <i class="pi pi-question"></i>
+        </div>
+        <h2>How it works</h2>
+        <ol>
+          <li>Enter your bank account details</li>
+          <li>Confirm account number and IFSC</li>
+          <li>Complete verification summary</li>
+        </ol>
+      </article>
+
+      <article class="lx-bank__card">
+        <div class="lx-bank__card-icon lx-bank__card-icon--lock" aria-hidden="true">
+          <i class="pi pi-lock"></i>
+        </div>
+        <h2>Your data is secure</h2>
+        <p>
+          Your account number is stored only as a masked value with a secure hash. LoanEx never
+          returns the full account number in API responses.
+        </p>
+      </article>
+    </aside>
+  </div>
+
+  <p class="lx-bank__support">
+    Need help? <a href="mailto:support@loanex.in">Contact Support</a>
+  </p>
+</div>

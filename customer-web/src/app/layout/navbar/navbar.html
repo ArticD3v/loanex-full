@@ -1,0 +1,52 @@
+<header class="lx-navbar" [class.lx-navbar--scrolled]="ui.isScrolled()">
+  <div class="lx-navbar__top">
+    <div class="lx-navbar__row">
+      <div class="lx-navbar__left">
+        <button
+          type="button"
+          class="lx-navbar__menu-btn"
+          aria-label="Open navigation menu"
+          aria-controls="lx-mobile-drawer"
+          [attr.aria-expanded]="ui.mobileNavOpen()"
+          (click)="ui.toggleMobileNav()"
+        >
+          <i class="pi pi-bars" aria-hidden="true"></i>
+        </button>
+
+        <a routerLink="/" class="lx-navbar__brand" aria-label="LoanEx home">
+          <img
+            class="lx-navbar__logo"
+            [src]="company.logoSrc"
+            [alt]="company.logoAlt"
+            width="200"
+            height="72"
+            decoding="async"
+          />
+        </a>
+      </div>
+
+      <div class="lx-navbar__search">
+        <app-navbar-search
+          [query]="ui.searchQuery()"
+          (queryChange)="ui.setSearchQuery($event)"
+        />
+      </div>
+
+      <div class="lx-navbar__right">
+        <app-navbar-actions
+          [wishlistCount]="ui.wishlistCount()"
+          [cartCount]="ui.cartCount()"
+          [showLogin]="showLogin()"
+          [user]="user()"
+        />
+      </div>
+    </div>
+  </div>
+
+  <app-navbar-links [items]="navItems" />
+</header>
+
+<app-mobile-nav
+  [visible]="ui.mobileNavOpen()"
+  (visibleChange)="ui.mobileNavOpen.set($event)"
+/>

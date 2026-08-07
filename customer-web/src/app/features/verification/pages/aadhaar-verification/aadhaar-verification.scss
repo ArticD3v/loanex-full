@@ -1,0 +1,416 @@
+.lx-aadhaar {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+  font-family: 'Inter', sans-serif;
+
+  // ── Header ────────────────────────────────────────────────────────────────
+  &__header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  &__badge {
+    display: inline-block;
+    padding: 0.25rem 0.875rem;
+    background: linear-gradient(135deg, #1a56db 0%, #0e3fa0 100%);
+    color: #fff;
+    border-radius: 100px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+  }
+
+  &__title {
+    font-size: 1.875rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 0.5rem;
+  }
+
+  &__subtitle {
+    color: #64748b;
+    font-size: 0.95rem;
+    margin: 0;
+  }
+
+  // ── Step Indicator ────────────────────────────────────────────────────────
+  &__steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 2rem;
+  }
+
+  &__step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+
+    &-num {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      color: #94a3b8;
+      font-weight: 700;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+    }
+
+    &-label {
+      font-size: 0.7rem;
+      color: #94a3b8;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    &--active {
+      .lx-aadhaar__step-num {
+        background: #1a56db;
+        color: #fff;
+        box-shadow: 0 0 0 4px rgba(26, 86, 219, 0.15);
+      }
+      .lx-aadhaar__step-label { color: #1a56db; }
+    }
+
+    &--done {
+      .lx-aadhaar__step-num {
+        background: #16a34a;
+        color: #fff;
+      }
+      .lx-aadhaar__step-label { color: #16a34a; }
+    }
+  }
+
+  &__step-line {
+    flex: 1;
+    height: 2px;
+    background: #e2e8f0;
+    margin: 0 0.5rem;
+    margin-bottom: 1.1rem;
+    max-width: 60px;
+  }
+
+  // ── Error ─────────────────────────────────────────────────────────────────
+  &__error {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    padding: 0.875rem 1rem;
+    color: #dc2626;
+    font-size: 0.875rem;
+    margin-bottom: 1.25rem;
+
+    i { font-size: 1rem; flex-shrink: 0; }
+  }
+
+  // ── Card ──────────────────────────────────────────────────────────────────
+  &__card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+
+    &--center { text-align: center; }
+
+    &--success {
+      border-color: #bbf7d0;
+      background: linear-gradient(180deg, #f0fdf4 0%, #fff 100%);
+      text-align: center;
+    }
+  }
+
+  &__card-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.25rem;
+
+    i { font-size: 1.75rem; color: #1a56db; }
+
+    &--blue { background: linear-gradient(135deg, #dbeafe, #bfdbfe); }
+  }
+
+  &__card-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0f172a;
+    text-align: center;
+    margin: 0 0 0.5rem;
+  }
+
+  &__card-desc {
+    color: #64748b;
+    font-size: 0.9rem;
+    text-align: center;
+    line-height: 1.6;
+    margin: 0 0 1.5rem;
+  }
+
+  // ── Form Field ────────────────────────────────────────────────────────────
+  &__field {
+    margin-bottom: 1.25rem;
+  }
+
+  &__label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+  }
+
+  &__input {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    color: #0f172a;
+    background: #f8fafc;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
+
+    &:focus {
+      border-color: #1a56db;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.1);
+    }
+
+    &--error { border-color: #ef4444; }
+
+    &::placeholder { letter-spacing: 0.05em; color: #cbd5e1; }
+  }
+
+  &__field-error {
+    display: block;
+    color: #ef4444;
+    font-size: 0.8rem;
+    margin-top: 0.375rem;
+  }
+
+  // ── Consent ───────────────────────────────────────────────────────────────
+  &__consent {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    margin-bottom: 1.5rem;
+    cursor: pointer;
+
+    input[type='checkbox'] {
+      width: 16px;
+      height: 16px;
+      margin-top: 2px;
+      accent-color: #1a56db;
+      flex-shrink: 0;
+    }
+
+    span {
+      font-size: 0.8rem;
+      color: #64748b;
+      line-height: 1.5;
+      strong { color: #0f172a; }
+    }
+  }
+
+  // ── Buttons ───────────────────────────────────────────────────────────────
+  &__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.9rem 1.5rem;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 0.75rem;
+
+    &:last-child { margin-bottom: 0; }
+
+    &--primary {
+      background: linear-gradient(135deg, #1a56db 0%, #1348c8 100%);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(26, 86, 219, 0.3);
+
+      &:hover:not(:disabled) {
+        background: linear-gradient(135deg, #1348c8 0%, #0e3fa0 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(26, 86, 219, 0.4);
+      }
+
+      &:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    }
+
+    &--digilocker {
+      background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+
+      &:hover {
+        background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+        transform: translateY(-1px);
+      }
+    }
+
+    &--ghost {
+      background: transparent;
+      color: #64748b;
+      border: 1.5px solid #e2e8f0;
+
+      &:hover { background: #f8fafc; color: #334155; }
+    }
+  }
+
+  // ── Steps Guide ───────────────────────────────────────────────────────────
+  &__steps-guide {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+  }
+
+  &__guide-step {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    color: #374151;
+  }
+
+  &__guide-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #1a56db;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  // ── Info Box ──────────────────────────────────────────────────────────────
+  &__info-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.875rem;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    padding: 1rem;
+    margin-top: 1.25rem;
+
+    i { color: #1a56db; font-size: 1.25rem; flex-shrink: 0; margin-top: 2px; }
+
+    div {
+      strong { display: block; color: #1e40af; font-size: 0.875rem; margin-bottom: 0.25rem; }
+      p { color: #3b82f6; font-size: 0.8rem; line-height: 1.5; margin: 0; }
+    }
+  }
+
+  // ── Spinner ───────────────────────────────────────────────────────────────
+  &__spinner {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #eff6ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.25rem;
+
+    i { font-size: 2rem; color: #1a56db; }
+  }
+
+  // ── Success ───────────────────────────────────────────────────────────────
+  &__success-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #bbf7d0, #86efac);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.25rem;
+
+    i { font-size: 2rem; color: #16a34a; }
+  }
+
+  // ── Result ────────────────────────────────────────────────────────────────
+  &__result {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin: 1.25rem 0;
+    text-align: left;
+  }
+
+  &__photo {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #bbf7d0;
+    display: block;
+    margin: 0 auto 1rem;
+  }
+
+  &__result-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+  }
+
+  &__result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f1f5f9;
+
+    &:last-child { border-bottom: none; }
+  }
+
+  &__result-label {
+    font-size: 0.8rem;
+    color: #64748b;
+    font-weight: 500;
+  }
+
+  &__result-value {
+    font-size: 0.875rem;
+    color: #0f172a;
+    font-weight: 600;
+    text-align: right;
+  }
+}

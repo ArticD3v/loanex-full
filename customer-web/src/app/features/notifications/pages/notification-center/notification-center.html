@@ -1,0 +1,108 @@
+<div class="lx-nc">
+  <section class="lx-nc__card" aria-labelledby="lx-nc-title">
+    <header class="lx-nc__header">
+      <div>
+        <h1 id="lx-nc-title">Notifications</h1>
+        <p>Stay updated with your loan and order activities.</p>
+      </div>
+      <button
+        type="button"
+        class="lx-btn lx-btn--outline"
+        [disabled]="acting() || unreadCount() === 0"
+        (click)="markAllRead()"
+      >
+        Mark All Read
+      </button>
+    </header>
+
+    @if (error(); as err) {
+      <div class="lx-nc__alert" role="alert">{{ err }}</div>
+    }
+    @if (info(); as message) {
+      <div class="lx-nc__info" role="status">{{ message }}</div>
+    }
+
+    <div class="lx-nc__filters" role="tablist" aria-label="Notification filters">
+      @for (filter of filters; track filter.id) {
+        <button
+          type="button"
+          role="tab"
+          class="lx-nc__chip"
+          [class.is-active]="activeFilter() === filter.id"
+          [attr.aria-selected]="activeFilter() === filter.id"
+          (click)="setFilter(filter.id)"
+        >
+          {{ filter.label }}
+          @if (filter.id === 'UNREAD' && unreadCount() > 0) {
+            <span class="lx-nc__count">{{ unreadCount() }}</span>
+          }
+        </button>
+      }
+    </div>
+
+    @if (loading() && items().length === 0) {
+      <p class="lx-nc__loading" aria-live="polite">Loading notifications…</p>
+    } @else if (items().length === 0) {
+      <p class="lx-nc__empty">{{ emptyMessage() }}</p>
+    } @else {
+      <ul class="lx-nc__list">
+        @for (item of items(); track item.id) {
+          <li class="lx-nc__item" [class.is-unread]="!item.isRead" [class.is-clickable]="isClickable(item)">
+            <article (click)="onItemClick(item)" [attr.role]="isClickable(item) ? 'link' : null">
+              <header>
+                <h2>{{ item.title }}</h2>
+                <span class="lx-nc__status" [class.is-unread]="!item.isRead">
+                  {{ item.readStatus }}
+                </span>
+              </header>
+              <p>{{ item.description || item.message }}</p>
+              <dl class="lx-nc__meta">
+                <div>
+                  <dt>Type</dt>
+                  <dd>{{ item.type }}</dd>
+                </div>
+                <div>
+                  <dt>Priority</dt>
+                  <dd>
+                    <span
+                      class="lx-nc__priority"
+                      [class.is-high]="item.priority === 'HIGH' || item.priority === 'CRITICAL'"
+                      [class.is-medium]="item.priority === 'MEDIUM'"
+                      [class.is-low]="item.priority === 'LOW'"
+                    >
+                      {{ item.priority }}
+                    </span>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Created</dt>
+                  <dd>{{ formatDate(item.createdAt) }}</dd>
+                </div>
+              </dl>
+              <div class="lx-nc__actions">
+                @if (!item.isRead) {
+                  <button
+                    type="button"
+                    class="lx-btn lx-btn--primary"
+                    [disabled]="acting()"
+                    (click)="markRead(item, $event)"
+                  >
+                    Mark as Read
+                  </button>
+                }
+                <button
+                  type="button"
+                  class="lx-btn lx-btn--outline"
+                  [disabled]="acting()"
+                  (click)="deleteNotification(item, $event)"
+                >
+                  Delete
+                </button>
+              </div>
+            </article>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+</div>

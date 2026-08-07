@@ -1,0 +1,61 @@
+<section class="lx-auth-card" aria-labelledby="lx-signup-title">
+  <header class="lx-auth-card__header">
+    <img src="assets/images/loanex-logo.png" alt="LoanEx" width="44" height="44" />
+    <div>
+      <h1 id="lx-signup-title">Create account</h1>
+      <p>Step 1 of 2 — verify your mobile number with OTP.</p>
+    </div>
+  </header>
+
+  <form class="lx-auth-card__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="lx-field">
+      <label class="lx-label" for="signup-mobile">Mobile Number</label>
+      <div class="lx-input-prefix">
+        <span class="lx-input-prefix__addon">+91</span>
+        <input
+          id="signup-mobile"
+          class="lx-input lx-input-prefix__control"
+          type="tel"
+          inputmode="numeric"
+          formControlName="mobile"
+          autocomplete="tel"
+          placeholder="9876543210"
+          maxlength="10"
+          (input)="onMobileInput($event)"
+        />
+      </div>
+      <app-form-field-error [control]="form.controls.mobile" label="Mobile" />
+    </div>
+
+    @if (error(); as err) {
+      <p class="lx-error-text" role="alert">{{ err }}</p>
+    }
+
+    <button
+      type="submit"
+      class="lx-btn lx-btn--primary lx-btn--block"
+      [class.is-loading]="loading()"
+      [disabled]="loading() || form.invalid"
+    >
+      Send OTP
+    </button>
+  </form>
+
+  <p class="lx-auth-card__footer">
+    Already have an account?
+    <a routerLink="/auth/login" [queryParams]="routeReturnParams">Login</a>
+  </p>
+</section>
+
+<app-otp-verification-dialog
+  [visible]="otpOpen()"
+  [mobile]="otpMobile()"
+  [loading]="loading()"
+  [error]="otpError()"
+  [length]="6"
+  [countdownSeconds]="cooldownSeconds()"
+  title="Verify mobile OTP"
+  (visibleChange)="otpOpen.set($event)"
+  (verified)="onOtpVerified($event)"
+  (resend)="onResendOtp()"
+/>

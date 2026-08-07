@@ -1,0 +1,56 @@
+<div class="lx-verification">
+  <header class="lx-verification__header">
+    <h1>Complete Your Verification</h1>
+    <p>Complete the following verification steps to become eligible for EMI purchases.</p>
+  </header>
+
+  @if (error(); as err) {
+    <div class="lx-verification__alert" role="alert">
+      <p>{{ err }}</p>
+      <button type="button" class="lx-btn lx-btn--outline lx-btn--sm" (click)="load()">Retry</button>
+    </div>
+  }
+
+  @if (loading() && !status()) {
+    <div class="lx-verification__loading" aria-live="polite">Loading verification status…</div>
+  }
+
+  @if (status(); as current) {
+    <section class="lx-verification__progress" aria-labelledby="lx-progress-title">
+      <div class="lx-verification__progress-top">
+        <div>
+          <h2 id="lx-progress-title">Verification Progress</h2>
+          <p>Step {{ current.completedSteps }} of {{ current.totalSteps }} Completed</p>
+        </div>
+        <strong>{{ current.overallProgress }}%</strong>
+      </div>
+      <p-progressBar [value]="current.overallProgress" [showValue]="false" styleClass="lx-verification__bar" />
+    </section>
+
+    <section class="lx-verification__steps" aria-label="Verification steps">
+      @for (step of steps(); track step.key) {
+        <app-verification-step-card [step]="step" />
+      }
+    </section>
+  }
+
+  <section class="lx-verification__info" aria-labelledby="lx-why-title">
+    <div class="lx-verification__info-copy">
+      <h2 id="lx-why-title">Why verification is required</h2>
+      <p>
+        LoanEx completes a one-time customer verification before EMI approval. This helps us confirm
+        your identity, protect your account, and follow RBI-aligned lending guidelines — so you can
+        shop with confidence.
+      </p>
+    </div>
+
+    <div class="lx-verification__trust">
+      @for (badge of trustBadges; track badge.label) {
+        <div class="lx-verification__trust-item">
+          <i [class]="badge.icon" aria-hidden="true"></i>
+          <span>{{ badge.label }}</span>
+        </div>
+      }
+    </div>
+  </section>
+</div>

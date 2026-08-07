@@ -1,0 +1,362 @@
+:host {
+  display: block;
+}
+
+.lx-mobile-verify {
+  display: grid;
+  gap: 1.25rem;
+  padding-bottom: 1.5rem;
+  animation: lx-mv-in 380ms ease both;
+}
+
+@keyframes lx-mv-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lx-mobile-verify__secure {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-self: end;
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #e5e9f0;
+  box-shadow: 0 6px 16px rgba(10, 46, 111, 0.05);
+
+  > i {
+    color: #0a2e6f;
+    font-size: 1rem;
+  }
+
+  strong {
+    display: block;
+    color: #0a2e6f;
+    font-size: 0.82rem;
+    font-weight: 800;
+  }
+
+  span {
+    display: block;
+    color: #6b7280;
+    font-size: 0.72rem;
+  }
+}
+
+.lx-mobile-verify__online {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: #16a34a;
+  margin-left: 0.15rem;
+}
+
+.lx-mobile-verify__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16.5rem;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.lx-mobile-verify__main {
+  background: #ffffff;
+  border: 1px solid #e5e9f0;
+  border-radius: 1rem;
+  padding: 1.35rem 1.4rem 1.2rem;
+  box-shadow: 0 10px 28px rgba(10, 46, 111, 0.06);
+  display: grid;
+  gap: 1.1rem;
+}
+
+.lx-mobile-verify__stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding-bottom: 0.2rem;
+}
+
+.lx-mobile-verify__step {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  min-width: 4.25rem;
+}
+
+.lx-mobile-verify__step-index {
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid #d1d5db;
+  color: #9ca3af;
+  font-size: 0.78rem;
+  font-weight: 800;
+  background: #fff;
+}
+
+.lx-mobile-verify__step.is-active .lx-mobile-verify__step-index,
+.lx-mobile-verify__step.is-done .lx-mobile-verify__step-index {
+  background: #0a2e6f;
+  border-color: #0a2e6f;
+  color: #fff;
+}
+
+.lx-mobile-verify__step-label {
+  color: #6b7280;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.lx-mobile-verify__step.is-active .lx-mobile-verify__step-label {
+  color: #0a2e6f;
+}
+
+.lx-mobile-verify__step-line {
+  flex: 1;
+  height: 1px;
+  background: #e5e7eb;
+  min-width: 0.75rem;
+  margin-bottom: 1.1rem;
+}
+
+.lx-mobile-verify__header {
+  h1 {
+    margin: 0;
+    color: #0a2e6f;
+    font-size: clamp(1.45rem, 2.4vw, 1.75rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+
+  p {
+    margin: 0.45rem 0 0;
+    color: #6b7280;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    max-width: 34rem;
+  }
+}
+
+.lx-mobile-verify__alert {
+  padding: 0.8rem 0.95rem;
+  border-radius: 0.75rem;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.lx-mobile-verify__field {
+  display: grid;
+  gap: 0.55rem;
+
+  > label {
+    color: #374151;
+    font-size: 0.86rem;
+    font-weight: 700;
+  }
+}
+
+.lx-mobile-verify__mobile-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.65rem;
+}
+
+.lx-mobile-verify__send {
+  --lx-btn-loader-color: #d4a12a;
+  background: transparent;
+  color: #d4a12a;
+  border: 1.5px solid #d4a12a;
+  font-weight: 700;
+  min-width: 7.5rem;
+
+  &:hover:not(:disabled) {
+    background: rgba(212, 161, 42, 0.08);
+  }
+}
+
+.lx-mobile-verify__change {
+  justify-self: start;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: #0a2e6f;
+  font-weight: 700;
+  font-family: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.lx-mobile-verify__help-link {
+  margin: 0;
+}
+
+.lx-mobile-verify__why {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: #0a2e6f;
+  font-weight: 600;
+  font-size: 0.88rem;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.lx-mobile-verify__footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 0.25rem;
+}
+
+.lx-mobile-verify__back,
+.lx-mobile-verify__exit {
+  color: #0a2e6f;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.lx-mobile-verify__aside {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.lx-mobile-verify__card {
+  background: #ffffff;
+  border: 1px solid #e5e9f0;
+  border-radius: 0.95rem;
+  padding: 1rem 1.05rem 1.1rem;
+  box-shadow: 0 8px 20px rgba(10, 46, 111, 0.04);
+
+  h2 {
+    margin: 0 0 0.55rem;
+    color: #0a2e6f;
+    font-size: 0.98rem;
+    font-weight: 800;
+  }
+
+  p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 0.86rem;
+    line-height: 1.55;
+  }
+
+  ol {
+    margin: 0;
+    padding-left: 1.1rem;
+    color: #4b5563;
+    font-size: 0.86rem;
+    line-height: 1.65;
+  }
+}
+
+.lx-mobile-verify__card-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 0.65rem;
+  font-size: 0.9rem;
+}
+
+.lx-mobile-verify__card-icon--help {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.lx-mobile-verify__card-icon--lock {
+  background: #e8eef8;
+  color: #0a2e6f;
+}
+
+.lx-mobile-verify__support {
+  margin: 0.25rem 0 0;
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.88rem;
+
+  a {
+    color: #0a2e6f;
+    font-weight: 700;
+  }
+}
+
+.lx-mobile-verify__change-dialog {
+  display: grid;
+  gap: 0.65rem;
+
+  label {
+    font-weight: 700;
+    color: #374151;
+    font-size: 0.88rem;
+  }
+}
+
+.lx-mobile-verify__hint {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+.lx-error-text {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+@media (max-width: 1023.98px) {
+  .lx-mobile-verify__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .lx-mobile-verify__secure {
+    justify-self: stretch;
+  }
+}
+
+@media (max-width: 639.98px) {
+  .lx-mobile-verify__mobile-row {
+    grid-template-columns: 1fr;
+  }
+
+  .lx-mobile-verify__send {
+    width: 100%;
+  }
+
+  .lx-mobile-verify__main {
+    padding: 1.1rem 1rem 1rem;
+  }
+
+  .lx-mobile-verify__step-label {
+    font-size: 0.62rem;
+  }
+}

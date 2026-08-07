@@ -1,0 +1,284 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.lx-hero {
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.lx-hero__carousel {
+  position: relative;
+  width: 100%;
+  min-height: clamp(22rem, 42vh, 28rem);
+  border-radius: 1.25rem;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(10, 46, 111, 0.15);
+}
+
+.lx-hero__slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2.5rem 3.5rem;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 600ms ease-in-out, visibility 600ms ease-in-out;
+  z-index: 1;
+
+  &.is-active {
+    opacity: 1;
+    visibility: visible;
+    z-index: 2;
+  }
+}
+
+.lx-hero__content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 34rem;
+  color: #ffffff;
+}
+
+.lx-hero__badge {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+}
+
+.lx-hero__title {
+  margin: 0;
+  font-size: clamp(2rem, 3.5vw, 2.75rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+
+  .lx-hero__title-line {
+    display: block;
+  }
+
+  .lx-hero__title-accent {
+    color: #fce7f3;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.lx-hero__desc {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.lx-hero__actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.lx-hero__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 200ms ease, box-shadow 200ms ease;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+
+  &--primary {
+    background: #f59e0b;
+    color: #0f172a;
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+
+    &:hover {
+      background: #fbbf24;
+    }
+  }
+
+  &--secondary {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(4px);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+  }
+}
+
+.lx-hero__media {
+  width: 45%;
+  display: flex;
+  justify-content: center;
+
+  img {
+    max-width: 100%;
+    max-height: 280px;
+    object-fit: contain;
+    border-radius: 1rem;
+    filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.25));
+    transition: transform 500ms ease;
+  }
+}
+
+.lx-hero__slide.is-active .lx-hero__media img {
+  transform: scale(1.02);
+}
+
+/* Nav Buttons */
+.lx-hero__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: background 200ms ease, transform 200ms ease;
+
+  &:hover {
+    background: #ffffff;
+    transform: translateY(-50%) scale(1.1);
+  }
+
+  &--prev {
+    left: 1rem;
+  }
+
+  &--next {
+    right: 1rem;
+  }
+}
+
+/* Carousel Dots */
+.lx-hero__dots {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.lx-hero__dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 999px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: width 300ms ease, background 300ms ease;
+
+  &.is-active {
+    width: 1.75rem;
+    background: #ffffff;
+  }
+}
+
+/* Snapmint Trust Bar */
+.lx-hero__trust-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1rem 1.5rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.lx-hero__trust-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.lx-hero__trust-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background: #eff6ff;
+  color: #0a2e6f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.lx-hero__trust-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.lx-hero__trust-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.lx-hero__trust-desc {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+@media (max-width: 1023.98px) {
+  .lx-hero__slide {
+    padding: 2rem;
+  }
+
+  .lx-hero__media {
+    display: none;
+  }
+
+  .lx-hero__content {
+    max-width: 100%;
+  }
+
+  .lx-hero__trust-bar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 639.98px) {
+  .lx-hero__carousel {
+    min-height: 20rem;
+  }
+
+  .lx-hero__slide {
+    padding: 1.5rem 1.25rem;
+  }
+
+  .lx-hero__trust-bar {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+}

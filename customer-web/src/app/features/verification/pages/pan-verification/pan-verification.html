@@ -1,0 +1,179 @@
+<div class="lx-pan">
+  <div class="lx-pan__secure" role="status">
+    <i class="pi pi-shield" aria-hidden="true"></i>
+    <div>
+      <strong>Secure Verification</strong>
+      <span>Your data is safe and encrypted.</span>
+    </div>
+    <span class="lx-pan__online" aria-hidden="true"></span>
+  </div>
+
+  <div class="lx-pan__layout">
+    <section class="lx-pan__main" aria-labelledby="lx-pan-title">
+      <nav class="lx-pan__stepper" aria-label="Verification progress">
+        @for (step of steps; track step.key) {
+          <div
+            class="lx-pan__step"
+            [class.is-active]="step.key === 'pan'"
+            [class.is-done]="
+              step.key === 'mobile' ||
+              step.key === 'aadhaar' ||
+              (step.key === 'pan' && verified())
+            "
+            [attr.aria-current]="step.key === 'pan' ? 'step' : null"
+          >
+            <span class="lx-pan__step-index">
+              @if (
+                step.key === 'mobile' ||
+                step.key === 'aadhaar' ||
+                (step.key === 'pan' && verified())
+              ) {
+                <i class="pi pi-check" aria-hidden="true"></i>
+              } @else {
+                {{ step.index }}
+              }
+            </span>
+            <span class="lx-pan__step-label">{{ step.label }}</span>
+          </div>
+          @if (!$last) {
+            <span class="lx-pan__step-line" aria-hidden="true"></span>
+          }
+        }
+      </nav>
+
+      <header class="lx-pan__header">
+        <h1 id="lx-pan-title">Verify PAN Card</h1>
+        <p>Verify your PAN details to continue your EMI application.</p>
+      </header>
+
+      @if (pageError(); as err) {
+        <div class="lx-pan__alert" role="alert">{{ err }}</div>
+      }
+
+      @if (verified()) {
+        <div class="lx-pan__success" role="status" aria-live="polite">
+          <div class="lx-pan__success-icon" aria-hidden="true">
+            <i class="pi pi-check"></i>
+          </div>
+          <div>
+            <h2>PAN Verified Successfully</h2>
+            <div class="lx-pan__success-grid">
+              <div>
+                <span>PAN Number</span>
+                <strong>{{ maskedPan() || 'ABC******4F' }}</strong>
+              </div>
+              <div>
+                <span>Status</span>
+                <strong>Verified</strong>
+              </div>
+              <div>
+                <span>Next Step</span>
+                <strong>Bank Verification</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="lx-pan__redirect">Redirecting to Bank Account Verification…</p>
+      } @else {
+        <form class="lx-pan__form" [formGroup]="form" (ngSubmit)="verifyPan()">
+          <div class="lx-pan__field">
+            <label for="lx-pan-number">PAN Number</label>
+            <input
+              id="lx-pan-number"
+              class="lx-input"
+              type="text"
+              maxlength="10"
+              autocomplete="off"
+              placeholder="ABCDE1234F"
+              formControlName="panNumber"
+              [attr.aria-invalid]="form.controls.panNumber.touched && form.controls.panNumber.invalid"
+              (input)="onPanInput($event)"
+            />
+            @if (form.controls.panNumber.touched && form.controls.panNumber.invalid) {
+              <p class="lx-error-text" role="alert">Enter a valid PAN (e.g. ABCDE1234F).</p>
+            }
+          </div>
+
+          <div class="lx-pan__field">
+            <label for="lx-pan-name">Full Name (as per PAN)</label>
+            <input
+              id="lx-pan-name"
+              class="lx-input"
+              type="text"
+              maxlength="100"
+              autocomplete="name"
+              placeholder="Rahul Sharma"
+              formControlName="fullName"
+              [attr.aria-invalid]="form.controls.fullName.touched && form.controls.fullName.invalid"
+            />
+            @if (form.controls.fullName.touched && form.controls.fullName.invalid) {
+              <p class="lx-error-text" role="alert">Enter full name (3–100 characters).</p>
+            }
+          </div>
+
+          <div class="lx-pan__field">
+            <label for="lx-pan-dob">Date of Birth</label>
+            <input
+              id="lx-pan-dob"
+              class="lx-input"
+              type="date"
+              formControlName="dateOfBirth"
+              [attr.max]="todayMax"
+              [attr.aria-invalid]="form.controls.dateOfBirth.touched && form.controls.dateOfBirth.invalid"
+            />
+            @if (form.controls.dateOfBirth.touched && form.controls.dateOfBirth.invalid) {
+              <p class="lx-error-text" role="alert">Date of birth is required.</p>
+            }
+          </div>
+
+          <button
+            type="submit"
+            class="lx-btn lx-btn--primary lx-btn--block lx-btn--lg"
+            [class.is-loading]="verifying()"
+            [disabled]="verifying() || form.invalid"
+          >
+            <i class="pi pi-lock" aria-hidden="true"></i>
+            Verify PAN
+          </button>
+        </form>
+      }
+
+      <div class="lx-pan__footer-actions">
+        <a routerLink="/aadhaar-verification" class="lx-pan__back">← Back</a>
+        <a routerLink="/verification" class="lx-pan__exit">
+          <i class="pi pi-sign-out" aria-hidden="true"></i>
+          Save &amp; Exit
+        </a>
+      </div>
+    </section>
+
+    <aside class="lx-pan__aside" aria-label="Helpful information">
+      <article class="lx-pan__card">
+        <div class="lx-pan__card-icon lx-pan__card-icon--help" aria-hidden="true">
+          <i class="pi pi-question"></i>
+        </div>
+        <h2>How it works</h2>
+        <ol>
+          <li>Enter PAN details exactly as on your card</li>
+          <li>Verify your identity</li>
+          <li>Continue to Bank Account</li>
+        </ol>
+      </article>
+
+      <article class="lx-pan__card">
+        <div class="lx-pan__card-icon lx-pan__card-icon--lock" aria-hidden="true">
+          <i class="pi pi-lock"></i>
+        </div>
+        <h2>Your data is secure</h2>
+        <p>
+          Your PAN is encrypted and stored only as a masked value with a secure hash. LoanEx never
+          returns your full PAN in API responses.
+        </p>
+      </article>
+    </aside>
+  </div>
+
+  <p class="lx-pan__support">
+    Need help? <a href="mailto:support@loanex.in">Contact Support</a>
+  </p>
+</div>

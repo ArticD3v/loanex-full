@@ -1,0 +1,254 @@
+:host {
+  display: block;
+}
+
+.lx-nc {
+  display: grid;
+  place-items: center;
+  padding: 1rem 0 2.5rem;
+  animation: lx-nc-in 360ms ease both;
+}
+
+@keyframes lx-nc-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lx-nc__card {
+  width: min(100%, 52rem);
+  background: #fff;
+  border: 1px solid #e5e9f0;
+  border-radius: 1rem;
+  padding: 1.75rem 1.5rem 1.5rem;
+  box-shadow: 0 12px 32px rgba(10, 46, 111, 0.08);
+  display: grid;
+  gap: 1rem;
+}
+
+.lx-nc__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+
+  h1 {
+    margin: 0;
+    color: #0a2e6f;
+    font-size: clamp(1.35rem, 2.2vw, 1.7rem);
+    font-weight: 800;
+  }
+
+  p {
+    margin: 0.35rem 0 0;
+    color: #6b7280;
+  }
+}
+
+.lx-nc__alert,
+.lx-nc__info {
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.7rem;
+  font-weight: 600;
+}
+
+.lx-nc__alert {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.lx-nc__info {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.lx-nc__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.lx-nc__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid #d5dce8;
+  background: #f8fafc;
+  color: #0a2e6f;
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+
+  &.is-active {
+    background: #0a2e6f;
+    border-color: #0a2e6f;
+    color: #fff;
+  }
+}
+
+.lx-nc__count {
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: #d4a12a;
+  color: #0a2e6f;
+  font-size: 0.72rem;
+  display: inline-grid;
+  place-items: center;
+}
+
+.lx-nc__loading,
+.lx-nc__empty {
+  margin: 0;
+  color: #6b7280;
+  text-align: center;
+  padding: 1.5rem 0.5rem;
+}
+
+.lx-nc__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.lx-nc__item {
+  border: 1px solid #e5e9f0;
+  border-radius: 0.85rem;
+  background: #fbfdff;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+
+  &.is-unread {
+    border-color: #c9d6ef;
+    box-shadow: inset 3px 0 0 #d4a12a;
+    background: #fff;
+  }
+
+  &.is-clickable article {
+    cursor: pointer;
+  }
+
+  article {
+    padding: 1rem 1.05rem;
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+
+    h2 {
+      margin: 0;
+      color: #0a2e6f;
+      font-size: 1rem;
+      font-weight: 800;
+    }
+  }
+
+  p {
+    margin: 0;
+    color: #4b5563;
+    line-height: 1.45;
+  }
+}
+
+.lx-nc__status {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #6b7280;
+  background: #eef2f7;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+
+  &.is-unread {
+    color: #92400e;
+    background: #fff7ed;
+  }
+}
+
+.lx-nc__meta {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+
+  div {
+    display: grid;
+    gap: 0.15rem;
+  }
+
+  dt {
+    font-size: 0.72rem;
+    color: #6b7280;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  dd {
+    margin: 0;
+    color: #0a2e6f;
+    font-size: 0.85rem;
+    font-weight: 700;
+    word-break: break-word;
+  }
+}
+
+.lx-nc__priority {
+  &.is-high {
+    color: #991b1b;
+  }
+
+  &.is-medium {
+    color: #92400e;
+  }
+
+  &.is-low {
+    color: #166534;
+  }
+}
+
+.lx-nc__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.15rem;
+}
+
+@media (max-width: 767.98px) {
+  .lx-nc__meta {
+    grid-template-columns: 1fr;
+  }
+
+  .lx-nc__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .lx-nc__actions {
+    flex-direction: column;
+
+    .lx-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}

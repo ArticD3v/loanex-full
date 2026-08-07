@@ -1,0 +1,157 @@
+@use '../mixins' as *;
+
+/* —— Form controls (style patterns only) —— */
+
+.lx-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lx-space-8);
+  width: 100%;
+}
+
+.lx-label {
+  font-size: var(--lx-text-sm);
+  font-weight: var(--lx-font-weight-medium);
+  color: var(--lx-color-text);
+}
+
+.lx-hint {
+  font-size: var(--lx-text-caption);
+  color: var(--lx-color-text-secondary);
+}
+
+.lx-error-text {
+  font-size: var(--lx-text-caption);
+  color: var(--lx-color-danger);
+  font-weight: var(--lx-font-weight-medium);
+}
+
+.lx-success-text {
+  font-size: var(--lx-text-caption);
+  color: var(--lx-color-success);
+  font-weight: var(--lx-font-weight-medium);
+}
+
+.lx-input,
+.lx-textarea,
+.lx-select,
+.lx-search,
+.lx-otp-input {
+  width: 100%;
+  font-family: var(--lx-font-family);
+  font-size: var(--lx-text-body);
+  color: var(--lx-color-text);
+  background: var(--lx-color-surface);
+  border: 1px solid var(--lx-color-border);
+  border-radius: var(--lx-radius-md);
+  transition: var(--lx-transition-hover);
+  outline: none;
+
+  &::placeholder {
+    color: var(--lx-color-placeholder);
+  }
+
+  &:hover:not(:disabled):not(:focus) {
+    border-color: var(--lx-color-border-strong);
+  }
+
+  &:focus {
+    @include lx-focus-ring;
+    border-color: var(--lx-color-primary);
+  }
+
+  &:disabled,
+  &.is-disabled {
+    background: var(--lx-color-bg);
+    color: var(--lx-color-text-disabled);
+    cursor: not-allowed;
+    opacity: 1;
+  }
+
+  &.is-error,
+  &[aria-invalid='true'] {
+    border-color: var(--lx-color-danger);
+
+    &:focus {
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.25);
+    }
+  }
+
+  &.is-success {
+    border-color: var(--lx-color-success);
+
+    &:focus {
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.25);
+    }
+  }
+
+  &.is-validating {
+    border-color: var(--lx-color-info);
+  }
+}
+
+.lx-input,
+.lx-select,
+.lx-search {
+  min-height: 2.75rem;
+  padding: 0 var(--lx-space-16);
+}
+
+.lx-textarea {
+  min-height: 7.5rem;
+  padding: var(--lx-space-12) var(--lx-space-16);
+  resize: vertical;
+  line-height: var(--lx-leading-normal);
+}
+
+.lx-input--password {
+  font-family: var(--lx-font-family);
+  letter-spacing: 0.08em;
+}
+
+.lx-search-wrap {
+  position: relative;
+  width: 100%;
+
+  .lx-search {
+    padding-left: 2.75rem;
+  }
+
+  .lx-search-icon {
+    position: absolute;
+    left: var(--lx-space-16);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--lx-color-text-secondary);
+    pointer-events: none;
+    font-size: 1rem;
+  }
+}
+
+.lx-select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--lx-color-text-secondary) 50%),
+    linear-gradient(135deg, var(--lx-color-text-secondary) 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.15rem) calc(50% - 0.2rem),
+    calc(100% - 0.85rem) calc(50% - 0.2rem);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: var(--lx-space-40);
+}
+
+.lx-otp-group {
+  display: flex;
+  gap: var(--lx-space-8);
+  justify-content: flex-start;
+}
+
+.lx-otp-input {
+  width: 3rem;
+  min-height: 3rem;
+  padding: 0;
+  text-align: center;
+  font-size: var(--lx-text-h4);
+  font-weight: var(--lx-font-weight-semibold);
+  letter-spacing: 0;
+}

@@ -1,0 +1,43 @@
+@let item = product();
+
+<a class="lx-product-card" [routerLink]="item.path">
+  <div class="lx-product-card__media">
+    <img
+      [src]="item.imageSrc"
+      [alt]="item.imageAlt"
+      width="280"
+      height="280"
+      loading="lazy"
+      decoding="async"
+    />
+    <button
+      type="button"
+      class="lx-product-card__wish"
+      [class.is-active]="item.wishlist"
+      [attr.aria-label]="item.wishlist ? 'Remove from wishlist' : 'Add to wishlist'"
+      (click)="onWishlistClick($event)"
+    >
+      <i
+        class="pi"
+        [class.pi-heart]="!item.wishlist"
+        [class.pi-heart-fill]="item.wishlist"
+        aria-hidden="true"
+      ></i>
+    </button>
+  </div>
+
+  <div class="lx-product-card__body">
+    <h3 class="lx-product-card__name">{{ item.name }}</h3>
+    <p class="lx-product-card__rating">
+      <span class="lx-product-card__star" aria-hidden="true">★</span>
+      <span>{{ item.rating }}</span>
+      <span class="lx-product-card__reviews">({{ item.reviewCount }})</span>
+    </p>
+    <p class="lx-product-card__price">{{ item.priceLabel }}</p>
+    <span class="lx-product-card__emi">{{ item.emiLabel }}</span>
+    <p class="lx-product-card__delivery">
+      <i class="pi pi-truck" aria-hidden="true"></i>
+      <span>{{ item.deliveryLabel }}</span>
+    </p>
+  </div>
+</a>

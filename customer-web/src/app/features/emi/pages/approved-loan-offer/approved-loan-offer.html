@@ -1,0 +1,145 @@
+<div class="lx-offer">
+  <section class="lx-offer__card" aria-labelledby="lx-offer-title">
+    <div class="lx-offer__icon" aria-hidden="true">
+      <i class="pi pi-check"></i>
+    </div>
+
+    <p class="lx-offer__eyebrow">Congratulations!</p>
+    <h1 id="lx-offer-title">Your EMI Application Has Been Approved</h1>
+    <p class="lx-offer__lead">
+      Please review the approved finance offer before continuing.
+    </p>
+
+    @if (error(); as err) {
+      <div class="lx-offer__alert" role="alert">{{ err }}</div>
+    }
+
+    @if (loading() && !offer()) {
+      <p class="lx-offer__loading" aria-live="polite">Loading approved offer…</p>
+    }
+
+    @if (offer(); as data) {
+      <dl class="lx-offer__meta">
+        <div>
+          <dt>Application Number</dt>
+          <dd>{{ data.applicationNumber }}</dd>
+        </div>
+        <div>
+          <dt>Application Date</dt>
+          <dd>{{ formatDate(data.applicationDate || data.submittedAt) }}</dd>
+        </div>
+        <div>
+          <dt>Status</dt>
+          <dd><span class="lx-offer__badge">{{ data.status }}</span></dd>
+        </div>
+      </dl>
+
+      <section class="lx-offer__panel" aria-labelledby="lx-offer-details-title">
+        <h2 id="lx-offer-details-title">Approved Offer</h2>
+        <dl class="lx-offer__details">
+          <div>
+            <dt>Product Name</dt>
+            <dd>{{ data.productName || '—' }}</dd>
+          </div>
+          <div>
+            <dt>Product Price</dt>
+            <dd>{{ formatMoney(data.productPrice ?? data.sellingPrice) }}</dd>
+          </div>
+          <div>
+            <dt>Approved Loan Amount</dt>
+            <dd class="is-emphasis">{{ formatMoney(data.approvedLoanAmount ?? data.approvedAmount) }}</dd>
+          </div>
+          <div>
+            <dt>Approved Down Payment</dt>
+            <dd>{{ formatMoney(data.approvedDownPayment) }}</dd>
+          </div>
+          <div>
+            <dt>Approved EMI Tenure</dt>
+            <dd>{{ data.approvedTenure ? data.approvedTenure + ' Months' : '—' }}</dd>
+          </div>
+          <div>
+            <dt>Monthly EMI</dt>
+            <dd class="is-gold">{{ formatMoney(data.monthlyEmi) }}</dd>
+          </div>
+          @if (hasInterestRate()) {
+            <div>
+              <dt>Interest Rate</dt>
+              <dd>{{ formatRate(data.interestRate) }}</dd>
+            </div>
+          }
+          @if (hasProcessingFee()) {
+            <div>
+              <dt>Processing Fee</dt>
+              <dd>{{ formatMoney(data.processingFee) }}</dd>
+            </div>
+          }
+          <div class="is-full">
+            <dt>Admin Remarks</dt>
+            <dd>{{ data.adminRemarks || 'No additional remarks from the finance team.' }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <aside class="lx-offer__info" aria-label="Offer information">
+        <i class="pi pi-info-circle" aria-hidden="true"></i>
+        <p>
+          This finance offer was approved by our finance team based on your verification and
+          application details. You must accept the offer before proceeding to down payment.
+        </p>
+      </aside>
+
+      <div class="lx-offer__actions">
+        <button
+          type="button"
+          class="lx-btn lx-btn--primary lx-btn--lg"
+          [class.is-loading]="submitting()"
+          [disabled]="submitting()"
+          (click)="acceptOffer()"
+        >
+          Accept Offer
+        </button>
+        <button
+          type="button"
+          class="lx-btn lx-btn--outline lx-btn--lg"
+          [disabled]="submitting()"
+          (click)="openDeclineDialog()"
+        >
+          Decline Offer
+        </button>
+      </div>
+    }
+  </section>
+</div>
+
+<p-dialog
+  styleClass="lx-dialog"
+  header="Decline Offer"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [dismissableMask]="true"
+  [style]="{ width: 'min(92vw, 26rem)' }"
+  [visible]="declineVisible()"
+  (visibleChange)="declineVisible.set($event)"
+>
+  <p class="lx-offer__dialog-copy">Are you sure you want to decline this offer?</p>
+  <div class="lx-offer__dialog-actions">
+    <button
+      type="button"
+      class="lx-btn lx-btn--outline"
+      [disabled]="submitting()"
+      (click)="closeDeclineDialog()"
+    >
+      Cancel
+    </button>
+    <button
+      type="button"
+      class="lx-btn lx-btn--danger"
+      [class.is-loading]="submitting()"
+      [disabled]="submitting()"
+      (click)="confirmDecline()"
+    >
+      Yes, Decline
+    </button>
+  </div>
+</p-dialog>

@@ -1,0 +1,11 @@
+@use 'tokens' as *;
+
+:root {
+  --lx-z-base: #{$lx-z-base};
+  --lx-z-dropdown: #{$lx-z-dropdown};
+  --lx-z-sticky: #{$lx-z-sticky};
+  --lx-z-overlay: #{$lx-z-overlay};
+  --lx-z-modal: #{$lx-z-modal};
+  --lx-z-toast: #{$lx-z-toast};
+  --lx-z-tooltip: #{$lx-z-tooltip};
+}

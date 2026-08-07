@@ -1,0 +1,14 @@
+@use '../variables' as *;
+
+:root {
+  --lx-space-4: #{$lx-space-4};
+  --lx-space-8: #{$lx-space-8};
+  --lx-space-12: #{$lx-space-12};
+  --lx-space-16: #{$lx-space-16};
+  --lx-space-20: #{$lx-space-20};
+  --lx-space-24: #{$lx-space-24};
+  --lx-space-32: #{$lx-space-32};
+  --lx-space-40: #{$lx-space-40};
+  --lx-space-48: #{$lx-space-48};
+  --lx-space-64: #{$lx-space-64};
+}

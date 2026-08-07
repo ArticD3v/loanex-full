@@ -1,0 +1,140 @@
+<div class="lx-my-emis">
+  <section class="lx-my-emis__card" aria-labelledby="lx-my-emis-title">
+    <header class="lx-my-emis__header">
+      <div>
+        <h1 id="lx-my-emis-title">My EMIs</h1>
+        <p>Track your EMI applications, offers, down payments, and active loans.</p>
+      </div>
+      <a routerLink="/products" class="lx-btn lx-btn--outline">Continue Shopping</a>
+    </header>
+
+    @if (error(); as err) {
+      <div class="lx-my-emis__alert" role="alert">{{ err }}</div>
+    }
+
+    @if (loading() && !data()?.items?.length) {
+      <p class="lx-my-emis__loading" aria-live="polite">Loading your EMI applications…</p>
+    } @else if (!data()?.items?.length) {
+      <div class="lx-my-emis__empty">
+        <i class="pi pi-credit-card" aria-hidden="true"></i>
+        <h2>No EMI applications yet</h2>
+        <p>When you apply for an EMI plan, it will appear here.</p>
+        <a routerLink="/products" class="lx-btn lx-btn--primary">Shop on EMI</a>
+      </div>
+    } @else if (data(); as history) {
+      <nav class="lx-my-emis__tabs" role="tablist" aria-label="EMI sections">
+        @for (tab of tabs; track tab) {
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeTab() === tab"
+            [class.is-active]="activeTab() === tab"
+            (click)="setTab(tab)"
+          >
+            {{ tab | titlecase }}
+            @if (tabCounts()[tab] > 0) {
+              <span class="lx-my-emis__tab-count">{{ tabCounts()[tab] }}</span>
+            }
+          </button>
+        }
+      </nav>
+
+      @if (loading()) {
+        <p class="lx-my-emis__loading" aria-live="polite">Loading your EMI applications…</p>
+      } @else if (visibleItems().length === 0) {
+        <div class="lx-my-emis__empty">
+          <i class="pi pi-inbox" aria-hidden="true"></i>
+          <h2>Nothing here yet</h2>
+          <p>
+            @switch (activeTab()) {
+              @case ('pending') {
+                Applications waiting for review or an offer from us will appear here.
+              }
+              @case ('ongoing') {
+                Applications you accepted and are paying for will appear here.
+              }
+              @case ('completed') {
+                EMIs you have fully repaid will appear here.
+              }
+              @case ('rejected') {
+                Applications that were rejected or declined will appear here.
+              }
+            }
+          </p>
+        </div>
+      } @else {
+        <ul class="lx-my-emis__list">
+          @for (item of visibleItems(); track item.id) {
+            <li class="lx-my-emis__item">
+              <div class="lx-my-emis__meta">
+                <div class="lx-my-emis__topline">
+                  <p class="lx-my-emis__product">
+                    {{ item.productName || 'Loan Plan' }}
+                    <span class="lx-my-emis__ref">#{{ item.applicationNumber }}</span>
+                  </p>
+                  <span class="lx-my-emis__badge" [class]="statusTone(item.status)">
+                    {{ statusLabel(item.status) }}
+                  </span>
+                </div>
+
+                @if (item.rejectionReason) {
+                  <p class="lx-my-emis__reason">{{ item.rejectionReason }}</p>
+                }
+
+                <dl class="lx-my-emis__details">
+                  <div>
+                    <dt>Applied On</dt>
+                    <dd>{{ formatDate(item.submittedAt) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Product Price</dt>
+                    <dd>{{ formatInr(item.sellingPrice ?? 0) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Approved Amount</dt>
+                    <dd>{{ item.approvedAmount ? formatInr(item.approvedAmount) : '—' }}</dd>
+                  </div>
+                  <div>
+                    <dt>Monthly EMI</dt>
+                    <dd>{{ item.monthlyEmi ? formatInr(item.monthlyEmi) : '—' }}</dd>
+                  </div>
+                  @if (item.termsModifiedAt) {
+                    <div>
+                      <dt>Terms Modified</dt>
+                      <dd>{{ formatDate(item.termsModifiedAt) }}</dd>
+                    </div>
+                  }
+                  @if (item.loanAccountNumber) {
+                    <div>
+                      <dt>Loan Account</dt>
+                      <dd>{{ item.loanAccountNumber }}</dd>
+                    </div>
+                  }
+                </dl>
+
+                <div class="lx-my-emis__actions">
+                  <a
+                    [routerLink]="ctaFor(item).routerLink"
+                    class="lx-btn lx-btn--primary"
+                  >
+                    {{ ctaFor(item).label }}
+                  </a>
+                  @if (canDevApprove(item)) {
+                    <button
+                      type="button"
+                      class="lx-btn lx-btn--dev"
+                      [disabled]="approving()"
+                      (click)="devApprove(item)"
+                    >
+                      {{ approving() ? 'Approving…' : 'Approve (Dev)' }}
+                    </button>
+                  }
+                </div>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    }
+  </section>
+</div>

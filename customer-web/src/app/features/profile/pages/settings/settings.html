@@ -1,0 +1,80 @@
+<div class="lx-settings">
+  <section class="lx-settings__card" aria-labelledby="lx-settings-title">
+    <header class="lx-settings__header">
+      <div>
+        <h1 id="lx-settings-title">Settings</h1>
+        <p>Manage your account preferences and security.</p>
+      </div>
+      <a routerLink="/profile" class="lx-btn lx-btn--outline">My Profile</a>
+    </header>
+
+    <section class="lx-settings__account" aria-labelledby="lx-settings-account-title">
+      <h2 id="lx-settings-account-title">Account</h2>
+      <dl>
+        <div>
+          <dt>Name</dt>
+          <dd>{{ displayName() }}</dd>
+        </div>
+        <div>
+          <dt>Email</dt>
+          <dd>{{ email() }}</dd>
+        </div>
+        <div>
+          <dt>Mobile</dt>
+          <dd>{{ mobile() }}</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="lx-settings__links" aria-labelledby="lx-settings-links-title">
+      <h2 id="lx-settings-links-title">Quick links</h2>
+      <ul>
+        <li>
+          <a routerLink="/profile">
+            <i class="pi pi-user" aria-hidden="true"></i>
+            <span>
+              <strong>Edit profile</strong>
+              <small>Update personal details and address</small>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a routerLink="/notifications">
+            <i class="pi pi-bell" aria-hidden="true"></i>
+            <span>
+              <strong>Notifications</strong>
+              <small>View alerts and account updates</small>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a routerLink="/auth/forgot-password">
+            <i class="pi pi-lock" aria-hidden="true"></i>
+            <span>
+              <strong>Reset password</strong>
+              <small>Use the forgot-password flow to set a new password</small>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a routerLink="/support">
+            <i class="pi pi-headphones" aria-hidden="true"></i>
+            <span>
+              <strong>Contact support</strong>
+              <small>Raise a ticket for help with your account</small>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a routerLink="/my-orders">
+            <i class="pi pi-shopping-bag" aria-hidden="true"></i>
+            <span>
+              <strong>My orders</strong>
+              <small>Track purchases and download invoices</small>
+            </span>
+          </a>
+        </li>
+      </ul>
+    </section>
+  </section>
+</div>

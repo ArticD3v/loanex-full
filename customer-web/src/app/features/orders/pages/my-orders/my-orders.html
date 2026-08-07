@@ -1,0 +1,99 @@
+<div class="lx-mo">
+  <section class="lx-mo__card" aria-labelledby="lx-mo-title">
+    <header class="lx-mo__header">
+      <div>
+        <h1 id="lx-mo-title">My Orders</h1>
+        <p>View order history, track deliveries, and download invoices.</p>
+      </div>
+      <a routerLink="/products" class="lx-btn lx-btn--outline">Continue Shopping</a>
+    </header>
+
+    @if (error(); as err) {
+      <div class="lx-mo__alert" role="alert">{{ err }}</div>
+    }
+    @if (info(); as message) {
+      <div class="lx-mo__info" role="status">{{ message }}</div>
+    }
+
+    @if (loading()) {
+      <p class="lx-mo__loading" aria-live="polite">Loading orders…</p>
+    } @else if (!orders()?.items?.length) {
+      <div class="lx-mo__empty">
+        <i class="pi pi-shopping-bag" aria-hidden="true"></i>
+        <h2>No orders yet</h2>
+        <p>When you place an order, it will appear here.</p>
+        <a routerLink="/products" class="lx-btn lx-btn--primary">Continue Shopping</a>
+      </div>
+    } @else if (orders(); as data) {
+      <ul class="lx-mo__list">
+        @for (order of data.items; track order.id) {
+          <li class="lx-mo__item">
+            <a [routerLink]="['/products', order.product.id]" class="lx-mo__image-link">
+              <img
+                [src]="order.product.imageUrl"
+                [alt]="order.product.name"
+                width="112"
+                height="112"
+              />
+            </a>
+
+            <div class="lx-mo__meta">
+              <p class="lx-mo__brand">{{ order.product.brand }}</p>
+              <h2>
+                <a [routerLink]="['/products', order.product.id]">
+                  {{ order.product.name }}
+                  @if (order.items && order.items.length > 1) {
+                    <span style="font-size: 0.875rem; color: #666; font-weight: normal;"> (+ {{ order.items.length - 1 }} more items)</span>
+                  }
+                </a>
+              </h2>
+
+              <dl class="lx-mo__details">
+                <div>
+                  <dt>Order</dt>
+                  <dd>{{ order.orderNumber }}</dd>
+                </div>
+                <div>
+                  <dt>Date</dt>
+                  <dd>{{ formatDate(order.orderDate) }}</dd>
+                </div>
+                <div>
+                  <dt>Amount</dt>
+                  <dd>{{ formatInr(order.orderAmount) }}</dd>
+                </div>
+                <div>
+                  <dt>Payment</dt>
+                  <dd>{{ order.paymentType }}</dd>
+                </div>
+                <div>
+                  <dt>Status</dt>
+                  <dd>
+                    <span class="lx-mo__badge">{{ statusLabel(order.orderStatus) }}</span>
+                  </dd>
+                </div>
+              </dl>
+
+              <div class="lx-mo__actions">
+                <a
+                  [routerLink]="['/orders', order.id]"
+                  class="lx-btn lx-btn--primary"
+                >
+                  View Order
+                </a>
+                <button
+                  type="button"
+                  class="lx-btn lx-btn--outline"
+                  [class.is-loading]="downloadingId() === order.id"
+                  [disabled]="downloadingId() === order.id"
+                  (click)="downloadInvoice(order, $event)"
+                >
+                  Download Invoice
+                </button>
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+</div>

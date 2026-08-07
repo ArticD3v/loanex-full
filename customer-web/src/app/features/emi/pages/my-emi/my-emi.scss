@@ -1,0 +1,385 @@
+:host {
+  display: block;
+}
+
+.lx-emi-dash {
+  display: grid;
+  place-items: center;
+  padding: 1rem 0 2.5rem;
+  animation: lx-emi-dash-in 360ms ease both;
+}
+
+@keyframes lx-emi-dash-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lx-emi-dash__card {
+  width: min(100%, 52rem);
+  background: #fff;
+  border: 1px solid #e5e9f0;
+  border-radius: 1rem;
+  padding: 1.75rem 1.5rem 1.5rem;
+  box-shadow: 0 12px 32px rgba(10, 46, 111, 0.08);
+  display: grid;
+  gap: 1rem;
+}
+
+.lx-emi-dash__header {
+  text-align: center;
+
+  h1 {
+    margin: 0;
+    color: #0a2e6f;
+    font-size: clamp(1.35rem, 2.2vw, 1.7rem);
+    font-weight: 800;
+  }
+
+  p {
+    margin: 0.35rem 0 0;
+    color: #6b7280;
+    line-height: 1.55;
+  }
+}
+
+.lx-emi-dash__section-title {
+  margin: 0 0 0.65rem;
+  color: #0a2e6f;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.lx-emi-dash__alert,
+.lx-emi-dash__info {
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.7rem;
+  font-weight: 600;
+}
+
+.lx-emi-dash__alert {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.lx-emi-dash__info {
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.lx-emi-dash__loading,
+.lx-emi-dash__empty {
+  margin: 0;
+  color: #6b7280;
+  text-align: center;
+}
+
+.lx-emi-dash__product {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 0.85rem;
+  align-items: center;
+  padding: 0.85rem;
+  border-radius: 0.9rem;
+  border: 1px solid #e5e9f0;
+  background: #f8fafc;
+
+  img {
+    width: 5.5rem;
+    height: 5.5rem;
+    object-fit: contain;
+    border-radius: 0.7rem;
+    background: #fff;
+    border: 1px solid #eef2f7;
+  }
+}
+
+.lx-emi-dash__product-name {
+  margin: 0;
+  color: #0a2e6f;
+  font-weight: 800;
+}
+
+.lx-emi-dash__product-price {
+  margin: 0.25rem 0 0;
+  color: #d4a12a;
+  font-weight: 800;
+}
+
+.lx-emi-dash__meta {
+  margin: 0;
+  display: grid;
+  gap: 0.55rem;
+
+  div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.7rem 0.85rem;
+    border-radius: 0.7rem;
+    background: #f8fafc;
+    border: 1px solid #e5e9f0;
+  }
+
+  dt {
+    color: #6b7280;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  dd {
+    margin: 0;
+    color: #0a2e6f;
+    font-weight: 800;
+    font-size: 0.9rem;
+    text-align: right;
+
+    &.is-gold {
+      color: #d4a12a;
+    }
+  }
+}
+
+.lx-emi-dash__badge {
+  display: inline-flex;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.75rem;
+  font-weight: 800;
+
+  &.is-active {
+    background: #dcfce7;
+    color: #166534;
+  }
+}
+
+.lx-emi-dash__cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+
+  article {
+    padding: 0.85rem 0.9rem;
+    border-radius: 0.85rem;
+    border: 1px solid #e5e9f0;
+    background: linear-gradient(180deg, #fbfdff 0%, #f8fafc 100%);
+    display: grid;
+    gap: 0.35rem;
+
+    span {
+      color: #6b7280;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    strong {
+      color: #0a2e6f;
+      font-size: 1rem;
+      font-weight: 800;
+
+      &.is-gold {
+        color: #d4a12a;
+      }
+    }
+  }
+}
+
+.lx-emi-dash__next {
+  padding: 1rem;
+  border-radius: 0.9rem;
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+  display: grid;
+  gap: 0.75rem;
+
+  h2 {
+    margin: 0;
+    color: #0a2e6f;
+    font-size: 1rem;
+    font-weight: 800;
+  }
+
+  dl {
+    margin: 0;
+    display: grid;
+    gap: 0.45rem;
+
+    div {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    dt {
+      color: #92400e;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    dd {
+      margin: 0;
+      color: #0a2e6f;
+      font-weight: 800;
+
+      &.is-gold {
+        color: #d4a12a;
+      }
+    }
+  }
+}
+
+.lx-emi-dash__table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid #e5e9f0;
+  border-radius: 0.85rem;
+  background: #f8fafc;
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 0;
+  }
+
+  th,
+  td {
+    padding: 0.7rem 0.75rem;
+    text-align: left;
+    font-size: 0.82rem;
+    border-bottom: 1px solid #e5e9f0;
+  }
+
+  th {
+    color: #6b7280;
+    font-weight: 700;
+    background: #f1f5f9;
+  }
+
+  td {
+    color: #0a2e6f;
+    font-weight: 600;
+  }
+
+  tr:last-child td {
+    border-bottom: 0;
+  }
+}
+
+.lx-emi-dash__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: center;
+}
+
+@media (max-width: 767.98px) {
+  .lx-emi-dash__card {
+    padding: 1.25rem 1rem 1.15rem;
+  }
+
+  .lx-emi-dash__product {
+    grid-template-columns: 4.5rem minmax(0, 1fr);
+    gap: 0.7rem;
+
+    img {
+      width: 4.5rem;
+      height: 4.5rem;
+    }
+  }
+
+  .lx-emi-dash__meta div {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+
+    dd {
+      text-align: left;
+    }
+  }
+
+  .lx-emi-dash__cards {
+    grid-template-columns: 1fr;
+  }
+
+  .lx-emi-dash__next dl div {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+  }
+
+  .lx-emi-dash__table-wrap {
+    border: 0;
+    background: transparent;
+    overflow: visible;
+
+    table,
+    thead,
+    tbody,
+    th,
+    td,
+    tr {
+      display: block;
+      width: 100%;
+    }
+
+    thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    tr {
+      margin-bottom: 0.75rem;
+      border: 1px solid #e5e9f0;
+      border-radius: 0.85rem;
+      background: #f8fafc;
+      padding: 0.35rem 0.65rem;
+    }
+
+    td {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.55rem 0.15rem;
+      border-bottom: 1px solid #e5e9f0;
+      text-align: right;
+
+      &::before {
+        content: attr(data-label);
+        color: #6b7280;
+        font-weight: 700;
+        text-align: left;
+        flex: 0 0 42%;
+      }
+
+      &:last-child {
+        border-bottom: 0;
+      }
+    }
+  }
+
+  .lx-emi-dash__actions {
+    flex-direction: column;
+
+    .lx-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}

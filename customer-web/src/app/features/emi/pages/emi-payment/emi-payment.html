@@ -1,0 +1,155 @@
+<div class="lx-emi-pay">
+  <section class="lx-emi-pay__card" aria-labelledby="lx-emi-pay-title">
+    <header class="lx-emi-pay__header">
+      <h1 id="lx-emi-pay-title">Pay EMI</h1>
+      <p>Complete your monthly EMI payment securely.</p>
+    </header>
+
+    @if (error(); as err) {
+      <div class="lx-emi-pay__alert" role="alert">{{ err }}</div>
+    }
+    @if (info(); as message) {
+      <div class="lx-emi-pay__info" role="status">{{ message }}</div>
+    }
+
+    @if (loading() && !details()) {
+      <p class="lx-emi-pay__loading" aria-live="polite">Loading EMI payment details…</p>
+    }
+
+    @if (details(); as data) {
+      <section aria-labelledby="lx-emi-pay-loan-title">
+        <h2 id="lx-emi-pay-loan-title" class="lx-emi-pay__section-title">Loan Details</h2>
+        <div class="lx-emi-pay__product">
+          <img
+            [src]="data.loan.productImage"
+            [alt]="data.loan.productName || 'Product'"
+            width="72"
+            height="72"
+          />
+          <div>
+            <p class="lx-emi-pay__product-name">{{ data.loan.productName || 'LoanEx Product' }}</p>
+            <p class="lx-emi-pay__muted">{{ data.loan.loanAccountNumber }}</p>
+          </div>
+        </div>
+        <dl class="lx-emi-pay__meta">
+          <div>
+            <dt>Loan Account Number</dt>
+            <dd>{{ data.loan.loanAccountNumber }}</dd>
+          </div>
+          <div>
+            <dt>Product Name</dt>
+            <dd>{{ data.loan.productName || '—' }}</dd>
+          </div>
+          <div>
+            <dt>Application Number</dt>
+            <dd>{{ data.loan.applicationNumber }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section aria-labelledby="lx-emi-pay-emi-title">
+        <h2 id="lx-emi-pay-emi-title" class="lx-emi-pay__section-title">EMI Details</h2>
+        <dl class="lx-emi-pay__meta">
+          <div>
+            <dt>EMI Number</dt>
+            <dd>#{{ data.emi.emiNumber }}</dd>
+          </div>
+          <div>
+            <dt>EMI Due Date</dt>
+            <dd>{{ formatDate(data.emi.dueDate) }}</dd>
+          </div>
+          <div>
+            <dt>Principal Amount</dt>
+            <dd>{{ formatMoney(data.emi.principalAmount) }}</dd>
+          </div>
+          <div>
+            <dt>Interest Amount</dt>
+            <dd>{{ formatMoney(data.emi.interestAmount) }}</dd>
+          </div>
+          <div>
+            <dt>Late Fee</dt>
+            <dd>{{ formatMoney(data.emi.lateFee) }}</dd>
+          </div>
+          <div>
+            <dt>GST</dt>
+            <dd>{{ formatMoney(data.emi.gst) }}</dd>
+          </div>
+          <div>
+            <dt>Total Payable</dt>
+            <dd class="is-gold">{{ formatMoney(data.emi.totalPayable) }}</dd>
+          </div>
+          <div>
+            <dt>Payment Status</dt>
+            <dd>
+              <span class="lx-emi-pay__badge" [class.is-paid]="data.alreadyPaid">
+                {{ formatStatus(data.emi.paymentStatus) }}
+              </span>
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="lx-emi-pay__summary" aria-labelledby="lx-emi-pay-summary-title">
+        <h2 id="lx-emi-pay-summary-title" class="lx-emi-pay__section-title">Payment Summary</h2>
+        <dl>
+          <div>
+            <dt>Principal</dt>
+            <dd>{{ formatMoney(data.paymentSummary.principal) }}</dd>
+          </div>
+          <div>
+            <dt>Interest</dt>
+            <dd>{{ formatMoney(data.paymentSummary.interest) }}</dd>
+          </div>
+          <div>
+            <dt>Penalty</dt>
+            <dd>{{ formatMoney(data.paymentSummary.penalty) }}</dd>
+          </div>
+          <div>
+            <dt>GST</dt>
+            <dd>{{ formatMoney(data.paymentSummary.gst) }}</dd>
+          </div>
+          <div class="is-total">
+            <dt>Grand Total</dt>
+            <dd>{{ formatMoney(data.paymentSummary.grandTotal) }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="lx-emi-pay__method" aria-labelledby="lx-emi-pay-method-title">
+        <h2 id="lx-emi-pay-method-title" class="lx-emi-pay__section-title">Payment Method</h2>
+        <div class="lx-emi-pay__method-card">
+          <strong>{{ data.paymentMethod.provider }}</strong>
+          <span>{{ data.paymentMethod.label }}</span>
+        </div>
+      </section>
+
+      <div class="lx-emi-pay__actions">
+        @if (data.canPay) {
+          <button
+            type="button"
+            class="lx-btn lx-btn--primary"
+            [class.is-loading]="paying()"
+            [disabled]="paying()"
+            (click)="payNow()"
+          >
+            {{ payLabel() }}
+          </button>
+        }
+        @if (data.receiptAvailable) {
+          <button
+            type="button"
+            class="lx-btn lx-btn--outline"
+            [disabled]="downloading()"
+            (click)="downloadReceipt()"
+          >
+            Download Receipt
+          </button>
+        }
+        <button type="button" class="lx-btn lx-btn--outline" (click)="goToDashboard()">
+          Back to My EMI
+        </button>
+        <a routerLink="/" class="lx-btn lx-btn--outline">Back to Home</a>
+      </div>
+    }
+  </section>
+</div>

@@ -1,0 +1,95 @@
+<section class="lx-hero" aria-labelledby="lx-hero-heading">
+  <div class="lx-hero__carousel">
+    @if (loading() && slides().length === 0) {
+      <div class="lx-hero__slide is-active" style="background: linear-gradient(135deg, #0a2e6f 0%, #1e40af 50%, #3b82f6 100%)">
+        <div class="lx-hero__content">
+          <h1 id="lx-hero-heading" class="lx-hero__title">
+            <span class="lx-hero__title-line">Loading offers</span>
+            <span class="lx-hero__title-line lx-hero__title-accent">Please wait…</span>
+          </h1>
+        </div>
+      </div>
+    }
+
+    @for (slide of slides(); track slide.id; let i = $index) {
+      <div
+        class="lx-hero__slide"
+        [class.is-active]="i === activeIndex()"
+        [style.background]="slide.bgGradient"
+      >
+        <div class="lx-hero__content">
+          <div class="lx-hero__badge">
+            <span>{{ slide.badge }}</span>
+          </div>
+
+          <h1 id="lx-hero-heading" class="lx-hero__title">
+            <span class="lx-hero__title-line">{{ slide.titleLine1 }}</span>
+            <span class="lx-hero__title-line lx-hero__title-accent">{{ slide.titleLine2 }}</span>
+          </h1>
+
+          <p class="lx-hero__desc">{{ slide.description }}</p>
+
+          <div class="lx-hero__actions">
+            <a
+              [routerLink]="slide.ctaPath"
+              [queryParams]="slide.ctaQueryParams ?? {}"
+              class="lx-hero__btn lx-hero__btn--primary"
+            >
+              <span>{{ slide.ctaText }}</span>
+              <i class="pi pi-arrow-right" aria-hidden="true"></i>
+            </a>
+            <a [routerLink]="slide.secondaryCtaPath" class="lx-hero__btn lx-hero__btn--secondary">
+              <span>{{ slide.secondaryCtaText }}</span>
+            </a>
+          </div>
+        </div>
+
+        <div class="lx-hero__media">
+          <img
+            [src]="slide.image"
+            [alt]="slide.titleLine1"
+            width="600"
+            height="400"
+            decoding="async"
+            fetchpriority="high"
+          />
+        </div>
+      </div>
+    }
+
+    @if (slides().length > 1) {
+      <button type="button" class="lx-hero__nav lx-hero__nav--prev" aria-label="Previous Slide" (click)="prevSlide()">
+        <i class="pi pi-chevron-left" aria-hidden="true"></i>
+      </button>
+      <button type="button" class="lx-hero__nav lx-hero__nav--next" aria-label="Next Slide" (click)="nextSlide()">
+        <i class="pi pi-chevron-right" aria-hidden="true"></i>
+      </button>
+
+      <div class="lx-hero__dots">
+        @for (slide of slides(); track slide.id; let i = $index) {
+          <button
+            type="button"
+            class="lx-hero__dot"
+            [class.is-active]="i === activeIndex()"
+            [attr.aria-label]="'Go to slide ' + (i + 1)"
+            (click)="setSlide(i)"
+          ></button>
+        }
+      </div>
+    }
+  </div>
+
+  <div class="lx-hero__trust-bar">
+    @for (item of trust; track item.title) {
+      <div class="lx-hero__trust-item">
+        <div class="lx-hero__trust-icon">
+          <i [class]="item.icon"></i>
+        </div>
+        <div class="lx-hero__trust-info">
+          <span class="lx-hero__trust-title">{{ item.title }}</span>
+          <span class="lx-hero__trust-desc">{{ item.desc }}</span>
+        </div>
+      </div>
+    }
+  </div>
+</section>

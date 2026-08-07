@@ -1,0 +1,74 @@
+/* Global base styles for LoanEx — design system foundation only. */
+html {
+  height: 100%;
+  margin: 0;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  overflow-x: clip;
+  font-family: var(--lx-font-family);
+  font-size: var(--lx-text-body);
+  font-weight: var(--lx-font-weight-regular);
+  line-height: var(--lx-leading-normal);
+  color: var(--lx-color-text);
+  background-color: var(--lx-color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+table {
+  max-width: 100%;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+a {
+  color: var(--lx-color-primary);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+  transition: color var(--lx-transition-fast);
+
+  &:hover {
+    color: var(--lx-color-primary-hover);
+  }
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--lx-color-primary);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(var(--lx-color-primary-rgb), 0.16);
+  color: var(--lx-color-text);
+}

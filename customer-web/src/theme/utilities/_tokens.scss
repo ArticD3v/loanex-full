@@ -1,0 +1,86 @@
+@use '../variables' as *;
+
+/* Color utilities */
+.lx-bg-primary { background-color: var(--lx-color-primary) !important; }
+.lx-bg-primary-hover { background-color: var(--lx-color-primary-hover) !important; }
+.lx-bg-secondary { background-color: var(--lx-color-secondary) !important; }
+.lx-bg-success { background-color: var(--lx-color-success) !important; }
+.lx-bg-danger { background-color: var(--lx-color-danger) !important; }
+.lx-bg-warning { background-color: var(--lx-color-warning) !important; }
+.lx-bg-info { background-color: var(--lx-color-info) !important; }
+.lx-bg-page { background-color: var(--lx-color-bg) !important; }
+.lx-bg-surface { background-color: var(--lx-color-surface) !important; }
+
+.lx-text-primary { color: var(--lx-color-primary) !important; }
+.lx-text-secondary { color: var(--lx-color-text-secondary) !important; }
+.lx-text-success { color: var(--lx-color-success) !important; }
+.lx-text-danger { color: var(--lx-color-danger) !important; }
+.lx-text-warning { color: var(--lx-color-warning) !important; }
+.lx-text-info { color: var(--lx-color-info) !important; }
+.lx-text-body { color: var(--lx-color-text) !important; }
+
+.lx-border-default { border-color: var(--lx-color-border) !important; }
+.lx-border-primary { border-color: var(--lx-color-primary) !important; }
+.lx-border-danger { border-color: var(--lx-color-danger) !important; }
+.lx-border-success { border-color: var(--lx-color-success) !important; }
+
+/* Spacing utilities */
+@each $key, $value in $lx-spacing {
+  .lx-p-#{$key} { padding: $value !important; }
+  .lx-px-#{$key} {
+    padding-left: $value !important;
+    padding-right: $value !important;
+  }
+  .lx-py-#{$key} {
+    padding-top: $value !important;
+    padding-bottom: $value !important;
+  }
+  .lx-pt-#{$key} { padding-top: $value !important; }
+  .lx-pb-#{$key} { padding-bottom: $value !important; }
+  .lx-pl-#{$key} { padding-left: $value !important; }
+  .lx-pr-#{$key} { padding-right: $value !important; }
+
+  .lx-m-#{$key} { margin: $value !important; }
+  .lx-mx-#{$key} {
+    margin-left: $value !important;
+    margin-right: $value !important;
+  }
+  .lx-my-#{$key} {
+    margin-top: $value !important;
+    margin-bottom: $value !important;
+  }
+  .lx-mt-#{$key} { margin-top: $value !important; }
+  .lx-mb-#{$key} { margin-bottom: $value !important; }
+  .lx-ml-#{$key} { margin-left: $value !important; }
+  .lx-mr-#{$key} { margin-right: $value !important; }
+
+  .lx-gap-#{$key} { gap: $value !important; }
+}
+
+.lx-m-auto { margin: auto !important; }
+.lx-mx-auto {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Radius */
+.lx-rounded-sm { border-radius: var(--lx-radius-sm) !important; }
+.lx-rounded-md { border-radius: var(--lx-radius-md) !important; }
+.lx-rounded-lg { border-radius: var(--lx-radius-lg) !important; }
+.lx-rounded-xl { border-radius: var(--lx-radius-xl) !important; }
+.lx-rounded-pill { border-radius: var(--lx-radius-pill) !important; }
+.lx-rounded-none { border-radius: 0 !important; }
+
+/* Shadows / elevation */
+.lx-shadow-sm { box-shadow: var(--lx-shadow-sm) !important; }
+.lx-shadow-md { box-shadow: var(--lx-shadow-md) !important; }
+.lx-shadow-lg { box-shadow: var(--lx-shadow-lg) !important; }
+.lx-shadow-card { box-shadow: var(--lx-shadow-card) !important; }
+.lx-shadow-hover { box-shadow: var(--lx-shadow-hover) !important; }
+.lx-shadow-none { box-shadow: none !important; }
+
+.lx-elevation-1 { box-shadow: var(--lx-shadow-sm) !important; }
+.lx-elevation-2 { box-shadow: var(--lx-shadow-card) !important; }
+.lx-elevation-3 { box-shadow: var(--lx-shadow-md) !important; }
+.lx-elevation-4 { box-shadow: var(--lx-shadow-lg) !important; }
+.lx-elevation-hover { box-shadow: var(--lx-shadow-hover) !important; }

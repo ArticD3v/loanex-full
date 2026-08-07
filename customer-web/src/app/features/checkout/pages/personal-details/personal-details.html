@@ -1,0 +1,318 @@
+<div class="lx-pd">
+
+  <section class="lx-pd__card" aria-labelledby="lx-pd-title">
+    <header class="lx-pd__header">
+      <h1 id="lx-pd-title">Personal Information</h1>
+      <p>Provide your details to continue with your EMI application.</p>
+    </header>
+
+    @if (error(); as err) {
+      <div class="lx-pd__alert" role="alert">{{ err }}</div>
+    }
+
+    @if (loading()) {
+      <p class="lx-pd__loading" aria-live="polite">Loading your details…</p>
+    } @else {
+      <form class="lx-pd__form" [formGroup]="form" (ngSubmit)="saveAndContinue()">
+        <section class="lx-pd__section" aria-labelledby="lx-pd-personal-title">
+          <h2 id="lx-pd-personal-title">Personal Information</h2>
+
+          <div class="lx-pd__grid">
+            <div class="lx-pd__field">
+              <label for="lx-pd-name">Full Name</label>
+              <input
+                id="lx-pd-name"
+                class="lx-input"
+                type="text"
+                maxlength="100"
+                autocomplete="name"
+                formControlName="fullName"
+              />
+              @if (form.controls.fullName.touched && form.controls.fullName.invalid) {
+                <p class="lx-error-text" role="alert">Full name is required.</p>
+              }
+            </div>
+
+            <div class="lx-pd__field">
+              <label for="lx-pd-mobile">Mobile Number</label>
+              <input
+                id="lx-pd-mobile"
+                class="lx-input"
+                type="tel"
+                formControlName="mobile"
+                readonly
+              />
+            </div>
+
+            <div class="lx-pd__field">
+              <label for="lx-pd-email">Email</label>
+              <input
+                id="lx-pd-email"
+                class="lx-input"
+                type="email"
+                maxlength="150"
+                autocomplete="email"
+                formControlName="email"
+              />
+              @if (form.controls.email.touched && form.controls.email.invalid) {
+                <p class="lx-error-text" role="alert">Enter a valid email address.</p>
+              }
+            </div>
+
+            <div class="lx-pd__field">
+              <label for="lx-pd-dob">Date of Birth</label>
+              <input id="lx-pd-dob" class="lx-input" type="date" formControlName="dob" />
+              @if (form.controls.dob.touched && form.controls.dob.invalid) {
+                <p class="lx-error-text" role="alert">Date of birth is required.</p>
+              }
+            </div>
+
+            <fieldset class="lx-pd__field lx-pd__field--full">
+              <legend>Gender</legend>
+              <div class="lx-pd__gender" role="radiogroup" aria-label="Gender">
+                <label class="lx-pd__choice">
+                  <input type="radio" formControlName="gender" value="MALE" />
+                  <span>Male</span>
+                </label>
+                <label class="lx-pd__choice">
+                  <input type="radio" formControlName="gender" value="FEMALE" />
+                  <span>Female</span>
+                </label>
+                <label class="lx-pd__choice">
+                  <input type="radio" formControlName="gender" value="OTHER" />
+                  <span>Other</span>
+                </label>
+                <label class="lx-pd__choice">
+                  <input type="radio" formControlName="gender" value="PREFER_NOT_TO_SAY" />
+                  <span>Prefer not to say</span>
+                </label>
+              </div>
+              @if (form.controls.gender.touched && form.controls.gender.invalid) {
+                <p class="lx-error-text" role="alert">Please select gender.</p>
+              }
+            </fieldset>
+          </div>
+        </section>
+
+        <section class="lx-pd__section" aria-labelledby="lx-pd-address-title">
+          <h2 id="lx-pd-address-title">Address Details</h2>
+
+          <div class="lx-pd__grid">
+            <div class="lx-pd__field">
+              <label for="lx-pd-house">House / Flat No.</label>
+              <input
+                id="lx-pd-house"
+                class="lx-input"
+                type="text"
+                maxlength="120"
+                autocomplete="address-line1"
+                formControlName="addressLine1"
+              />
+              @if (form.controls.addressLine1.touched && form.controls.addressLine1.invalid) {
+                <p class="lx-error-text" role="alert">House / Flat No. is required.</p>
+              }
+            </div>
+
+            <div class="lx-pd__field">
+              <label for="lx-pd-street">Street / Area</label>
+              <input
+                id="lx-pd-street"
+                class="lx-input"
+                type="text"
+                maxlength="200"
+                autocomplete="address-line2"
+                formControlName="addressLine2"
+              />
+              @if (form.controls.addressLine2.touched && form.controls.addressLine2.invalid) {
+                <p class="lx-error-text" role="alert">Street / Area is required.</p>
+              }
+            </div>
+
+            <div class="lx-pd__field lx-pd__field--full">
+              <label for="lx-pd-landmark">Landmark (Optional)</label>
+              <input
+                id="lx-pd-landmark"
+                class="lx-input"
+                type="text"
+                maxlength="150"
+                formControlName="landmark"
+              />
+            </div>
+
+            <div class="lx-pd__field">
+              <label for="lx-pd-city">City</label>
+              <input
+                id="lx-pd-city"
+                class="lx-input"
+                type="text"
+                maxlength="80"
+                autocomplete="address-level2"
+                formControlName="city"
+              />
+              @if (form.controls.city.touched && form.controls.city.invalid) {
+                <p class="lx-error-text" role="alert">City is required.</p>
+              }
+            </div>
+
+            <div class="lx-pd__field">
+              <label for="lx-pd-state">State</label>
+              <select id="lx-pd-state" class="lx-input" formControlName="state">
+                <option value="">Select state</option>
+                @for (state of states; track state) {
+                  <option [value]="state">{{ state }}</option>
+                }
+              </select>
+              @if (form.controls.state.touched && form.controls.state.invalid) {
+                <p class="lx-error-text" role="alert">State is required.</p>
+              }
+            </div>
+
+            <div class="lx-pd__field">
+              <label for="lx-pd-pincode">Pincode</label>
+              <input
+                id="lx-pd-pincode"
+                class="lx-input"
+                type="text"
+                inputmode="numeric"
+                maxlength="6"
+                autocomplete="postal-code"
+                formControlName="pincode"
+                (input)="onPincodeInput('pincode', $event)"
+              />
+              @if (form.controls.pincode.touched && form.controls.pincode.invalid) {
+                <p class="lx-error-text" role="alert">Pincode must be 6 digits.</p>
+              }
+            </div>
+
+            <div class="lx-pd__field">
+              <label for="lx-pd-country">Country</label>
+              <input id="lx-pd-country" class="lx-input" type="text" formControlName="country" />
+            </div>
+          </div>
+
+          <label class="lx-pd__checkbox">
+            <input type="checkbox" formControlName="billingSameAsShipping" />
+            <span>Billing Address Same as Shipping Address</span>
+          </label>
+        </section>
+
+        @if (!form.controls.billingSameAsShipping.value) {
+          <section class="lx-pd__section" aria-labelledby="lx-pd-billing-title">
+            <h2 id="lx-pd-billing-title">Billing Address</h2>
+            <div class="lx-pd__grid">
+              <div class="lx-pd__field">
+                <label for="lx-pd-b-house">House / Flat No.</label>
+                <input
+                  id="lx-pd-b-house"
+                  class="lx-input"
+                  type="text"
+                  maxlength="120"
+                  formControlName="billingAddressLine1"
+                />
+                @if (
+                  form.controls.billingAddressLine1.touched &&
+                  form.controls.billingAddressLine1.invalid
+                ) {
+                  <p class="lx-error-text" role="alert">House / Flat No. is required.</p>
+                }
+              </div>
+              <div class="lx-pd__field">
+                <label for="lx-pd-b-street">Street / Area</label>
+                <input
+                  id="lx-pd-b-street"
+                  class="lx-input"
+                  type="text"
+                  maxlength="200"
+                  formControlName="billingAddressLine2"
+                />
+                @if (
+                  form.controls.billingAddressLine2.touched &&
+                  form.controls.billingAddressLine2.invalid
+                ) {
+                  <p class="lx-error-text" role="alert">Street / Area is required.</p>
+                }
+              </div>
+              <div class="lx-pd__field lx-pd__field--full">
+                <label for="lx-pd-b-landmark">Landmark (Optional)</label>
+                <input
+                  id="lx-pd-b-landmark"
+                  class="lx-input"
+                  type="text"
+                  maxlength="150"
+                  formControlName="billingLandmark"
+                />
+              </div>
+              <div class="lx-pd__field">
+                <label for="lx-pd-b-city">City</label>
+                <input
+                  id="lx-pd-b-city"
+                  class="lx-input"
+                  type="text"
+                  maxlength="80"
+                  formControlName="billingCity"
+                />
+                @if (form.controls.billingCity.touched && form.controls.billingCity.invalid) {
+                  <p class="lx-error-text" role="alert">City is required.</p>
+                }
+              </div>
+              <div class="lx-pd__field">
+                <label for="lx-pd-b-state">State</label>
+                <select id="lx-pd-b-state" class="lx-input" formControlName="billingState">
+                  <option value="">Select state</option>
+                  @for (state of states; track state) {
+                    <option [value]="state">{{ state }}</option>
+                  }
+                </select>
+                @if (form.controls.billingState.touched && form.controls.billingState.invalid) {
+                  <p class="lx-error-text" role="alert">State is required.</p>
+                }
+              </div>
+              <div class="lx-pd__field">
+                <label for="lx-pd-b-pincode">Pincode</label>
+                <input
+                  id="lx-pd-b-pincode"
+                  class="lx-input"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="6"
+                  formControlName="billingPincode"
+                  (input)="onPincodeInput('billingPincode', $event)"
+                />
+                @if (
+                  form.controls.billingPincode.touched && form.controls.billingPincode.invalid
+                ) {
+                  <p class="lx-error-text" role="alert">Pincode must be 6 digits.</p>
+                }
+              </div>
+              <div class="lx-pd__field">
+                <label for="lx-pd-b-country">Country</label>
+                <input
+                  id="lx-pd-b-country"
+                  class="lx-input"
+                  type="text"
+                  formControlName="billingCountry"
+                />
+              </div>
+            </div>
+          </section>
+        }
+
+        <div class="lx-pd__actions">
+          <button type="button" class="lx-btn lx-btn--outline" (click)="goBack()">Back</button>
+          <button
+            type="submit"
+            class="lx-btn lx-btn--primary lx-btn--lg"
+            [class.is-loading]="saving()"
+            [disabled]="saving()"
+          >
+            Save &amp; Continue
+          </button>
+        </div>
+      </form>
+    }
+  </section>
+
+  <p class="lx-pd__support">
+    Need help? <a href="mailto:support@loanex.in">Contact Support</a>
+  </p>
+</div>

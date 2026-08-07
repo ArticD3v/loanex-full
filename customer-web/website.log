@@ -1,0 +1,591 @@
+
+> loan-ex@0.0.0 start
+> ng serve
+
+[1m[33m
+Warning: This is a simple server for use in testing or debugging Angular applications
+locally. It hasn't been reviewed for security issues.
+
+Binding this server to an open connection can result in compromising your application or
+computer. Using a different host than the one passed to the "--host" flag might result in
+websocket connection issues.
+    [39m[22m
+[33m>[39m Building...
+[32m√[39m Building...
+[35mBrowser bundles[39m     
+[1mInitial chunk files[22m [2m | [22m[1mNames[22m                [2m | [22m [1mRaw size[22m
+[32mstyles.css[39m          [2m | [22m[2mstyles[22m               [2m | [22m[36m525.12 kB[39m[2m | [22m
+[32mmain.js[39m             [2m | [22m[2mmain[22m                 [2m | [22m[36m150.99 kB[39m[2m | [22m
+[32mchunk-BKGL4BC3.js[39m   [2m | [22m[2m-[22m                    [2m | [22m  [36m8.26 kB[39m[2m | [22m
+[32mchunk-4RFBLFOM.js[39m   [2m | [22m[2m-[22m                    [2m | [22m  [36m5.11 kB[39m[2m | [22m
+[32mchunk-7KICSZQL.js[39m   [2m | [22m[2m-[22m                    [2m | [22m  [36m3.24 kB[39m[2m | [22m
+[32mchunk-4WMBCHV6.js[39m   [2m | [22m[2m-[22m                    [2m | [22m  [36m3.22 kB[39m[2m | [22m
+[32mchunk-Y5RQAIA6.js[39m   [2m | [22m[2m-[22m                    [2m | [22m  [36m1.50 kB[39m[2m | [22m
+[32mchunk-JL64KJTA.js[39m   [2m | [22m[2m-[22m                    [2m | [22m[36m735 bytes[39m[2m | [22m
+[32mchunk-XCC4NEHC.js[39m   [2m | [22m[2m-[22m                    [2m | [22m[36m237 bytes[39m[2m | [22m
+[32mpolyfills.js[39m        [2m | [22m[2mpolyfills[22m            [2m | [22m [36m95 bytes[39m[2m | [22m
+
+[1m [22m                   [2m | [22m[1mInitial total[22m        [2m | [22m[1m698.50 kB[22m
+
+[1mLazy chunk files[22m    [2m | [22m[1mNames[22m                [2m | [22m [1mRaw size[22m
+[32mchunk-T36MBP4P.js[39m   [2m | [22m[2mproduct-details[22m      [2m | [22m[36m188.35 kB[39m[2m | [22m
+[32mchunk-CG2GTN4I.js[39m   [2m | [22m[2mhome[22m                 [2m | [22m[36m131.77 kB[39m[2m | [22m
+[32mchunk-VECWTB75.js[39m   [2m | [22m[2midentity-verification[22m[2m | [22m [36m77.44 kB[39m[2m | [22m
+[32mchunk-RZG3F5XS.js[39m   [2m | [22m[2mmy-emi[22m               [2m | [22m [36m62.56 kB[39m[2m | [22m
+[32mchunk-ON746WIS.js[39m   [2m | [22m[2morder-details[22m        [2m | [22m [36m59.41 kB[39m[2m | [22m
+[32mchunk-5BMQFURW.js[39m   [2m | [22m[2mpersonal-details[22m     [2m | [22m [36m55.38 kB[39m[2m | [22m
+[32mchunk-HJBA4QJ2.js[39m   [2m | [22m[2mmy-profile[22m           [2m | [22m [36m50.51 kB[39m[2m | [22m
+[32mchunk-DYGNFOSV.js[39m   [2m | [22m[2mpayment-history[22m      [2m | [22m [36m47.41 kB[39m[2m | [22m
+[32mchunk-H74ZYYDY.js[39m   [2m | [22m[2mcart[22m                 [2m | [22m [36m42.29 kB[39m[2m | [22m
+[32mchunk-L4E4MKLV.js[39m   [2m | [22m[2mcheckout-summary[22m     [2m | [22m [36m41.23 kB[39m[2m | [22m
+[32mchunk-KSN3HHFE.js[39m   [2m | [22m[2memi-payment[22m          [2m | [22m [36m39.84 kB[39m[2m | [22m
+[32mchunk-LABBZNT3.js[39m   [2m | [22m[2mautopay[22m              [2m | [22m [36m36.58 kB[39m[2m | [22m
+[32mchunk-D74BCPWA.js[39m   [2m | [22m[2mproduct-catalog[22m      [2m | [22m [36m35.66 kB[39m[2m | [22m
+[32mchunk-OKQ2IQDL.js[39m   [2m | [22m[2mnotification-center[22m  [2m | [22m [36m35.15 kB[39m[2m | [22m
+[32mchunk-J5IMKENM.js[39m   [2m | [22m[2mapproved-loan-offer[22m  [2m | [22m [36m34.21 kB[39m[2m | [22m
+[2m...and 40 more lazy chunks files. Use "--verbose" to show all the files.[22m
+
+
+[35mServer bundles[39m      
+[1mInitial chunk files[22m [2m | [22m[1mNames[22m                [2m | [22m [1mRaw size[22m
+[32mmain.server.mjs[39m     [2m | [22m[2mmain.server[22m          [2m | [22m[36m153.00 kB[39m[2m | [22m
+[32mchunk-CKQ4HYTL.mjs[39m  [2m | [22m[2m-[22m                    [2m | [22m  [36m8.30 kB[39m[2m | [22m
+[32mchunk-THP3MELK.mjs[39m  [2m | [22m[2m-[22m                    [2m | [22m  [36m5.14 kB[39m[2m | [22m
+[32mchunk-4TQMQO7W.mjs[39m  [2m | [22m[2m-[22m                    [2m | [22m  [36m3.27 kB[39m[2m | [22m
+[32mchunk-3BH6GWZT.mjs[39m  [2m | [22m[2m-[22m                    [2m | [22m  [36m3.26 kB[39m[2m | [22m
+[32mserver.mjs[39m          [2m | [22m[2mserver[22m               [2m | [22m  [36m1.81 kB[39m[2m | [22m
+[32mchunk-HSMV5CXV.mjs[39m  [2m | [22m[2m-[22m                    [2m | [22m  [36m1.53 kB[39m[2m | [22m
+[32mchunk-U7AGBTOQ.mjs[39m  [2m | [22m[2m-[22m                    [2m | [22m[36m770 bytes[39m[2m | [22m
+[32mchunk-UN6UL5YV.mjs[39m  [2m | [22m[2m-[22m                    [2m | [22m[36m272 bytes[39m[2m | [22m
+[32mpolyfills.server.mjs[39m[2m | [22m[2mpolyfills.server[22m     [2m | [22m[36m266 bytes[39m[2m | [22m
+
+[1mLazy chunk files[22m    [2m | [22m[1mNames[22m                [2m | [22m [1mRaw size[22m
+[32mchunk-OTJ42N3S.mjs[39m  [2m | [22m[2mproduct-details[22m      [2m | [22m[36m188.40 kB[39m[2m | [22m
+[32mchunk-NR6BLEEG.mjs[39m  [2m | [22m[2mhome[22m                 [2m | [22m[36m131.81 kB[39m[2m | [22m
+[32mchunk-EDKWW6IS.mjs[39m  [2m | [22m[2midentity-verification[22m[2m | [22m [36m77.48 kB[39m[2m | [22m
+[32mchunk-RQFVDE7C.mjs[39m  [2m | [22m[2mmy-emi[22m               [2m | [22m [36m62.59 kB[39m[2m | [22m
+[32mchunk-KSDVZCQC.mjs[39m  [2m | [22m[2morder-details[22m        [2m | [22m [36m59.45 kB[39m[2m | [22m
+[32mchunk-ZRU5ZMTR.mjs[39m  [2m | [22m[2mpersonal-details[22m     [2m | [22m [36m55.42 kB[39m[2m | [22m
+[32mchunk-46BRRW24.mjs[39m  [2m | [22m[2mmy-profile[22m           [2m | [22m [36m50.54 kB[39m[2m | [22m
+[32mchunk-VJDELG6R.mjs[39m  [2m | [22m[2mpayment-history[22m      [2m | [22m [36m47.45 kB[39m[2m | [22m
+[32mchunk-JEJMICHP.mjs[39m  [2m | [22m[2mcart[22m                 [2m | [22m [36m42.34 kB[39m[2m | [22m
+[32mchunk-WP3STPHA.mjs[39m  [2m | [22m[2mcheckout-summary[22m     [2m | [22m [36m41.27 kB[39m[2m | [22m
+[32mchunk-3WQKRUXN.mjs[39m  [2m | [22m[2memi-payment[22m          [2m | [22m [36m39.88 kB[39m[2m | [22m
+[32mchunk-ZNLRLA37.mjs[39m  [2m | [22m[2mautopay[22m              [2m | [22m [36m36.62 kB[39m[2m | [22m
+[32mchunk-LYPZL22T.mjs[39m  [2m | [22m[2mproduct-catalog[22m      [2m | [22m [36m35.70 kB[39m[2m | [22m
+[32mchunk-INYPMEKT.mjs[39m  [2m | [22m[2mnotification-center[22m  [2m | [22m [36m35.19 kB[39m[2m | [22m
+[32mchunk-XQYI5RT2.mjs[39m  [2m | [22m[2mapproved-loan-offer[22m  [2m | [22m [36m34.25 kB[39m[2m | [22m
+[2m...and 40 more lazy chunks files. Use "--verbose" to show all the files.[22m
+
+Application bundle generation complete. [4.835 seconds] - 2026-08-06T16:46:27.858Z
+
+[1m[33m[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mNG8113: RouterLink is not used within the template of AadhaarVerificationComponent[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/verification/pages/aadhaar-verification/aadhaar-verification.ts:14:33:
+[37m      14 │   imports: [ReactiveFormsModule, [32mRouterLink[37m],
+         ╵                                  [32m~~~~~~~~~~[0m
+
+[39m[22m
+Watch mode enabled. Watching for file changes...
+NOTE: Raw file sizes do not reflect development server per-request transformations.
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m4200[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.29.29:[1m4200[22m/[39m
+[2m[32m  ➜[39m[22m[2m  press [22m[1mh + enter[22m[2m to show help[22m
+[33m>[39m Changes detected. Rebuilding...
+[32m√[39m Changes detected. Rebuilding...
+Application bundle generation failed. [2.413 seconds] - 2026-08-06T18:30:55.134Z
+
+[1m[33m[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mNG8113: RouterLink is not used within the template of AadhaarVerificationComponent[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/verification/pages/aadhaar-verification/aadhaar-verification.ts:14:33:
+[37m      14 │   imports: [ReactiveFormsModule, [32mRouterLink[37m],
+         ╵                                  [32m~~~~~~~~~~[0m
+
+[39m[22m
+[1m[31m[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2430: Interface 'EmiApplicationHistoryItem' incorrectly extends interface 'EmiApplication'.
+  Types of property 'orderId' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:127:17:
+[37m      127 │ export interface [32mEmiApplicationHistoryItem[37m extends EmiApplication {
+          ╵                  [32m~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[39m[22m
+[33m>[39m Changes detected. Rebuilding...
+[32m√[39m Changes detected. Rebuilding...
+Application bundle generation failed. [0.728 seconds] - 2026-08-06T18:30:58.464Z
+
+[1m[33m[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mNG8113: RouterLink is not used within the template of AadhaarVerificationComponent[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/verification/pages/aadhaar-verification/aadhaar-verification.ts:14:33:
+[37m      14 │   imports: [ReactiveFormsModule, [32mRouterLink[37m],
+         ╵                                  [32m~~~~~~~~~~[0m
+
+[39m[22m
+[1m[31m[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'acceptOffer' does not exist on type 'EmiApplicationService'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/pages/approved-loan-offer/approved-loan-offer.ts:74:16:
+[37m      74 │     this.emiApi.[32macceptOffer[37m().subscribe({
+         ╵                 [32m~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'declineOffer' does not exist on type 'EmiApplicationService'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/pages/approved-loan-offer/approved-loan-offer.ts:100:16:
+[37m      100 │     this.emiApi.[32mdeclineOffer[37m().subscribe({
+          ╵                 [32m~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'devApprove' does not exist on type 'EmiApplicationService'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/pages/pending-review/pending-review.ts:127:16:
+[37m      127 │     this.emiApi.[32mdevApprove[37m().subscribe({
+          ╵                 [32m~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS7006: Parameter 'result' implicitly has an 'any' type.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/pages/pending-review/pending-review.ts:129:13:
+[37m      129 │       next: ([32mresult[37m) => {
+          ╵              [32m~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2430: Interface 'EmiApplicationHistoryItem' incorrectly extends interface 'EmiApplication'.
+  Types of property 'orderId' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:127:17:
+[37m      127 │ export interface [32mEmiApplicationHistoryItem[37m extends EmiApplication {
+          ╵                  [32m~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2355: A function whose declared type is neither 'undefined', 'void', nor 'any' must return a value.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:230:21:
+[37m      230 │   getCurrentOffer(): [32mObservable<ApprovedLoanOffer>[37m {
+          ╵                      [32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'acceptOffer'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:232:2:
+[37m      232 │   [32macceptOffer[37m(): Observable<EmiApplication> {
+          ╵   [32m~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:232:15:
+[37m      232 │   acceptOffer()[32m:[37m Observable<EmiApplication> {
+          ╵                [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2365: Operator '>' cannot be applied to types 'boolean' and '{ this: any; return: Observable<EmiApplication>; }'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:232:17:
+[37m      232 │   acceptOffer(): [32mObservable<EmiApplication> {[37m
+          ╵                  [32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2693: 'EmiApplication' only refers to a type, but is being used as a value here.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:232:28:
+[37m      232 │   acceptOffer(): Observable<[32mEmiApplication[37m> {
+          ╵                             [32m~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ':' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:233:8:
+[37m      233 │     this[32m.[37mloadingSignal.set(true);
+          ╵         [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ',' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:233:32:
+[37m      233 │     this.loadingSignal.set(true)[32m;[37m
+          ╵                                 [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ':' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:234:8:
+[37m      234 │     this[32m.[37merrorSignal.set(null);
+          ╵         [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ',' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:234:30:
+[37m      234 │     this.errorSignal.set(null)[32m;[37m
+          ╵                               [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ':' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:236:11:
+[37m      236 │     return [32mthis[37m.http.post<ApiSuccess<EmiApplication>>(`${this.bas...
+          ╵            [32m~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ',' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:244:5:
+[37m      244 │     )[32m;[37m
+          ╵      [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'declineOffer'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:247:2:
+[37m      247 │   [32mdeclineOffer[37m(): Observable<EmiApplication> {
+          ╵   [32m~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:247:16:
+[37m      247 │   declineOffer()[32m:[37m Observable<EmiApplication> {
+          ╵                 [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2365: Operator '>' cannot be applied to types 'boolean' and '{ this: any; return: Observable<EmiApplication>; }'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:247:18:
+[37m      247 │   declineOffer(): [32mObservable<EmiApplication> {[37m
+          ╵                   [32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2693: 'EmiApplication' only refers to a type, but is being used as a value here.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:247:29:
+[37m      247 │   declineOffer(): Observable<[32mEmiApplication[37m> {
+          ╵                              [32m~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ':' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:248:8:
+[37m      248 │     this[32m.[37mloadingSignal.set(true);
+          ╵         [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ',' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:248:32:
+[37m      248 │     this.loadingSignal.set(true)[32m;[37m
+          ╵                                 [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ':' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:249:8:
+[37m      249 │     this[32m.[37merrorSignal.set(null);
+          ╵         [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ',' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:249:30:
+[37m      249 │     this.errorSignal.set(null)[32m;[37m
+          ╵                               [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ':' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:251:11:
+[37m      251 │     return [32mthis[37m.http.post<ApiSuccess<EmiApplication>>(`${this.bas...
+          ╵            [32m~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ',' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:259:5:
+[37m      259 │     )[32m;[37m
+          ╵      [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'devApprove'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:263:2:
+[37m      263 │   [32mdevApprove[37m(): Observable<EmiApplication> {
+          ╵   [32m~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:263:14:
+[37m      263 │   devApprove()[32m:[37m Observable<EmiApplication> {
+          ╵               [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2365: Operator '>' cannot be applied to types 'boolean' and '{ this: any; return: Observable<EmiApplication>; }'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:263:16:
+[37m      263 │   devApprove(): [32mObservable<EmiApplication> {[37m
+          ╵                 [32m~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2693: 'EmiApplication' only refers to a type, but is being used as a value here.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:263:27:
+[37m      263 │   devApprove(): Observable<[32mEmiApplication[37m> {
+          ╵                            [32m~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ':' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:264:8:
+[37m      264 │     this[32m.[37mloadingSignal.set(true);
+          ╵         [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ',' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:264:32:
+[37m      264 │     this.loadingSignal.set(true)[32m;[37m
+          ╵                                 [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ':' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:265:8:
+[37m      265 │     this[32m.[37merrorSignal.set(null);
+          ╵         [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ',' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:265:30:
+[37m      265 │     this.errorSignal.set(null)[32m;[37m
+          ╵                               [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ':' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:267:11:
+[37m      267 │     return [32mthis[37m.http.post<ApiSuccess<EmiApplication>>(`${this.bas...
+          ╵            [32m~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ',' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:275:5:
+[37m      275 │     )[32m;[37m
+          ╵      [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'clearError'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:278:2:
+[37m      278 │   [32mclearError[37m(): void {
+          ╵   [32m~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:278:14:
+[37m      278 │   clearError()[32m:[37m void {
+          ╵               [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ':' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:279:8:
+[37m      279 │     this[32m.[37merrorSignal.set(null);
+          ╵         [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ',' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:279:30:
+[37m      279 │     this.errorSignal.set(null)[32m;[37m
+          ╵                               [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS1128: Declaration or statement expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:282:2:
+[37m      282 │   [32mprivate[37m extractError(err: unknown): string {
+          ╵   [32m~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mUnexpected "."[0m
+
+    src/app/features/emi/services/emi-application.service.ts:61:18:
+[37m      61 │             this: [32m.[37mloadingSignal.set(true),
+         ╵                   [32m^[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mUnexpected "."[0m
+
+    src/app/features/emi/services/emi-application.service.ts:61:18:
+[37m      61 │             this: [32m.[37mloadingSignal.set(true),
+         ╵                   [32m^[0m
+
+[39m[22m
+[33m>[39m Changes detected. Rebuilding...
+[32m√[39m Changes detected. Rebuilding...
+Application bundle generation failed. [0.672 seconds] - 2026-08-06T18:31:09.075Z
+
+[1m[33m[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mNG8113: RouterLink is not used within the template of AadhaarVerificationComponent[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/verification/pages/aadhaar-verification/aadhaar-verification.ts:14:33:
+[37m      14 │   imports: [ReactiveFormsModule, [32mRouterLink[37m],
+         ╵                                  [32m~~~~~~~~~~[0m
+
+[39m[22m
+[1m[31m[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2430: Interface 'EmiApplicationHistoryItem' incorrectly extends interface 'EmiApplication'.
+  Types of property 'orderId' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:127:17:
+[37m      127 │ export interface [32mEmiApplicationHistoryItem[37m extends EmiApplication {
+          ╵                  [32m~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[39m[22m
+[33m>[39m Changes detected. Rebuilding...
+[32m√[39m Changes detected. Rebuilding...
+Application bundle generation failed. [1.028 seconds] - 2026-08-06T18:31:55.023Z
+
+[1m[33m[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mNG8113: RouterLink is not used within the template of AadhaarVerificationComponent[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/verification/pages/aadhaar-verification/aadhaar-verification.ts:14:33:
+[37m      14 │   imports: [ReactiveFormsModule, [32mRouterLink[37m],
+         ╵                                  [32m~~~~~~~~~~[0m
+
+[39m[22m
+[1m[31m[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'termsModifiedAt' does not exist on type 'EmiApplicationHistoryItem'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/pages/my-emis/my-emis.html:60:26:
+[37m      60 │                 @if (item.[32mtermsModifiedAt[37m) {
+         ╵                           [32m~~~~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component MyEmisComponent.
+
+    src/app/features/emi/pages/my-emis/my-emis.ts:25:15:
+[37m      25 │   templateUrl: [32m'./my-emis.html'[37m,
+         ╵                [32m~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'termsModifiedAt' does not exist on type 'EmiApplicationHistoryItem'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/pages/my-emis/my-emis.html:63:43:
+[37m      63 │                     <dd>{{ formatDate(item.[32mtermsModifiedAt[37m) }}</dd>
+         ╵                                            [32m~~~~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component MyEmisComponent.
+
+    src/app/features/emi/pages/my-emis/my-emis.ts:25:15:
+[37m      25 │   templateUrl: [32m'./my-emis.html'[37m,
+         ╵                [32m~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2430: Interface 'EmiApplicationHistoryItem' incorrectly extends interface 'EmiApplication'.
+  Types of property 'orderId' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:127:17:
+[37m      127 │ export interface [32mEmiApplicationHistoryItem[37m extends EmiApplication {
+          ╵                  [32m~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[39m[22m
+[33m>[39m Changes detected. Rebuilding...
+[32m√[39m Changes detected. Rebuilding...
+Application bundle generation failed. [0.685 seconds] - 2026-08-06T18:32:00.987Z
+
+[1m[33m[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mNG8113: RouterLink is not used within the template of AadhaarVerificationComponent[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/verification/pages/aadhaar-verification/aadhaar-verification.ts:14:33:
+[37m      14 │   imports: [ReactiveFormsModule, [32mRouterLink[37m],
+         ╵                                  [32m~~~~~~~~~~[0m
+
+[39m[22m
+[1m[31m[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'termsModifiedAt' does not exist on type 'EmiApplicationHistoryItem'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/pages/my-emis/my-emis.html:60:26:
+[37m      60 │                 @if (item.[32mtermsModifiedAt[37m) {
+         ╵                           [32m~~~~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component MyEmisComponent.
+
+    src/app/features/emi/pages/my-emis/my-emis.ts:25:15:
+[37m      25 │   templateUrl: [32m'./my-emis.html'[37m,
+         ╵                [32m~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'termsModifiedAt' does not exist on type 'EmiApplicationHistoryItem'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/pages/my-emis/my-emis.html:63:43:
+[37m      63 │                     <dd>{{ formatDate(item.[32mtermsModifiedAt[37m) }}</dd>
+         ╵                                            [32m~~~~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component MyEmisComponent.
+
+    src/app/features/emi/pages/my-emis/my-emis.ts:25:15:
+[37m      25 │   templateUrl: [32m'./my-emis.html'[37m,
+         ╵                [32m~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2430: Interface 'EmiApplicationHistoryItem' incorrectly extends interface 'EmiApplication'.
+  Types of property 'orderId' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:127:17:
+[37m      127 │ export interface [32mEmiApplicationHistoryItem[37m extends EmiApplication {
+          ╵                  [32m~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[39m[22m
+[33m>[39m Changes detected. Rebuilding...
+[32m√[39m Changes detected. Rebuilding...
+Application bundle generation failed. [0.637 seconds] - 2026-08-06T18:32:03.959Z
+
+[1m[33m[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mNG8113: RouterLink is not used within the template of AadhaarVerificationComponent[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/verification/pages/aadhaar-verification/aadhaar-verification.ts:14:33:
+[37m      14 │   imports: [ReactiveFormsModule, [32mRouterLink[37m],
+         ╵                                  [32m~~~~~~~~~~[0m
+
+[39m[22m
+[1m[31m[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'termsModifiedAt' does not exist on type 'EmiApplicationHistoryItem'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/pages/my-emis/my-emis.html:60:26:
+[37m      60 │                 @if (item.[32mtermsModifiedAt[37m) {
+         ╵                           [32m~~~~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component MyEmisComponent.
+
+    src/app/features/emi/pages/my-emis/my-emis.ts:25:15:
+[37m      25 │   templateUrl: [32m'./my-emis.html'[37m,
+         ╵                [32m~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'termsModifiedAt' does not exist on type 'EmiApplicationHistoryItem'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/pages/my-emis/my-emis.html:63:43:
+[37m      63 │                     <dd>{{ formatDate(item.[32mtermsModifiedAt[37m) }}</dd>
+         ╵                                            [32m~~~~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component MyEmisComponent.
+
+    src/app/features/emi/pages/my-emis/my-emis.ts:25:15:
+[37m      25 │   templateUrl: [32m'./my-emis.html'[37m,
+         ╵                [32m~~~~~~~~~~~~~~~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mTS2430: Interface 'EmiApplicationHistoryItem' incorrectly extends interface 'EmiApplication'.
+  Types of property 'orderId' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/features/emi/services/emi-application.service.ts:127:17:
+[37m      127 │ export interface [32mEmiApplicationHistoryItem[37m extends EmiApplication {
+          ╵                  [32m~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[39m[22m

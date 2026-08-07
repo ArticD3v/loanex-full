@@ -1,0 +1,53 @@
+/* —— Empty states (visual patterns only) —— */
+
+.lx-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--lx-space-12);
+  padding: var(--lx-space-48) var(--lx-space-24);
+  color: var(--lx-color-text-secondary);
+}
+
+.lx-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: var(--lx-radius-pill);
+  background: var(--lx-primary-50);
+  color: var(--lx-color-primary);
+  font-size: 1.75rem;
+}
+
+.lx-empty__title {
+  margin: 0;
+  font-size: var(--lx-text-h4);
+  font-weight: var(--lx-font-weight-semibold);
+  color: var(--lx-color-text);
+}
+
+.lx-empty__description {
+  margin: 0;
+  max-width: 28rem;
+  font-size: var(--lx-text-body);
+  line-height: var(--lx-leading-relaxed);
+  color: var(--lx-color-text-secondary);
+}
+
+.lx-empty__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lx-space-12);
+  margin-top: var(--lx-space-8);
+  justify-content: center;
+}
+
+.lx-empty--products .lx-empty__icon { background: var(--lx-primary-50); }
+.lx-empty--orders .lx-empty__icon { background: var(--lx-color-info-soft); color: var(--lx-color-info); }
+.lx-empty--notifications .lx-empty__icon { background: var(--lx-color-warning-soft); color: #b45309; }
+.lx-empty--emi .lx-empty__icon { background: var(--lx-secondary-100); color: var(--lx-secondary-700); }
+.lx-empty--wishlist .lx-empty__icon { background: var(--lx-color-danger-soft); color: var(--lx-color-danger); }

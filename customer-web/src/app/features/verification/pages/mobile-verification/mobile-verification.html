@@ -1,0 +1,173 @@
+<div class="lx-mobile-verify">
+  <div class="lx-mobile-verify__secure" role="status">
+    <i class="pi pi-shield" aria-hidden="true"></i>
+    <div>
+      <strong>Secure Verification</strong>
+      <span>Your data is safe and encrypted.</span>
+    </div>
+    <span class="lx-mobile-verify__online" aria-hidden="true"></span>
+  </div>
+
+  <div class="lx-mobile-verify__layout">
+    <section class="lx-mobile-verify__main" aria-labelledby="lx-mobile-title">
+      <nav class="lx-mobile-verify__stepper" aria-label="Verification progress">
+        @for (step of steps; track step.key) {
+          <div
+            class="lx-mobile-verify__step"
+            [class.is-active]="step.key === 'mobile'"
+            [class.is-done]="step.key === 'mobile' && mobileVerified()"
+            [attr.aria-current]="step.key === 'mobile' ? 'step' : null"
+          >
+            <span class="lx-mobile-verify__step-index">
+              @if (step.key === 'mobile' && mobileVerified()) {
+                <i class="pi pi-check" aria-hidden="true"></i>
+              } @else {
+                {{ step.index }}
+              }
+            </span>
+            <span class="lx-mobile-verify__step-label">{{ step.label }}</span>
+          </div>
+          @if (!$last) {
+            <span class="lx-mobile-verify__step-line" aria-hidden="true"></span>
+          }
+        }
+      </nav>
+
+      <header class="lx-mobile-verify__header">
+        <h1 id="lx-mobile-title">Verify Your Mobile Number</h1>
+        <p>We will send a One-Time Password (OTP) to verify your mobile number.</p>
+      </header>
+
+      @if (pageError(); as err) {
+        <div class="lx-mobile-verify__alert" role="alert">{{ err }}</div>
+      }
+
+      <div class="lx-mobile-verify__field">
+        <label for="lx-mobile-display">Mobile Number</label>
+        <div class="lx-mobile-verify__mobile-row">
+          <input
+            id="lx-mobile-display"
+            class="lx-input"
+            type="text"
+            readonly
+            [value]="formattedMobile()"
+            aria-readonly="true"
+          />
+          <button
+            type="button"
+            class="lx-btn lx-mobile-verify__send"
+            [class.is-loading]="sending() && !otpVisible()"
+            [disabled]="sending() || verifying() || !displayMobile()"
+            (click)="sendOtp()"
+          >
+            Send OTP
+          </button>
+        </div>
+        <button type="button" class="lx-mobile-verify__change" (click)="openChangeMobile()">
+          Change Mobile Number
+        </button>
+      </div>
+
+      <p class="lx-mobile-verify__help-link">
+        <button type="button" class="lx-mobile-verify__why">Why do we need this?</button>
+      </p>
+
+      <button type="button" class="lx-btn lx-btn--primary lx-btn--block lx-btn--lg" disabled>
+        <i class="pi pi-lock" aria-hidden="true"></i>
+        Verify Mobile &amp; Continue
+      </button>
+
+      <div class="lx-mobile-verify__footer-actions">
+        <a routerLink="/verification" class="lx-mobile-verify__back">← Back</a>
+        <a routerLink="/" class="lx-mobile-verify__exit">
+          <i class="pi pi-sign-out" aria-hidden="true"></i>
+          Save &amp; Exit
+        </a>
+      </div>
+    </section>
+
+    <aside class="lx-mobile-verify__aside" aria-label="Helpful information">
+      <article class="lx-mobile-verify__card">
+        <div class="lx-mobile-verify__card-icon lx-mobile-verify__card-icon--help" aria-hidden="true">
+          <i class="pi pi-question"></i>
+        </div>
+        <h2>How it works</h2>
+        <ol>
+          <li>Confirm your mobile number</li>
+          <li>Verify the OTP we send you</li>
+          <li>Continue to Aadhaar verification</li>
+        </ol>
+      </article>
+
+      <article class="lx-mobile-verify__card">
+        <div class="lx-mobile-verify__card-icon lx-mobile-verify__card-icon--lock" aria-hidden="true">
+          <i class="pi pi-lock"></i>
+        </div>
+        <h2>Your data is secure</h2>
+        <p>
+          OTPs are encrypted in transit and stored securely. LoanEx never shares your mobile number
+          for marketing without consent.
+        </p>
+      </article>
+    </aside>
+  </div>
+
+  <p class="lx-mobile-verify__support">
+    Need help? <a href="mailto:support@loanex.in">Contact Support</a>
+  </p>
+</div>
+
+<app-otp-verification-dialog
+  title="Verify Mobile OTP"
+  [visible]="otpVisible()"
+  [mobile]="displayMobile()"
+  [loading]="verifying() || sending()"
+  [error]="otpError()"
+  [length]="6"
+  [countdownSeconds]="30"
+  [success]="otpSuccess()"
+  successMessage="Mobile Verified Successfully"
+  [autoSubmit]="false"
+  (visibleChange)="otpVisible.set($event)"
+  (verified)="onOtpVerified($event)"
+  (resend)="onOtpResend()"
+/>
+
+<p-dialog
+  header="Change Mobile Number"
+  [visible]="changeVisible()"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: 'min(100%, 24rem)' }"
+  (visibleChange)="changeVisible.set($event)"
+>
+  <div class="lx-mobile-verify__change-dialog">
+    <label for="lx-change-mobile">New Indian mobile number</label>
+    <input
+      id="lx-change-mobile"
+      class="lx-input"
+      type="tel"
+      inputmode="numeric"
+      maxlength="10"
+      [formControl]="mobileControl"
+      autocomplete="tel-national"
+      aria-describedby="lx-change-mobile-help"
+    />
+    <p id="lx-change-mobile-help" class="lx-mobile-verify__hint">Enter a 10-digit number starting with 6–9.</p>
+
+    @if (mobileControl.touched && mobileControl.invalid) {
+      <p class="lx-error-text" role="alert">Enter a valid 10-digit Indian mobile number.</p>
+    }
+
+    <button
+      type="button"
+      class="lx-btn lx-btn--primary lx-btn--block"
+      [class.is-loading]="sending()"
+      [disabled]="sending() || mobileControl.invalid"
+      (click)="saveChangedMobile()"
+    >
+      Save &amp; Send OTP
+    </button>
+  </div>
+</p-dialog>

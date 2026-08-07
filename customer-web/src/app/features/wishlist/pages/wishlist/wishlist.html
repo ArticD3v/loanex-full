@@ -1,0 +1,98 @@
+<div class="lx-wl">
+  <section class="lx-wl__card" aria-labelledby="lx-wl-title">
+    <header class="lx-wl__header">
+      <div>
+        <h1 id="lx-wl-title">My Wishlist</h1>
+        <p>Save products you love and move them to cart anytime.</p>
+      </div>
+      <a routerLink="/products" class="lx-btn lx-btn--outline">Continue Shopping</a>
+    </header>
+
+    @if (error(); as err) {
+      <div class="lx-wl__alert" role="alert">{{ err }}</div>
+    }
+    @if (info(); as message) {
+      <div class="lx-wl__info" role="status">{{ message }}</div>
+    }
+
+    @if (loading()) {
+      <p class="lx-wl__loading" aria-live="polite">Loading wishlist…</p>
+    } @else if (!wishlist()?.items?.length) {
+      <div class="lx-wl__empty">
+        <i class="pi pi-heart" aria-hidden="true"></i>
+        <h2>Your wishlist is empty</h2>
+        <p>Browse products and tap Add to Wishlist to save them here.</p>
+        <a routerLink="/products" class="lx-btn lx-btn--primary">Continue Shopping</a>
+      </div>
+    } @else if (wishlist(); as data) {
+      <ul class="lx-wl__list">
+        @for (item of data.items; track item.id) {
+          <li class="lx-wl__item">
+            <a [routerLink]="['/products', item.productId]" class="lx-wl__image-link">
+              <img
+                [src]="item.product.imageUrl"
+                [alt]="item.product.name"
+                width="112"
+                height="112"
+              />
+            </a>
+
+            <div class="lx-wl__meta">
+              <p class="lx-wl__brand">{{ item.product.brand }}</p>
+              <h2>
+                <a [routerLink]="['/products', item.productId]">{{ item.product.name }}</a>
+              </h2>
+              @if (item.product.variant) {
+                <p class="lx-wl__variant">{{ item.product.variant }}</p>
+              }
+
+              <div class="lx-wl__pricing">
+                <strong>{{ formatInr(item.product.unitPrice) }}</strong>
+                @if (item.product.discount > 0) {
+                  <span class="lx-wl__mrp">{{ formatInr(item.product.mrp) }}</span>
+                  <span class="lx-wl__discount">
+                    Save {{ formatInr(item.product.discount) }}
+                  </span>
+                }
+              </div>
+
+              <p
+                class="lx-wl__stock"
+                [class.is-out]="item.product.stockStatus === 'OUT_OF_STOCK'"
+                [class.is-low]="item.product.stockStatus === 'LOW_STOCK'"
+              >
+                {{ stockLabel(item.product.stockStatus) }}
+              </p>
+              <p class="lx-wl__date">Added on {{ formatDate(item.dateAdded) }}</p>
+
+              <div class="lx-wl__actions">
+                <button
+                  type="button"
+                  class="lx-btn lx-btn--primary"
+                  [disabled]="acting() || !item.product.inStock"
+                  (click)="moveToCart(item)"
+                >
+                  Move to Cart
+                </button>
+                <a
+                  [routerLink]="['/products', item.productId]"
+                  class="lx-btn lx-btn--outline"
+                >
+                  View Product
+                </a>
+                <button
+                  type="button"
+                  class="lx-wl__remove"
+                  [disabled]="acting()"
+                  (click)="remove(item)"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+</div>

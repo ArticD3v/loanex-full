@@ -1,0 +1,70 @@
+<aside class="lx-emi" aria-labelledby="lx-emi-heading">
+  <h2 id="lx-emi-heading">Choose Your EMI Plan</h2>
+
+  <div class="lx-emi__plans" role="list" aria-label="EMI tenure plans">
+    @for (plan of plans(); track plan.months) {
+      <div role="listitem">
+        <app-plan-card
+          [plan]="plan"
+          [selected]="selectedTenure() === plan.months"
+          (select)="selectPlan($event)"
+        />
+      </div>
+    }
+  </div>
+
+  @if (summary(); as plan) {
+    <div class="lx-emi__summary" aria-label="Plan summary">
+      <div>
+        <span>Product Price</span>
+        <strong>{{ formatInr(plan.productPrice) }}</strong>
+      </div>
+      <div>
+        <span>Down Payment</span>
+        <strong class="is-neg">- {{ formatInr(plan.downPayment) }}</strong>
+      </div>
+      <div>
+        <span>Processing Fee</span>
+        <strong class="is-pos">+ {{ formatInr(plan.processingFee) }}</strong>
+      </div>
+      <div>
+        <span>Monthly EMI</span>
+        <strong>{{ formatInr(plan.monthlyEmi) }}</strong>
+      </div>
+      <div class="lx-emi__total">
+        <span>Total Payable</span>
+        <strong>{{ formatInr(plan.totalPayable) }}</strong>
+      </div>
+    </div>
+  }
+
+  <button
+    type="button"
+    class="lx-emi__btn lx-emi__btn--primary"
+    [disabled]="proceeding() || !inStock()"
+    (click)="proceedWithEmi()"
+  >
+    Proceed with EMI
+  </button>
+  <button
+    type="button"
+    class="lx-emi__btn lx-emi__btn--secondary"
+    [disabled]="proceeding() || !inStock()"
+    (click)="buyNow()"
+  >
+    Buy Now
+  </button>
+  <button
+    type="button"
+    class="lx-emi__btn lx-emi__btn--secondary"
+    [disabled]="proceeding() || addingToCart() || !inStock()"
+    (click)="addToCart()"
+  >
+    {{ cartMessage() || 'Add to Cart' }}
+  </button>
+
+  <p class="lx-emi__note">
+    <i class="pi pi-info-circle" aria-hidden="true"></i>
+    Final eligibility and plan depend on verification.
+  </p>
+</aside>

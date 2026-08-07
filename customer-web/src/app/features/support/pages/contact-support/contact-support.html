@@ -1,0 +1,89 @@
+<div class="lx-support">
+  <section class="lx-support__card" aria-labelledby="lx-support-title">
+    <header class="lx-support__header">
+      <div>
+        <h1 id="lx-support-title">Contact Support</h1>
+        <p>Submit a ticket and track responses from the LoanEx team.</p>
+      </div>
+    </header>
+
+    @if (error(); as err) {
+      <div class="lx-support__alert" role="alert">{{ err }}</div>
+    }
+    @if (info(); as message) {
+      <div class="lx-support__info" role="status">{{ message }}</div>
+    }
+    @if (createdTicket(); as ticket) {
+      <div class="lx-support__success">
+        Ticket <strong>{{ ticket.ticketNumber }}</strong> created. We will respond soon.
+      </div>
+    }
+
+    <form class="lx-support__form" [formGroup]="form" (ngSubmit)="submit()">
+      <label class="lx-support__field">
+        <span>Issue type</span>
+        <select formControlName="issueType">
+          <option value="ORDER_ISSUE">Order Issue</option>
+          <option value="EMI_ISSUE">EMI Issue</option>
+          <option value="PAYMENT_ISSUE">Payment Issue</option>
+          <option value="ACCOUNT_ISSUE">Account Issue</option>
+          <option value="OTHER">Other</option>
+        </select>
+      </label>
+
+      <label class="lx-support__field">
+        <span>Subject</span>
+        <input type="text" formControlName="subject" maxlength="200" />
+      </label>
+
+      <label class="lx-support__field">
+        <span>Description</span>
+        <textarea formControlName="description" rows="5" maxlength="5000"></textarea>
+      </label>
+
+      <label class="lx-support__field">
+        <span>Attachment (optional, max 500KB)</span>
+        <input type="file" accept="image/*,.pdf" (change)="onFileSelected($event)" />
+      </label>
+
+      @if (attachmentWarning(); as warn) {
+        <p class="lx-support__warn" role="alert">{{ warn }}</p>
+      }
+
+      <button
+        type="submit"
+        class="lx-btn lx-btn--primary"
+        [class.is-loading]="submitting()"
+        [disabled]="submitting()"
+      >
+        Submit Ticket
+      </button>
+    </form>
+
+    <section class="lx-support__tickets" aria-labelledby="lx-support-tickets-title">
+      <h2 id="lx-support-tickets-title">Your Tickets</h2>
+
+      @if (loading()) {
+        <p class="lx-support__loading" aria-live="polite">Loading tickets…</p>
+      } @else if (!tickets()?.items?.length) {
+        <p class="lx-support__empty">No support tickets yet.</p>
+      } @else if (tickets(); as data) {
+        <ul class="lx-support__list">
+          @for (ticket of data.items; track ticket.id) {
+            <li class="lx-support__item">
+              <div class="lx-support__item-head">
+                <strong>{{ ticket.ticketNumber }}</strong>
+                <span class="lx-support__badge" [class]="statusClass(ticket.status)">
+                  {{ issueLabel(ticket.status) }}
+                </span>
+              </div>
+              <p class="lx-support__item-type">{{ issueLabel(ticket.issueType) }}</p>
+              <p class="lx-support__item-subject">{{ ticket.subject }}</p>
+              <p class="lx-support__item-date">Submitted {{ formatDate(ticket.createdAt) }}</p>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  </section>
+</div>

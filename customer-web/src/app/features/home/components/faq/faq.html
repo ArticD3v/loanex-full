@@ -1,0 +1,40 @@
+<section class="lx-faq" aria-labelledby="lx-faq-heading">
+  <div class="lx-faq__inner">
+    <header class="lx-faq__header lx-faq__anim">
+      <div class="lx-faq__heading-wrap">
+        <p class="lx-faq__eyebrow">Support</p>
+        <h2 id="lx-faq-heading" class="lx-faq__title">Frequently Asked Questions</h2>
+        <p class="lx-faq__subtitle">Quick answers about EMI shopping, verification, and payments</p>
+      </div>
+      <a routerLink="/support" class="lx-faq__view-all">
+        <span>View All FAQs</span>
+        <i class="pi pi-angle-right" aria-hidden="true"></i>
+      </a>
+    </header>
+
+    <div class="lx-faq__panel lx-faq__anim lx-faq__anim--delay">
+      <p-accordion
+        class="lx-faq__accordion"
+        [(value)]="activeValue"
+        [multiple]="false"
+        expandIcon="pi pi-plus"
+        collapseIcon="pi pi-minus"
+        transitionOptions="280ms cubic-bezier(0, 0, 0.2, 1)"
+      >
+        @for (item of items(); track item.id; let i = $index) {
+          <p-accordion-panel [value]="'' + i">
+            <p-accordion-header>
+              <span class="lx-faq__q">
+                <span class="lx-faq__index">{{ stepLabel(i) }}</span>
+                <span class="lx-faq__question">{{ item.question }}</span>
+              </span>
+            </p-accordion-header>
+            <p-accordion-content>
+              <p class="lx-faq__answer">{{ item.answer }}</p>
+            </p-accordion-content>
+          </p-accordion-panel>
+        }
+      </p-accordion>
+    </div>
+  </div>
+</section>

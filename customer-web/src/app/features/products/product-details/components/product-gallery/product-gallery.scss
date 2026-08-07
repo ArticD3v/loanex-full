@@ -1,0 +1,140 @@
+:host {
+  display: block;
+}
+
+.lx-gallery {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.lx-gallery__thumbs {
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+}
+
+.lx-gallery__thumb {
+  height: 4.25rem;
+  padding: 0.2rem;
+  border: 1.5px solid #e5e9f0;
+  border-radius: 0.55rem;
+  background: #fff;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 0.35rem;
+    display: block;
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+    border-color: rgba(10, 46, 111, 0.35);
+  }
+
+  &.is-active {
+    border-color: #0a2e6f;
+    box-shadow: inset 0 0 0 1px #0a2e6f;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--lx-color-primary);
+    outline-offset: 2px;
+  }
+}
+
+.lx-gallery__more {
+  border: 1px dashed #c9d2e0;
+  background: #f8fafc;
+  border-radius: 0.55rem;
+  color: #0a2e6f;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.55rem 0.2rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 180ms ease;
+
+  &:hover {
+    background: #eef3fb;
+  }
+}
+
+.lx-gallery__main {
+  border: 1px solid #e5e9f0;
+  border-radius: 0.85rem;
+  padding: 1rem 1rem 0.85rem;
+  background: linear-gradient(180deg, #fafbfc 0%, #f4f7fb 100%);
+  min-height: 24rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(10, 46, 111, 0.04);
+}
+
+.lx-gallery__viewport {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 0.65rem;
+  cursor: zoom-in;
+  min-height: 20rem;
+
+  img {
+    width: 100%;
+    max-height: 22rem;
+    object-fit: contain;
+    display: block;
+    transition: transform 160ms ease;
+    will-change: transform;
+  }
+}
+
+.lx-gallery__hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0.85rem 0 0;
+  color: #6b7280;
+  font-size: 0.8rem;
+
+  i {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .lx-gallery {
+    grid-template-columns: 1fr;
+  }
+
+  .lx-gallery__thumbs {
+    grid-auto-flow: column;
+    grid-auto-columns: 4rem;
+    grid-template-columns: none;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+
+  .lx-gallery__main {
+    min-height: 18rem;
+  }
+
+  .lx-gallery__viewport {
+    min-height: 15rem;
+
+    img {
+      max-height: 16rem;
+    }
+  }
+}

@@ -1,0 +1,80 @@
+<p-dialog
+  styleClass="lx-dialog"
+  [header]="success() ? '' : title()"
+  [visible]="visible()"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closable]="!loading() && !success()"
+  [dismissableMask]="!loading() && !success()"
+  [style]="{ width: 'min(100%, 28rem)' }"
+  (visibleChange)="onVisibleChange($event)"
+>
+  <div class="lx-otp-dialog">
+    @if (success()) {
+      <div class="lx-otp-dialog__success" role="status" aria-live="polite">
+        <div class="lx-otp-dialog__success-icon" aria-hidden="true">
+          <i class="pi pi-check"></i>
+        </div>
+        <h3>{{ successMessage() }}</h3>
+        <p>You're all set — continuing…</p>
+      </div>
+    } @else {
+      <p class="lx-otp-dialog__copy">
+        Enter the 6-digit code sent to
+        <strong>{{ displayMobile() }}</strong>
+      </p>
+
+      <div class="lx-otp-group" role="group" aria-label="One-time password" (paste)="onPaste($event)">
+        @for (digit of digits(); track $index) {
+          <input
+            #otpInput
+            class="lx-otp-input"
+            type="text"
+            inputmode="numeric"
+            maxlength="1"
+            autocomplete="one-time-code"
+            [attr.aria-label]="'Digit ' + ($index + 1)"
+            [disabled]="loading()"
+            [value]="digit"
+            (input)="onInput($index, $event)"
+            (keydown)="onKeydown($index, $event)"
+          />
+        }
+      </div>
+
+      @if (error(); as err) {
+        <p class="lx-otp-dialog__error" role="alert">{{ err }}</p>
+      }
+
+      <button
+        type="button"
+        class="lx-otp-dialog__verify"
+        [class.is-loading]="loading()"
+        [disabled]="loading() || !otpComplete()"
+        (click)="submit()"
+      >
+        @if (loading()) {
+          Verifying…
+        } @else {
+          Verify OTP
+        }
+      </button>
+
+      <div class="lx-otp-dialog__footer" aria-live="polite">
+        @if (!canResend()) {
+          <span>Resend OTP in <strong>{{ timerLabel() }}</strong></span>
+        } @else {
+          <button
+            type="button"
+            class="lx-otp-dialog__resend"
+            [disabled]="loading()"
+            (click)="onResend()"
+          >
+            Resend OTP
+          </button>
+        }
+      </div>
+    }
+  </div>
+</p-dialog>

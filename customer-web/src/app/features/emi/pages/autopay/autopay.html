@@ -1,0 +1,166 @@
+<div class="lx-ap">
+  <section class="lx-ap__card" aria-labelledby="lx-ap-title">
+    <header class="lx-ap__header">
+      <h1 id="lx-ap-title">AutoPay</h1>
+      <p>Automatically pay your monthly EMI on the due date.</p>
+    </header>
+
+    @if (error(); as err) {
+      <div class="lx-ap__alert" role="alert">{{ err }}</div>
+    }
+    @if (info(); as message) {
+      <div class="lx-ap__info" role="status">{{ message }}</div>
+    }
+
+    @if (loading() && !status()) {
+      <p class="lx-ap__loading" aria-live="polite">Loading AutoPay…</p>
+    }
+
+    @if (status(); as data) {
+      <dl class="lx-ap__meta">
+        <div>
+          <dt>Loan Account Number</dt>
+          <dd>{{ data.loan.loanAccountNumber }}</dd>
+        </div>
+        <div>
+          <dt>EMI Amount</dt>
+          <dd class="is-gold">{{ formatMoney(data.loan.emiAmount) }}</dd>
+        </div>
+        <div>
+          <dt>Next EMI Date</dt>
+          <dd>{{ formatDate(data.loan.nextEmiDueDate) }}</dd>
+        </div>
+        <div>
+          <dt>Current AutoPay Status</dt>
+          <dd>
+            <span
+              class="lx-ap__badge"
+              [class.is-on]="data.autopayStatus === 'ENABLED'"
+              [class.is-pending]="data.autopayStatus === 'PENDING'"
+            >
+              {{ formatStatus(data.autopayStatus) }}
+            </span>
+          </dd>
+        </div>
+      </dl>
+
+      @if (data.canEnable) {
+        <section aria-labelledby="lx-ap-options-title">
+          <h2 id="lx-ap-options-title" class="lx-ap__section-title">AutoPay Options</h2>
+          <form class="lx-ap__form" [formGroup]="form">
+            <div class="lx-ap__options" role="radiogroup" aria-label="AutoPay method">
+              @for (option of data.options; track option.code) {
+                <label class="lx-ap__option" [class.is-selected]="selectedMethod() === option.code">
+                  <input type="radio" formControlName="paymentMethod" [value]="option.code" />
+                  <span>{{ option.label }}</span>
+                </label>
+              }
+            </div>
+
+            <h3 class="lx-ap__section-title">Mandate Summary</h3>
+            <div class="lx-ap__fields">
+              <label>
+                <span>Bank</span>
+                <input type="text" formControlName="bankName" placeholder="Bank name" />
+              </label>
+              <label>
+                <span>UPI ID</span>
+                <input type="text" formControlName="upiId" placeholder="name@upi" />
+              </label>
+              <label>
+                <span>Maximum Debit Amount</span>
+                <input type="number" formControlName="maximumDebitAmount" min="1" step="0.01" />
+              </label>
+              <div class="lx-ap__readonly">
+                <span>Debit Frequency</span>
+                <strong>Monthly</strong>
+              </div>
+              <div class="lx-ap__readonly">
+                <span>Debit Date</span>
+                <strong>{{ formatDate(data.loan.nextEmiDueDate) }}</strong>
+              </div>
+            </div>
+          </form>
+        </section>
+      }
+
+      @if (showMandate() && data.mandate; as mandate) {
+        <section class="lx-ap__mandate" aria-labelledby="lx-ap-mandate-title">
+          <h2 id="lx-ap-mandate-title" class="lx-ap__section-title">View Mandate</h2>
+          <dl class="lx-ap__meta">
+            <div>
+              <dt>Mandate Reference</dt>
+              <dd>{{ mandate.mandateReference }}</dd>
+            </div>
+            <div>
+              <dt>Provider</dt>
+              <dd>{{ mandate.provider }}</dd>
+            </div>
+            <div>
+              <dt>Payment Method</dt>
+              <dd>{{ formatStatus(mandate.paymentMethod) }}</dd>
+            </div>
+            <div>
+              <dt>Bank</dt>
+              <dd>{{ mandate.bankName || '—' }}</dd>
+            </div>
+            <div>
+              <dt>UPI ID</dt>
+              <dd>{{ mandate.upiId || '—' }}</dd>
+            </div>
+            <div>
+              <dt>Maximum Debit Amount</dt>
+              <dd>{{ formatMoney(mandate.maximumDebitAmount) }}</dd>
+            </div>
+            <div>
+              <dt>Frequency</dt>
+              <dd>{{ mandate.frequency }}</dd>
+            </div>
+            <div>
+              <dt>Next Debit Date</dt>
+              <dd>{{ formatDate(mandate.nextDebitDate) }}</dd>
+            </div>
+            <div>
+              <dt>Mandate Status</dt>
+              <dd>{{ formatStatus(mandate.status) }}</dd>
+            </div>
+          </dl>
+          @if (mandate.status === 'PENDING') {
+            <aside class="lx-ap__notice" role="status">
+              Mandate is pending approval. Once approved, AutoPay will be enabled automatically.
+            </aside>
+          }
+        </section>
+      }
+
+      <div class="lx-ap__actions">
+        @if (data.canEnable) {
+          <button
+            type="button"
+            class="lx-btn lx-btn--primary"
+            [disabled]="submitting()"
+            (click)="enableAutopay()"
+          >
+            Enable AutoPay
+          </button>
+        }
+        @if (data.canDisable) {
+          <button
+            type="button"
+            class="lx-btn lx-btn--outline"
+            [disabled]="submitting()"
+            (click)="disableAutopay()"
+          >
+            Disable AutoPay
+          </button>
+        }
+        @if (data.mandate) {
+          <button type="button" class="lx-btn lx-btn--outline" (click)="viewMandate()">
+            View Mandate
+          </button>
+        }
+        <a routerLink="/my-emi" class="lx-btn lx-btn--outline">Back to My EMI</a>
+      </div>
+    }
+  </section>
+</div>

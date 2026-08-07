@@ -1,0 +1,133 @@
+@let p = product();
+
+<section class="lx-info" aria-labelledby="lx-product-title">
+  <p class="lx-info__brand">{{ p.brand }}</p>
+  <h1 id="lx-product-title" class="lx-info__title">{{ p.name }}</h1>
+
+  <div class="lx-info__rating">
+    <span class="lx-info__stars" aria-hidden="true">
+      @for (filled of stars(displayRating()); track $index) {
+        <i class="pi" [class.pi-star-fill]="filled" [class.pi-star]="!filled"></i>
+      }
+    </span>
+    <strong>{{ displayRating() }}</strong>
+    <span>({{ displayReviewCount() }} Reviews)</span>
+    <span class="lx-info__sep" aria-hidden="true">|</span>
+    <a href="#product-overview">{{ p.answeredQuestions }} answered questions</a>
+  </div>
+
+  <p class="lx-info__price">{{ formatInr(p.price) }}</p>
+  @if (p.mrp) {
+    <p class="lx-info__mrp">MRP {{ formatInr(p.mrp) }}</p>
+  }
+  <p class="lx-info__tax">Inclusive of all taxes</p>
+
+  <p class="lx-info__stock" [class.is-out]="!p.inStock">
+    <span aria-hidden="true"></span>
+    @if (p.inStock) {
+      In Stock
+      @if (p.stockQuantity > 0) {
+        <small>({{ p.stockQuantity }} available)</small>
+      }
+    } @else {
+      Out of Stock
+    }
+  </p>
+
+  <p class="lx-info__sku">SKU: <strong>{{ p.sku }}</strong></p>
+
+  <p class="lx-info__deliver">
+    Deliver to: <strong>{{ deliveryPincode() }}</strong>
+    <button type="button" (click)="changeDeliveryAddress()">Change</button>
+  </p>
+
+  @for (group of attributeGroups(); track group.key) {
+    <div class="lx-info__block">
+      <span class="lx-info__label">{{ group.label }}:</span>
+
+      @if (group.type === 'swatch') {
+        <div class="lx-info__swatches" role="listbox" [attr.aria-label]="'Choose ' + group.label">
+          @for (option of group.options; track option.value) {
+            <button
+              type="button"
+              class="lx-info__swatch"
+              role="option"
+              [class.is-active]="isSelected(group, option.value)"
+              [class.is-disabled]="!optionAvailable(group, option.value)"
+              [style.background]="option.hex || '#cccccc'"
+              [attr.aria-label]="option.label + (optionAvailable(group, option.value) ? '' : ' (Out of Stock)')"
+              [attr.aria-selected]="isSelected(group, option.value)"
+              [attr.title]="optionAvailable(group, option.value) ? option.label : option.label + ' — Out of Stock'"
+              (click)="selectAttribute(group, option.value)"
+            ></button>
+          }
+        </div>
+      } @else {
+        <div class="lx-info__variants" role="listbox" [attr.aria-label]="'Choose ' + group.label">
+          @for (option of group.options; track option.value) {
+            <button
+              type="button"
+              class="lx-info__variant"
+              role="option"
+              [class.is-active]="isSelected(group, option.value)"
+              [class.is-disabled]="!optionAvailable(group, option.value)"
+              [attr.aria-selected]="isSelected(group, option.value)"
+              [disabled]="false"
+              (click)="selectAttribute(group, option.value)"
+            >
+              {{ option.label }}
+              @if (!optionAvailable(group, option.value)) {
+                <small>Out of Stock</small>
+              }
+            </button>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <div class="lx-info__specs">
+    @for (spec of visibleSpecs(p.keySpecs); track spec.id) {
+      <div class="lx-info__spec">
+        <i [class]="spec.icon" aria-hidden="true"></i>
+        <div>
+          <small>{{ spec.label }}</small>
+          <strong>{{ spec.value }}</strong>
+        </div>
+      </div>
+    }
+  </div>
+
+  @if (p.keySpecs.length > 4) {
+    <button type="button" class="lx-info__more" (click)="toggleSpecs()">
+      {{ specsExpanded() ? 'View less' : 'View more' }}
+      <i class="pi" [class.pi-chevron-up]="specsExpanded()" [class.pi-chevron-down]="!specsExpanded()" aria-hidden="true"></i>
+    </button>
+  }
+
+  <div class="lx-info__warranty">
+    <i class="pi pi-shield" aria-hidden="true"></i>
+    <span>{{ p.warrantyLabel }}</span>
+    <a href="#product-overview">Know More</a>
+  </div>
+
+  <div class="lx-info__actions">
+    <button type="button" [disabled]="!p.inStock" (click)="addToCart.emit()">
+      <i class="pi pi-shopping-cart" aria-hidden="true"></i>
+      Add to Cart
+    </button>
+    <button type="button" (click)="toggleWishlist()">
+      <i
+        class="pi"
+        [class.pi-heart]="!wishlistActiveLocal()"
+        [class.pi-heart-fill]="wishlistActiveLocal()"
+        aria-hidden="true"
+      ></i>
+      {{ wishlistActiveLocal() ? 'Wishlisted' : 'Add to Wishlist' }}
+    </button>
+    <button type="button" (click)="onShare()">
+      <i class="pi pi-share-alt" aria-hidden="true"></i>
+      Share
+    </button>
+  </div>
+</section>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600" fill="none">
+  <rect width="600" height="600" rx="24" fill="#F3F6FB"/>
+  <rect x="100" y="150" width="320" height="210" rx="16" fill="#111827"/>
+  <rect x="118" y="168" width="284" height="174" rx="8" fill="#BFDBFE"/>
+  <rect x="420" y="200" width="70" height="140" rx="10" fill="#374151"/>
+  <rect x="170" y="380" width="220" height="20" rx="6" fill="#D4A12A"/>
+  <text x="300" y="470" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#0A2E6F" font-weight="700">HP Pavilion 15</text>
+</svg>

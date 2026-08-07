@@ -1,0 +1,36 @@
+<section class="lx-categories" aria-label="Shop by category">
+  <div class="lx-categories__panel">
+    @if (loading()) {
+      <p class="lx-loader-section" aria-live="polite">Loading categories…</p>
+    } @else if (error(); as err) {
+      <div class="lx-catalog__alert" role="alert">{{ err }}</div>
+    } @else if (!categories().length) {
+      <p class="lx-categories__empty">No categories available.</p>
+    } @else {
+      <div class="lx-categories__scroll" tabindex="0">
+        <div class="lx-categories__track">
+          @for (category of categories(); track category.id) {
+            <a
+              class="lx-categories__item"
+              routerLink="/products"
+              [queryParams]="{ category: category.category }"
+            >
+              <span class="lx-categories__media">
+                <img
+                  [src]="category.imageSrc"
+                  [alt]="category.imageAlt"
+                  width="120"
+                  height="120"
+                  loading="lazy"
+                  decoding="async"
+                  (error)="onImageError($event)"
+                />
+              </span>
+              <span class="lx-categories__label">{{ category.label }}</span>
+            </a>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</section>

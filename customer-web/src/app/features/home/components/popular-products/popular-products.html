@@ -1,0 +1,57 @@
+<section class="lx-popular" aria-labelledby="lx-popular-heading">
+  <div class="lx-popular__header">
+    <h2 id="lx-popular-heading" class="lx-popular__title">{{ title() }}</h2>
+    <a
+      routerLink="/products"
+      [queryParams]="viewAllQueryParams()"
+      class="lx-popular__view-all"
+    >
+      <span>View All</span>
+      <i class="pi pi-angle-right" aria-hidden="true"></i>
+    </a>
+  </div>
+
+  @if (loading()) {
+    <p class="lx-popular__loading lx-loader-section" aria-live="polite">Loading products…</p>
+  } @else if (error(); as err) {
+    <div class="lx-catalog__alert" role="alert">{{ err }}</div>
+  } @else if (!products().length) {
+    <p class="lx-popular__empty">No products available.</p>
+  } @else {
+    <div class="lx-popular__grid">
+      @for (product of products(); track product.id) {
+        <a class="lx-popular__card" [routerLink]="product.path">
+          <div class="lx-popular__media">
+            <img
+              [src]="product.imageSrc"
+              [alt]="product.imageAlt"
+              width="280"
+              height="280"
+              loading="lazy"
+              decoding="async"
+            />
+            <button
+              type="button"
+              class="lx-popular__wish"
+              [class.is-active]="product.wishlist"
+              [attr.aria-label]="product.wishlist ? 'Remove from wishlist' : 'Add to wishlist'"
+              (click)="toggleWishlist(product, $event)"
+            >
+              <i class="pi" [class.pi-heart]="!product.wishlist" [class.pi-heart-fill]="product.wishlist" aria-hidden="true"></i>
+            </button>
+          </div>
+
+          <div class="lx-popular__body">
+            <h3 class="lx-popular__name">{{ product.name }}</h3>
+            <p class="lx-popular__price">{{ product.priceLabel }}</p>
+            <span class="lx-popular__emi">{{ product.emiLabel }}</span>
+            <p class="lx-popular__delivery">
+              <i class="pi pi-truck" aria-hidden="true"></i>
+              <span>{{ product.deliveryLabel }}</span>
+            </p>
+          </div>
+        </a>
+      }
+    </div>
+  }
+</section>

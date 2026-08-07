@@ -1,0 +1,53 @@
+@use '../variables' as *;
+
+@mixin lx-breakpoint-up($name) {
+  @if $name == sm {
+    @media (min-width: $lx-bp-sm) {
+      @content;
+    }
+  } @else if $name == md {
+    @media (min-width: $lx-bp-md) {
+      @content;
+    }
+  } @else if $name == lg {
+    @media (min-width: $lx-bp-lg) {
+      @content;
+    }
+  } @else if $name == xl {
+    @media (min-width: $lx-bp-xl) {
+      @content;
+    }
+  } @else if $name == 2xl {
+    @media (min-width: $lx-bp-2xl) {
+      @content;
+    }
+  } @else {
+    @content;
+  }
+}
+
+@mixin lx-breakpoint-down($name) {
+  @if $name == sm {
+    @media (max-width: ($lx-bp-sm - 0.02px)) {
+      @content;
+    }
+  } @else if $name == md {
+    @media (max-width: ($lx-bp-md - 0.02px)) {
+      @content;
+    }
+  } @else if $name == lg {
+    @media (max-width: ($lx-bp-lg - 0.02px)) {
+      @content;
+    }
+  } @else if $name == xl {
+    @media (max-width: ($lx-bp-xl - 0.02px)) {
+      @content;
+    }
+  } @else if $name == 2xl {
+    @media (max-width: ($lx-bp-2xl - 0.02px)) {
+      @content;
+    }
+  } @else {
+    @content;
+  }
+}

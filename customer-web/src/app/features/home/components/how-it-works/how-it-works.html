@@ -1,0 +1,28 @@
+<section class="lx-how" aria-labelledby="lx-how-heading">
+  <div class="lx-how__inner">
+    <header class="lx-how__header lx-how__anim">
+      <h2 id="lx-how-heading" class="lx-how__title">How LoanEx Works</h2>
+      <p class="lx-how__subtitle">Four simple steps from browsing to delivery</p>
+    </header>
+
+    <ol class="lx-how__steps">
+      @for (step of steps(); track step.id; let last = $last; let i = $index) {
+        <li class="lx-how__step lx-how__anim" [style.--lx-delay]="i * 80 + 'ms'">
+          <div class="lx-how__icon-wrap" aria-hidden="true">
+            <span class="lx-how__icon">
+              <i [class]="step.icon"></i>
+            </span>
+            <span class="lx-how__badge">{{ step.step }}</span>
+          </div>
+
+          <h3 class="lx-how__step-title">{{ step.title }}</h3>
+          <p class="lx-how__step-desc">{{ step.description }}</p>
+
+          @if (!last) {
+            <span class="lx-how__connector" aria-hidden="true"></span>
+          }
+        </li>
+      }
+    </ol>
+  </div>
+</section>
