@@ -43,9 +43,11 @@ checkoutRouter.post(
   validateRequest(verifyPaymentBodySchema),
   asyncHandler(checkoutController.verifyPayment),
 );
-checkoutRouter.post(
-  '/:sessionId/payment/dev-bypass-signature',
-  asyncHandler(checkoutController.createDevBypassSignature),
-);
+if (env.NODE_ENV !== 'production') {
+  checkoutRouter.post(
+    '/:sessionId/payment/dev-bypass-signature',
+    asyncHandler(checkoutController.createDevBypassSignature),
+  );
+}
 
 checkoutRouter.get('/:productId', asyncHandler(checkoutController.getSummary));

@@ -1,6 +1,9 @@
 import { EMIPlan } from '../types/product';
 import { parseAmount } from './amountUtils';
 
+/** Platform default reducing-balance annual interest rate (%). */
+export const DEFAULT_ANNUAL_INTEREST_RATE_PERCENT = 12.5;
+
 /** Round money to 2 decimal places. */
 export function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
@@ -60,7 +63,10 @@ export function calculateEmiBreakdown(input: EmiCalcInput): EmiRowCalculations {
   const downPayment = roundMoney(Math.min(Math.max(0, input.downPayment), productPrice));
   const processingFee = roundMoney(Math.max(0, input.processingFee));
   const tenureMonths = Math.max(0, Math.floor(input.tenureMonths));
-  const annualInterestRatePercent = Math.max(0, input.annualInterestRatePercent ?? 0);
+  const annualInterestRatePercent = Math.max(
+    0,
+    input.annualInterestRatePercent ?? DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
+  );
 
   const loanAmount = roundMoney(productPrice - downPayment);
   const monthlyEmi = calculateMonthlyEmi(
@@ -105,5 +111,6 @@ export function computeEmiRowCalculations(sellingPrice: number, plan: EMIPlan): 
     downPayment: down,
     processingFee: roundMoney(service + delivery),
     tenureMonths: months,
+    annualInterestRatePercent: DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
   });
 }

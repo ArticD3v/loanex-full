@@ -50,6 +50,7 @@ export class FormFieldErrorComponent {
     if (errors['required']) return `${this.label()} is required`;
     if (errors['email']) return 'Enter a valid email address';
     if (errors['indianMobile']) return 'Enter a valid 10-digit mobile number';
+    if (errors['loginIdentifier']) return 'Enter a valid 10-digit mobile number or email';
     if (errors['otp']) return 'Enter a valid 6-digit OTP';
     if (errors['minlength']) {
       return `${this.label()} must be at least ${errors['minlength'].requiredLength} characters`;

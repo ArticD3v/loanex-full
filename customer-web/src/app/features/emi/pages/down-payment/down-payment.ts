@@ -252,9 +252,14 @@ export class DownPaymentComponent implements OnInit {
     this.paymentApi.verify(payload).subscribe({
       next: (result) => {
         this.paying.set(false);
-        // Land on the order-confirmation page with the payment params so its
-        // success banner shows the payment id and a "View your order" CTA
-        // (same pattern as the DIRECT flow's my-orders banner).
+        // Prefer direct order page when order id/number is present; otherwise
+        // land on order-confirmation with payment banner params.
+        if (result.orderNumber || result.orderId) {
+          void this.router.navigate(['/orders', result.orderNumber || result.orderId], {
+            queryParams: { autopay: 1 },
+          });
+          return;
+        }
         void this.router.navigate(['/order/confirmation'], {
           queryParams: {
             ...(result.orderId ? { orderId: result.orderId } : {}),

@@ -27,10 +27,8 @@
                 maxlength="100"
                 autocomplete="name"
                 formControlName="fullName"
+                readonly
               />
-              @if (form.controls.fullName.touched && form.controls.fullName.invalid) {
-                <p class="lx-error-text" role="alert">Full name is required.</p>
-              }
             </div>
 
             <div class="lx-pd__field">
@@ -53,18 +51,19 @@
                 maxlength="150"
                 autocomplete="email"
                 formControlName="email"
+                readonly
               />
-              @if (form.controls.email.touched && form.controls.email.invalid) {
-                <p class="lx-error-text" role="alert">Enter a valid email address.</p>
-              }
             </div>
 
             <div class="lx-pd__field">
               <label for="lx-pd-dob">Date of Birth</label>
-              <input id="lx-pd-dob" class="lx-input" type="date" formControlName="dob" />
-              @if (form.controls.dob.touched && form.controls.dob.invalid) {
-                <p class="lx-error-text" role="alert">Date of birth is required.</p>
-              }
+              <input
+                id="lx-pd-dob"
+                class="lx-input"
+                type="date"
+                formControlName="dob"
+                readonly
+              />
             </div>
 
             <fieldset class="lx-pd__field lx-pd__field--full">
@@ -87,9 +86,6 @@
                   <span>Prefer not to say</span>
                 </label>
               </div>
-              @if (form.controls.gender.touched && form.controls.gender.invalid) {
-                <p class="lx-error-text" role="alert">Please select gender.</p>
-              }
             </fieldset>
           </div>
         </section>

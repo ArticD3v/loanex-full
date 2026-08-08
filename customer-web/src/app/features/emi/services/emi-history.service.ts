@@ -154,12 +154,31 @@ export class EmiHistoryService {
       .get(url, {
         params: this.toParams(filters),
         responseType: 'blob',
+        observe: 'response',
       })
       .pipe(
+        map((response) => {
+          const blob = response.body;
+          if (!blob || blob.size === 0) {
+            throw new Error('Empty download response.');
+          }
+          const contentType = (response.headers.get('Content-Type') || blob.type || '').toLowerCase();
+          // Guard against JSON/HTML error bodies mis-labeled as downloads.
+          if (
+            contentType.includes('application/json') ||
+            contentType.includes('text/html') ||
+            contentType.includes('text/plain')
+          ) {
+            throw new Error('Download failed: server did not return a file.');
+          }
+          return blob;
+        }),
         tap(() => this.loadingSignal.set(false)),
         catchError((err: unknown) => {
           this.loadingSignal.set(false);
-          this.errorSignal.set(this.extractError(err));
+          const message = this.extractErrorSync(err);
+          this.errorSignal.set(message);
+          this.refineBlobError(err);
           return throwError(() => err);
         }),
       );
@@ -192,18 +211,43 @@ export class EmiHistoryService {
       tap(() => this.loadingSignal.set(false)),
       catchError((err: unknown) => {
         this.loadingSignal.set(false);
-        this.errorSignal.set(this.extractError(err));
+        this.errorSignal.set(this.extractErrorSync(err));
+        this.refineBlobError(err);
         return throwError(() => err);
       }),
     );
   }
 
-  private extractError(err: unknown): string {
-    const httpErr = err as { error?: { message?: string }; message?: string; status?: number };
+  private refineBlobError(err: unknown): void {
+    const httpErr = err as { error?: Blob | { message?: string } };
+    if (!(httpErr?.error instanceof Blob)) return;
+    void httpErr.error.text().then((text) => {
+      try {
+        const parsed = JSON.parse(text) as { message?: string };
+        if (parsed?.message) this.errorSignal.set(parsed.message);
+      } catch {
+        // keep synchronous fallback
+      }
+    });
+  }
+
+  private extractErrorSync(err: unknown): string {
+    const httpErr = err as {
+      error?: Blob | { message?: string };
+      message?: string;
+      status?: number;
+    };
+
     if (httpErr?.status === 401) return 'Please sign in again to view payment history.';
     if (httpErr?.status === 404) {
-      return httpErr?.error?.message || 'Payment history not found.';
+      if (httpErr?.error && !(httpErr.error instanceof Blob) && httpErr.error.message) {
+        return httpErr.error.message;
+      }
+      return 'Payment history not found.';
     }
-    return httpErr?.error?.message || httpErr?.message || 'Something went wrong. Please try again.';
+    if (httpErr?.error && !(httpErr.error instanceof Blob) && httpErr.error.message) {
+      return httpErr.error.message;
+    }
+    return httpErr?.message || 'Unable to download file. Please try again.';
   }
 }

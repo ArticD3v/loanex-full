@@ -113,7 +113,11 @@ export class EmiCalculatorComponent {
       next: (status) => {
         this.proceeding.set(false);
         void this.router.navigateByUrl(
-          this.resolveDestination(status.status, status.hasApplication),
+          this.resolveDestination(
+            status.status,
+            status.hasApplication,
+            status.canSubmitAnother,
+          ),
         );
       },
       error: () => {
@@ -200,8 +204,13 @@ export class EmiCalculatorComponent {
     });
   }
 
-  private resolveDestination(status: string | null | undefined, hasApplication: boolean): string {
-    if (!hasApplication || !status) {
+  private resolveDestination(
+    status: string | null | undefined,
+    hasApplication: boolean,
+    canSubmitAnother?: boolean,
+  ): string {
+    // Completed / closed EMI applications must not trap "Proceed EMI" on My Orders.
+    if (!hasApplication || !status || canSubmitAnother) {
       return '/checkout/personal-details';
     }
 
@@ -210,13 +219,10 @@ export class EmiCalculatorComponent {
       case 'UNDER_REVIEW':
         return '/application/pending';
       case 'APPROVED':
+        return '/application/approved';
       case 'OFFER_ACCEPTED':
       case 'DOWN_PAYMENT_PENDING':
-        return '/my-orders';
-      case 'DOWN_PAYMENT_COMPLETED':
-      case 'ORDER_CONFIRMED':
-      case 'ACTIVE_EMI':
-        return '/my-orders';
+        return '/application/down-payment';
       case 'REJECTED':
         return '/application/rejected';
       case 'DECLINED_BY_CUSTOMER':

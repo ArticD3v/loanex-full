@@ -102,15 +102,27 @@ export class LoanStatementComponent implements OnInit {
     if (this.downloading()) return;
     this.downloading.set(true);
     this.error.set(null);
+    this.info.set(null);
 
     source.subscribe({
       next: (blob) => {
         this.downloading.set(false);
-        const url = URL.createObjectURL(blob);
+        const typed =
+          blob.type && blob.type !== 'application/octet-stream'
+            ? blob
+            : new Blob([blob], {
+                type: fileName.endsWith('.xlsx')
+                  ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                  : 'application/pdf',
+              });
+        const url = URL.createObjectURL(typed);
         const anchor = document.createElement('a');
         anchor.href = url;
         anchor.download = fileName;
+        anchor.rel = 'noopener';
+        document.body.appendChild(anchor);
         anchor.click();
+        anchor.remove();
         URL.revokeObjectURL(url);
         this.info.set(successMessage);
       },

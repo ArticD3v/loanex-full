@@ -39,6 +39,9 @@ export interface LocalDatabaseSchema {
   experian_reports: any[];
   digilocker_reports: any[];
   banners: any[];
+  job_openings: any[];
+  job_applications: any[];
+  general_applications: any[];
   notifications: any[];
   reviews: any[];
   dealers: any[];
@@ -288,6 +291,148 @@ const DEFAULT_INITIAL_DATA: LocalDatabaseSchema = {
       createdAt: new Date().toISOString(),
     },
   ],
+  job_openings: [
+    {
+      id: 'a1111111-1111-4111-8111-111111111111',
+      slug: 'frontend-developer',
+      title: 'Frontend Developer',
+      department: 'Engineering',
+      location: 'Bengaluru / Hybrid',
+      employmentType: 'Full-time',
+      experience: '2–4 years',
+      shortDescription: 'Build polished Angular experiences for LoanEx customer web.',
+      description:
+        'As a Frontend Developer at LoanEx, you will craft high-quality UI for our EMI shopping platform and partner with design and backend teams.',
+      responsibilities: [
+        'Develop Angular features',
+        'Ship responsive accessible UI',
+        'Collaborate on API-driven flows',
+        'Improve performance and quality',
+      ],
+      requirements: [
+        'Strong Angular and TypeScript',
+        'Solid HTML/CSS/SCSS',
+        'Familiarity with RxJS',
+        'Clear communication',
+      ],
+      skills: ['Angular', 'TypeScript', 'SCSS', 'RxJS', 'REST APIs'],
+      benefits: [
+        'Competitive compensation',
+        'Learning budget',
+        'Hybrid flexibility',
+        'Health coverage',
+      ],
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'a2222222-2222-4222-8222-222222222222',
+      slug: 'backend-developer',
+      title: 'Backend Developer',
+      department: 'Engineering',
+      location: 'Bengaluru / Hybrid',
+      employmentType: 'Full-time',
+      experience: '3–5 years',
+      shortDescription: 'Design secure APIs that power EMI, payments, and verification.',
+      description:
+        'Build scalable services behind LoanEx. Own APIs, data models, and integrations that keep lending and checkout reliable.',
+      responsibilities: [
+        'Design REST APIs',
+        'Integrate payment and KYC providers',
+        'Ensure security and observability',
+        'Partner with frontend and admin teams',
+      ],
+      requirements: [
+        'Node.js/Express experience',
+        'Strong SQL fundamentals',
+        'Auth and security awareness',
+        'Cloud debugging comfort',
+      ],
+      skills: ['Node.js', 'TypeScript', 'PostgreSQL', 'REST', 'Prisma'],
+      benefits: [
+        'Competitive compensation',
+        'Learning budget',
+        'Hybrid flexibility',
+        'Health coverage',
+      ],
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'a3333333-3333-4333-8333-333333333333',
+      slug: 'ui-ux-designer',
+      title: 'UI/UX Designer',
+      department: 'Design',
+      location: 'Bengaluru / Hybrid',
+      employmentType: 'Full-time',
+      experience: '2–4 years',
+      shortDescription: 'Shape clear EMI shopping and onboarding experiences.',
+      description:
+        'Improve clarity across shopping, KYC, and EMI journeys. Turn complex finance flows into simple, confident experiences.',
+      responsibilities: [
+        'Own end-to-end UX for key journeys',
+        'Create wireframes and high-fidelity designs',
+        'Run usability checks',
+        'Evolve the design system',
+      ],
+      requirements: [
+        'Strong product design portfolio',
+        'Figma proficiency',
+        'Form-heavy/fintech experience a plus',
+        'Stakeholder communication',
+      ],
+      skills: ['Figma', 'Design Systems', 'Prototyping', 'User Research', 'Accessibility'],
+      benefits: [
+        'Competitive compensation',
+        'Learning budget',
+        'Hybrid flexibility',
+        'Creative toolkit support',
+      ],
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'a4444444-4444-4444-8444-444444444444',
+      slug: 'sales-executive',
+      title: 'Sales Executive',
+      department: 'Growth',
+      location: 'Bengaluru / On-site',
+      employmentType: 'Full-time',
+      experience: '1–3 years',
+      shortDescription: 'Drive merchant and customer growth for LoanEx EMI.',
+      description:
+        'Expand LoanEx adoption through relationship building, demos, and conversion-focused conversations.',
+      responsibilities: [
+        'Qualify leads',
+        'Present EMI value propositions',
+        'Manage pipeline and conversion metrics',
+        'Coordinate onboarding with product/support',
+      ],
+      requirements: [
+        'Prior sales/BD experience preferred',
+        'Strong communication',
+        'CRM comfort',
+        'Self-motivated',
+      ],
+      skills: [
+        'Consultative Selling',
+        'CRM',
+        'Negotiation',
+        'Presentation',
+        'Pipeline Management',
+      ],
+      benefits: [
+        'Competitive base + incentives',
+        'Career growth path',
+        'Health coverage',
+        'Performance bonuses',
+      ],
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    },
+  ],
+  job_applications: [],
+  general_applications: [],
   notifications: [],
   reviews: [],
   dealers: [
@@ -527,6 +672,9 @@ const HYDRATE_COLLECTIONS = Array.from(
     'customerVerification',
     'panVerification',
     'roles',
+    'job_openings',
+    'job_applications',
+    'general_applications',
   ]),
 );
 
@@ -825,16 +973,54 @@ class LocalDatabaseEngine {
 
   private async mirrorDelete(name: string, where: Record<string, any>): Promise<void> {
     try {
-      let query = supabase.from(name).delete();
-      for (const [key, value] of Object.entries(where)) {
-        if (value === undefined) continue;
-        query = query.eq(key, value);
+      const hasFilter = Object.keys(where).some((key) => where[key] !== undefined);
+      // PostgREST refuses DELETE with no filter — use a match-all predicate for wipe-all.
+      let query = hasFilter
+        ? supabase.from(name).delete()
+        : supabase.from(name).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+      if (hasFilter) {
+        for (const [key, value] of Object.entries(where)) {
+          if (value === undefined) continue;
+          query = query.eq(key, value);
+        }
       }
+
       const { error } = await query;
       if (error) this.logMirrorError(name, 'delete', error.message);
     } catch (e) {
       this.logMirrorError(name, 'delete', String(e));
     }
+  }
+
+  /**
+   * Re-read a collection from Supabase into memory (source-mode / serverless).
+   * Keeps list endpoints consistent after another instance wiped rows.
+   */
+  public async refreshCollection(name: string): Promise<void> {
+    if (!this.sourceMode) return;
+    try {
+      const { data, error } = await supabase.from(name).select('*').limit(10000);
+      if (error) {
+        this.logMirrorError(name, 'refresh', error.message);
+        return;
+      }
+      if (Array.isArray(data)) {
+        (this.data as any)[name] = name === 'orders' ? data.map((row) => normalizeOrderRow(row)) : data;
+      }
+    } catch (e) {
+      this.logMirrorError(name, 'refresh', String(e));
+    }
+  }
+
+  /** Empty local collection and await Supabase delete-all. */
+  public async clearCollectionAwaited(name: string): Promise<number> {
+    const collection = this.getCollection(name);
+    const count = collection.length;
+    (this.data as any)[name] = [];
+    this.saveData();
+    await this.mirrorDelete(name, {});
+    return count;
   }
 
   public getCollection(name: string): any[] {

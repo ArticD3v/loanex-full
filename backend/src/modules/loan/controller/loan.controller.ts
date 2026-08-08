@@ -52,8 +52,10 @@ export class LoanController {
 
   getEmiSchedule = async (req: Request, res: Response) => {
     const loanId = String(req.params.loanId ?? '');
-    const loan = await loanService.getForAdmin(loanId);
-    return sendSuccess(res, loan.schedule ?? [], 'EMI schedule fetched');
+    const userId = requireUserId(req as AuthenticatedRequest);
+    // Owner-scoped — never use getForAdmin on customer routes (IDOR).
+    const schedule = await loanService.getEmiScheduleForUser(userId, loanId);
+    return sendSuccess(res, schedule, 'EMI schedule fetched');
   };
 
   adminUpdate = async (req: Request, res: Response) => {

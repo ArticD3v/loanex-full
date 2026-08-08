@@ -22,6 +22,16 @@
   transition: var(--lx-transition-button);
   @include lx-focus-visible;
 
+  /* Prevent global `a:hover { color: primary }` from wiping button labels */
+  &:link,
+  &:visited,
+  &:hover,
+  &:active,
+  &:focus {
+    text-decoration: none;
+    text-decoration-line: none;
+  }
+
   &:disabled,
   &.is-disabled {
     opacity: 0.55;
@@ -55,6 +65,14 @@
   background: var(--lx-color-primary);
   color: var(--lx-color-text-inverse);
 
+  &:link,
+  &:visited,
+  &:hover:not(:disabled),
+  &:active:not(:disabled),
+  &:focus {
+    color: var(--lx-color-text-inverse);
+  }
+
   &:hover:not(:disabled) {
     background: var(--lx-color-primary-hover);
   }
@@ -69,6 +87,14 @@
   background: var(--lx-color-secondary);
   color: var(--lx-color-text);
 
+  &:link,
+  &:visited,
+  &:hover:not(:disabled),
+  &:active:not(:disabled),
+  &:focus {
+    color: var(--lx-color-text);
+  }
+
   &:hover:not(:disabled) {
     filter: brightness(0.95);
   }
@@ -79,6 +105,14 @@
   background: transparent;
   color: var(--lx-color-primary);
   border-color: var(--lx-color-primary);
+
+  &:link,
+  &:visited,
+  &:hover:not(:disabled),
+  &:active:not(:disabled),
+  &:focus {
+    color: var(--lx-color-primary);
+  }
 
   &:hover:not(:disabled) {
     background: rgba(var(--lx-color-primary-rgb), 0.06);
@@ -92,6 +126,14 @@
   min-height: 2.25rem;
   padding: 0 var(--lx-space-12);
 
+  &:link,
+  &:visited,
+  &:hover:not(:disabled),
+  &:active:not(:disabled),
+  &:focus {
+    color: var(--lx-color-primary);
+  }
+
   &:hover:not(:disabled) {
     background: rgba(var(--lx-color-primary-rgb), 0.06);
   }
@@ -102,6 +144,14 @@
   background: var(--lx-color-danger);
   color: var(--lx-color-text-inverse);
 
+  &:link,
+  &:visited,
+  &:hover:not(:disabled),
+  &:active:not(:disabled),
+  &:focus {
+    color: var(--lx-color-text-inverse);
+  }
+
   &:hover:not(:disabled) {
     filter: brightness(0.92);
   }
@@ -111,6 +161,14 @@
   --lx-btn-loader-color: #fff;
   background: var(--lx-color-success);
   color: var(--lx-color-text-inverse);
+
+  &:link,
+  &:visited,
+  &:hover:not(:disabled),
+  &:active:not(:disabled),
+  &:focus {
+    color: var(--lx-color-text-inverse);
+  }
 
   &:hover:not(:disabled) {
     filter: brightness(0.94);

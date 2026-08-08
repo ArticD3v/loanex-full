@@ -47,6 +47,7 @@ model banners {
   badgeText  String?
   image_url  String
   link       String?
+  placement  String?   @default("home")
   sort_order Int?      @default(0)
   status     String?   @default("active")
   createdAt  DateTime? @default(now()) @db.Timestamptz(6)
@@ -93,6 +94,7 @@ model categories {
   icon        String?
   color       String?
   bgColor     String?
+  parentId    String?    @db.Uuid
   status      String?    @default("active")
   sortOrder   Int?       @default(0)
   createdAt   DateTime?  @default(now()) @db.Timestamptz(6)
@@ -931,6 +933,8 @@ enum EmiApplicationStatus {
 enum PaymentType {
   DOWN_PAYMENT
   EMI
+  KYC_VERIFICATION
+  FULL_PAYMENT
   @@schema("public")
 }
 

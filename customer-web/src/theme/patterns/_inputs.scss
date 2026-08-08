@@ -155,3 +155,102 @@
   font-weight: var(--lx-font-weight-semibold);
   letter-spacing: 0;
 }
+
+/* Custom file picker — matches .lx-input height/border language */
+.lx-file-upload {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.9rem;
+  background: var(--lx-color-surface);
+  border: 1px dashed var(--lx-color-border);
+  border-radius: var(--lx-radius-md);
+  cursor: pointer;
+  transition: var(--lx-transition-hover);
+
+  &:hover {
+    border-color: rgba(10, 46, 111, 0.35);
+    background: var(--lx-primary-50, #f5f8ff);
+  }
+
+  &:focus-within {
+    @include lx-focus-ring;
+    border-color: var(--lx-color-primary);
+  }
+
+  &.is-filled {
+    border-style: solid;
+    border-color: rgba(10, 46, 111, 0.35);
+    background: var(--lx-primary-50, #f5f8ff);
+
+    .lx-file-upload__icon {
+      background: rgba(16, 185, 129, 0.14);
+      color: #047857;
+    }
+
+    .lx-file-upload__text strong {
+      color: var(--lx-color-primary);
+    }
+  }
+}
+
+/* Keep native control accessible but out of the visual stack (label[for] opens it). */
+.lx-file-upload__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lx-file-upload__icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.65rem;
+  background: rgba(10, 46, 111, 0.08);
+  color: var(--lx-color-primary);
+  pointer-events: none;
+
+  i {
+    font-size: 1rem;
+  }
+}
+
+.lx-file-upload__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.1rem;
+  min-width: 0;
+  pointer-events: none;
+
+  strong {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--lx-color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  small {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--lx-color-text-secondary);
+  }
+}

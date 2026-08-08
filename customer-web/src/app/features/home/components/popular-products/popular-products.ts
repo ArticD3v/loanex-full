@@ -14,7 +14,6 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WishlistService } from '../../../wishlist/services/wishlist.service';
 import { CatalogProduct, ProductsApiService } from '../../../products/services/products-api.service';
-import { calculateEmiBreakdown } from '../../../products/utils/emi-calc.helper';
 import { formatInr } from '../../../../shared/utils/currency';
 import { PopularProduct } from '../../models/catalog.models';
 
@@ -116,30 +115,25 @@ export class PopularProducts {
 
   private toPopularProduct(product: CatalogProduct): PopularProduct {
     const sellingPrice = product.sellingPrice ?? product.price;
-    const emiMonthly =
-      product.emiStartingFrom != null
-        ? product.emiStartingFrom
-        : calculateEmiBreakdown({
-            productPrice: sellingPrice,
-            downPayment: Math.round(sellingPrice * 0.2),
-            processingFee: 0,
-            tenureMonths: 12,
-          }).monthlyEmi;
+    const emiMonthly = product.emiStartingFrom != null ? product.emiStartingFrom : null;
 
     return {
       id: product.id,
       name: product.name,
       priceLabel: formatInr(sellingPrice),
-      emiLabel: product.emiAvailable
-        ? `${formatInr(emiMonthly)} / month`
-        : 'EMI not available',
+      emiLabel:
+        product.emiAvailable && emiMonthly != null
+          ? `${formatInr(emiMonthly)} / month`
+          : product.emiAvailable
+            ? 'EMI available'
+            : 'EMI not available',
       deliveryLabel:
         product.deliveryCharge > 0
           ? `Delivery ${formatInr(product.deliveryCharge)}`
           : 'Free Delivery',
       imageSrc: product.imageUrl || product.thumbnail,
       imageAlt: product.name,
-      path: `/products/${product.id}`,
+      path: `/products/${product.slug || product.id}`,
       wishlist: false,
     };
   }

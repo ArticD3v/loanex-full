@@ -126,14 +126,31 @@ export class EmiPaymentService {
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
 
-    return this.http.get(`${this.baseUrl}/${emiId}/receipt`, { responseType: 'blob' }).pipe(
-      tap(() => this.loadingSignal.set(false)),
-      catchError((err: unknown) => {
-        this.loadingSignal.set(false);
-        this.errorSignal.set(this.extractError(err));
-        return throwError(() => err);
-      }),
-    );
+    return this.http
+      .get(`${this.baseUrl}/${emiId}/receipt`, { responseType: 'blob', observe: 'response' })
+      .pipe(
+        map((response) => {
+          const blob = response.body;
+          if (!blob || blob.size === 0) {
+            throw new Error('Empty download response.');
+          }
+          const contentType = (response.headers.get('Content-Type') || blob.type || '').toLowerCase();
+          if (
+            contentType.includes('application/json') ||
+            contentType.includes('text/html') ||
+            contentType.includes('text/plain')
+          ) {
+            throw new Error('Download failed: server did not return a PDF.');
+          }
+          return blob;
+        }),
+        tap(() => this.loadingSignal.set(false)),
+        catchError((err: unknown) => {
+          this.loadingSignal.set(false);
+          this.errorSignal.set(this.extractError(err));
+          return throwError(() => err);
+        }),
+      );
   }
 
   clearError(): void {
@@ -156,7 +173,7 @@ export class EmiPaymentService {
   }
 
   private extractError(err: unknown): string {
-    const httpErr = err as { error?: { message?: string }; message?: string; status?: number };
+    const httpErr = err as { error?: { message?: string; code?: string }; message?: string; status?: number };
     if (httpErr?.status === 401) return 'Please sign in again to continue payment.';
     if (httpErr?.status === 409) {
       return httpErr?.error?.message || 'This EMI payment was already completed.';
@@ -164,6 +181,15 @@ export class EmiPaymentService {
     if (httpErr?.status === 404) {
       return httpErr?.error?.message || 'EMI instalment not found.';
     }
-    return httpErr?.error?.message || httpErr?.message || 'Something went wrong. Please try again.';
+    if (httpErr?.status === 400) {
+      return httpErr?.error?.message || 'Payment verification failed. Please try again.';
+    }
+    if (httpErr?.status === 500 || httpErr?.status === 502 || httpErr?.status === 503) {
+      return (
+        httpErr?.error?.message ||
+        'Payment verification failed. Please try again. If amount was deducted, contact support with your payment ID.'
+      );
+    }
+    return httpErr?.error?.message || httpErr?.message || 'Payment verification failed. Please try again.';
   }
 }

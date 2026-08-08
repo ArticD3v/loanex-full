@@ -31,6 +31,11 @@ import { productRouter } from './modules/product';
 import { categoryRouter } from './modules/category';
 import { reviewsRouter } from './modules/reviews';
 import { bannerRouter } from './modules/banner';
+import {
+  generalApplicationsRouter,
+  jobApplicationsRouter,
+  jobsRouter,
+} from './modules/careers';
 import { supportRouter } from './modules/support';
 import { verificationRouter } from './modules/verification';
 import { reportsRouter } from './modules/reports/reports.routes';
@@ -162,6 +167,9 @@ export function createApp() {
   app.use(`${env.API_PREFIX}/categories`, categoryRouter);
   app.use(`${env.API_PREFIX}/reviews`, reviewsRouter);
   app.use(`${env.API_PREFIX}/banners`, bannerRouter);
+  app.use(`${env.API_PREFIX}/jobs`, jobsRouter);
+  app.use(`${env.API_PREFIX}/job-applications`, jobApplicationsRouter);
+  app.use(`${env.API_PREFIX}/general-applications`, generalApplicationsRouter);
   app.use(`${env.API_PREFIX}/support`, supportRouter);
   app.use(`${env.API_PREFIX}/admin`, adminRouter);
   app.use(`${env.API_PREFIX}/admin/roles`, rolesRouter);

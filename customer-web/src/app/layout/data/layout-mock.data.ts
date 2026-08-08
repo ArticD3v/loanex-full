@@ -25,6 +25,7 @@ export const DESKTOP_NAV_ITEMS: NavItem[] = [
   { id: 'categories', label: 'Categories', path: '/', fragment: 'categories' },
   { id: 'how-it-works', label: 'How It Works', path: '/', fragment: 'how-it-works' },
   { id: 'offers', label: 'Offers', path: '/', fragment: 'offers' },
+  { id: 'careers', label: 'Careers', path: '/careers', matchPaths: 'subset' },
   { id: 'support', label: 'Support', path: '/support' },
 ];
 
@@ -41,6 +42,7 @@ export const FOOTER_SECTIONS: FooterSection[] = [
       { id: 'home', label: 'Home', path: '/' },
       { id: 'products', label: 'Products', path: '/products' },
       { id: 'categories', label: 'Categories', path: '/products' },
+      { id: 'careers', label: 'Careers', path: '/careers' },
       { id: 'wishlist', label: 'Wishlist', path: '/wishlist' },
       { id: 'cart', label: 'Cart', path: '/cart' },
     ],
@@ -50,7 +52,7 @@ export const FOOTER_SECTIONS: FooterSection[] = [
     title: 'Support',
     links: [
       { id: 'help', label: 'Help Center', path: '/support' },
-      { id: 'orders', label: 'Track Orders', path: '/order/confirmation' },
+      { id: 'orders', label: 'Track Orders', path: '/my-orders' },
       { id: 'contact', label: 'Contact Us', path: '/support' },
       { id: 'faq', label: 'FAQs', path: '/support' },
     ],
@@ -59,30 +61,30 @@ export const FOOTER_SECTIONS: FooterSection[] = [
     id: 'emi',
     title: 'EMI Information',
     links: [
-      { id: 'buy-emi', label: 'Buy on EMI', path: '/emi' },
+      { id: 'buy-emi', label: 'Buy on EMI', path: '/products' },
       { id: 'my-emi', label: 'My EMI', path: '/my-emi' },
-      { id: 'plans', label: 'EMI Plans', path: '/emi' },
-      { id: 'eligibility', label: 'Eligibility', path: '/emi' },
+      { id: 'plans', label: 'EMI Plans', path: '/products' },
+      { id: 'eligibility', label: 'Eligibility', path: '/support' },
     ],
   },
   {
     id: 'legal',
     title: 'Legal',
     links: [
-      { id: 'privacy', label: 'Privacy Policy', path: '/support' },
-      { id: 'terms', label: 'Terms of Use', path: '/support' },
-      { id: 'refund', label: 'Refund Policy', path: '/support' },
-      { id: 'grievance', label: 'Grievance Redressal', path: '/support' },
+      { id: 'privacy', label: 'Privacy Policy', unavailable: true },
+      { id: 'terms', label: 'Terms of Use', unavailable: true },
+      { id: 'refund', label: 'Refund Policy', unavailable: true },
+      { id: 'grievance', label: 'Grievance Redressal', unavailable: true },
     ],
   },
 ];
 
-export const SOCIAL_LINKS: SocialLink[] = [
-  { id: 'instagram', label: 'Instagram', icon: 'pi pi-instagram', href: '#' },
-  { id: 'twitter', label: 'X / Twitter', icon: 'pi pi-twitter', href: '#' },
-  { id: 'linkedin', label: 'LinkedIn', icon: 'pi pi-linkedin', href: '#' },
-  { id: 'youtube', label: 'YouTube', icon: 'pi pi-youtube', href: '#' },
-];
+/**
+ * Social profiles — only include entries with a real https URL.
+ * No company social URLs are configured in this repo; keep empty so the footer
+ * does not render misleading "#" links.
+ */
+export const SOCIAL_LINKS: SocialLink[] = [];
 
 export const MOCK_COUNTS = {
   cart: 0,
@@ -104,10 +106,22 @@ export const BREADCRUMB_LABELS: Record<string, string> = {
   cart: 'Cart',
   checkout: 'Checkout',
   orders: 'Orders',
+  'my-orders': 'Orders',
   profile: 'Profile',
   emi: 'EMI',
   notifications: 'Notifications',
   support: 'Support',
+  careers: 'Careers',
+  'general-application': 'General Application',
+  apply: 'Apply',
   search: 'Search',
   auth: 'Account',
+};
+
+/** Parent path segment → label used when the next segment is a resource id. */
+export const BREADCRUMB_ID_PARENT_LABELS: Record<string, string> = {
+  products: 'Product Details',
+  orders: 'Order Details',
+  'my-orders': 'Order Details',
+  careers: 'Job Details',
 };

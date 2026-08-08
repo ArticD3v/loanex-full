@@ -3,28 +3,24 @@
     <img src="assets/images/loanex-logo.png" alt="LoanEx" width="44" height="44" />
     <div>
       <h1 id="lx-login-title">Welcome back</h1>
-      <p>Log in with your mobile number and password.</p>
+      <p>Log in with your mobile number or email and password.</p>
     </div>
   </header>
 
   <form class="lx-auth-card__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
     <div class="lx-field">
-      <label class="lx-label" for="login-mobile">Mobile Number</label>
-      <div class="lx-input-prefix">
-        <span class="lx-input-prefix__addon">+91</span>
-        <input
-          id="login-mobile"
-          class="lx-input lx-input-prefix__control"
-          type="tel"
-          formControlName="mobile"
-          placeholder="Enter 10-digit mobile number"
-          maxLength="10"
-          autocomplete="tel"
-          (input)="onMobileInput($event)"
-          [attr.aria-invalid]="form.controls.mobile.invalid && form.controls.mobile.touched"
-        />
-      </div>
-      <app-form-field-error [control]="form.controls.mobile" label="Mobile number" />
+      <label class="lx-label" for="login-identifier">Mobile or Email</label>
+      <input
+        id="login-identifier"
+        class="lx-input"
+        type="text"
+        formControlName="identifier"
+        placeholder="10-digit mobile or email"
+        autocomplete="username"
+        (input)="onIdentifierInput($event)"
+        [attr.aria-invalid]="form.controls.identifier.invalid && form.controls.identifier.touched"
+      />
+      <app-form-field-error [control]="form.controls.identifier" label="Mobile or email" />
     </div>
 
     <div class="lx-field">

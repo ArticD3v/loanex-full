@@ -11,6 +11,75 @@ export const CheckoutSessionStatus = {
   CANCELLED: 'CANCELLED',
 } as const;
 
+function toNum(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Checkout must see the same sellable variants as the PDP.
+ * Admin often stores them only under wizardData.variants while product.variants
+ * is empty (or contains legacy cfg-* display stubs).
+ */
+function resolveProductVariantsForCheckout(product: any): any[] {
+  const stored = Array.isArray(product?.variants) ? product.variants : [];
+  const usableStored = stored.filter((row: any) => {
+    if (!row?.id) return false;
+    const id = String(row.id);
+    // Legacy PDP display stubs are not sellable inventory rows.
+    if (id.startsWith('cfg-')) return false;
+    return true;
+  });
+  if (usableStored.length > 0) {
+    return usableStored.map((row: any) => ({
+      ...row,
+      id: String(row.id),
+      sellingPrice: toNum(row.sellingPrice ?? row.discountPrice ?? row.price),
+      discountPrice: row.discountPrice ?? null,
+      price: toNum(row.price ?? row.mrp ?? row.sellingPrice),
+      stock: toNum(row.stock ?? row.stockQuantity),
+      variantName: row.variantName ?? row.name ?? null,
+      name: row.name ?? row.variantName ?? null,
+      isDefault: Boolean(row.isDefault),
+    }));
+  }
+
+  const wizard = Array.isArray(product?.wizardData?.variants)
+    ? product.wizardData.variants
+    : [];
+  return wizard
+    .filter((row: any) => {
+      if (!row) return false;
+      if (row.saved === false && !row.sellingPrice && toNum(row.stock) <= 0) return false;
+      return Boolean(row.name || row.sku || row.id);
+    })
+    .map((row: any, index: number) => {
+      const sellingPrice =
+        toNum(row.sellingPrice) || toNum(product.price) || toNum(product.sellingPrice);
+      const mrp = toNum(row.mrp) || toNum(product.mrp) || sellingPrice;
+      const images = Array.isArray(row.galleryImages)
+        ? row.galleryImages.filter(Boolean)
+        : row.variantImage
+          ? [row.variantImage]
+          : [];
+      return {
+        id: String(row.id || `wizard-variant-${index + 1}`),
+        productId: product.id,
+        sku: row.sku || `${product.sku || 'SKU'}-${index + 1}`,
+        price: mrp,
+        mrp,
+        discountPrice: sellingPrice < mrp ? sellingPrice : null,
+        sellingPrice,
+        stock: toNum(row.stock ?? row.availableStock ?? product.stock),
+        images,
+        variantName: row.name || `Variant ${index + 1}`,
+        name: row.name || `Variant ${index + 1}`,
+        isDefault: index === 0,
+        attributes: {},
+      };
+    });
+}
+
 export class CheckoutRepository {
   findProductById(productId: string) {
     const product = jsonDb.findOne('products', { id: productId });
@@ -30,18 +99,21 @@ export class CheckoutRepository {
       mrp: product.mrp ?? product.price ?? 0,
       sellingPrice: product.sellingPrice ?? product.discountPrice ?? product.price ?? 0,
       discountPrice: product.discountPrice ?? product.sellingPrice ?? null,
-      // Carry the real variants so a selected variant can be priced correctly
-      // at checkout (previously hardcoded to [] so variant selection always
-      // fell back to the default / errored).
-      variants: Array.isArray(product.variants) ? product.variants : [],
+      variants: resolveProductVariantsForCheckout(product),
     };
   }
 
   findVariantForProduct(productId: string, variantId: string) {
-    const product = jsonDb.findOne('products', { id: productId });
+    const product = this.findProductById(productId);
     if (!product) return null;
     const variants = Array.isArray(product.variants) ? product.variants : [];
-    return variants.find((row: any) => row.id === variantId) ?? null;
+    const needle = String(variantId);
+    const compact = needle.replace(/-/g, '').toLowerCase();
+    return (
+      variants.find((row: any) => String(row.id) === needle) ??
+      variants.find((row: any) => String(row.id).replace(/-/g, '').toLowerCase() === compact) ??
+      null
+    );
   }
 
   findProfile(userId: string) {

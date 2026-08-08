@@ -11,6 +11,9 @@ export interface EMICalcInput {
   annualInterestRatePercent?: number;
 }
 
+/** Platform default reducing-balance annual interest rate (%). */
+export const DEFAULT_ANNUAL_INTEREST_RATE_PERCENT = 12.5;
+
 export function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
@@ -75,7 +78,10 @@ export function calculateEmiBreakdown(input: {
   const downPayment = roundMoney(Math.min(Math.max(0, input.downPayment), productPrice));
   const processingFee = roundMoney(Math.max(0, input.processingFee));
   const tenureMonths = Math.max(0, Math.floor(input.tenureMonths));
-  const annualInterestRatePercent = Math.max(0, input.annualInterestRatePercent ?? 0);
+  const annualInterestRatePercent = Math.max(
+    0,
+    input.annualInterestRatePercent ?? DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
+  );
 
   const loanAmount = roundMoney(productPrice - downPayment);
   const monthlyEmi = calculateMonthlyEmi(
@@ -127,7 +133,8 @@ export function calculateEMI(input: EMICalcInput): EMICalcResult {
     downPayment: dpAmount,
     processingFee,
     tenureMonths: input.tenure,
-    annualInterestRatePercent: input.annualInterestRatePercent ?? 0,
+    annualInterestRatePercent:
+      input.annualInterestRatePercent ?? DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
   });
 
   const futureEMICount =
@@ -154,10 +161,9 @@ export function calculateEMI(input: EMICalcInput): EMICalcResult {
     };
   }
 
-  // Split loan amount across remaining instalments; last EMI absorbs rounding.
-  const regularEMIAmount = roundMoney(breakdown.loanAmount / futureEMICount);
-  const paidViaRegular = roundMoney(regularEMIAmount * (futureEMICount - 1));
-  const finalEMIAmount = roundMoney(breakdown.loanAmount - paidViaRegular);
+  // Use reducing-balance EMI (not flat loanAmount / months).
+  const regularEMIAmount = breakdown.monthlyEmi;
+  const finalEMIAmount = breakdown.monthlyEmi;
 
   return {
     tenure: input.tenure,
@@ -173,7 +179,7 @@ export function calculateEMI(input: EMICalcInput): EMICalcResult {
     regularEMIAmount,
     finalEMIAmount,
     firstDueDate: getFirstDueDate(),
-    isRounded: finalEMIAmount !== regularEMIAmount,
+    isRounded: false,
   };
 }
 

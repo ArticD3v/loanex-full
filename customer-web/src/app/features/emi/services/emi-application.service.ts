@@ -314,7 +314,16 @@ export class EmiApplicationService {
   }
 
   private extractError(err: unknown): string {
-    const httpErr = err as { error?: { message?: string }; message?: string };
+    const httpErr = err as {
+      error?: { message?: string; details?: Array<{ message?: string }> };
+      message?: string;
+    };
+    if (httpErr?.error?.details?.length) {
+      return httpErr.error.details
+        .map((d) => d.message)
+        .filter(Boolean)
+        .join('. ');
+    }
     return httpErr?.error?.message || httpErr?.message || 'Something went wrong. Please try again.';
   }
 }

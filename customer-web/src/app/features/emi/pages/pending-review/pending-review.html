@@ -58,10 +58,6 @@
         </li>
         <li class="is-done">
           <i class="pi pi-check" aria-hidden="true"></i>
-          <span>Bank Verified</span>
-        </li>
-        <li class="is-done">
-          <i class="pi pi-check" aria-hidden="true"></i>
           <span>Application Submitted</span>
         </li>
         <li [class.is-active]="app.status === 'PENDING' || app.status === 'UNDER_REVIEW'">
@@ -82,22 +78,11 @@
         type="button"
         class="lx-btn lx-btn--outline"
         [class.is-loading]="refreshing()"
-        [disabled]="refreshing() || approving()"
+        [disabled]="refreshing()"
         (click)="refresh()"
       >
         Refresh Status
       </button>
-      @if (showDevApprove) {
-        <button
-          type="button"
-          class="lx-btn lx-btn--primary"
-          [class.is-loading]="approving()"
-          [disabled]="approving() || refreshing()"
-          (click)="approveForTesting()"
-        >
-          Approve (Test)
-        </button>
-      }
       <a routerLink="/" class="lx-btn lx-btn--outline">Back to Home</a>
     </div>
 

@@ -7,6 +7,9 @@ export type ScheduleRow = {
   remainingBalance: number;
 };
 
+/** Platform default reducing-balance annual interest rate (%). */
+export const DEFAULT_ANNUAL_INTEREST_RATE_PERCENT = 12.5;
+
 export function round2(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }

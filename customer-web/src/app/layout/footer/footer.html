@@ -24,7 +24,15 @@
           <ul>
             @for (link of section.links; track link.id) {
               <li>
-                <a [routerLink]="link.path">{{ link.label }}</a>
+                @if (link.unavailable || !link.path) {
+                  <span
+                    class="lx-footer__link lx-footer__link--unavailable"
+                    [attr.title]="link.label + ' — coming soon'"
+                    >{{ link.label }}</span
+                  >
+                } @else {
+                  <a class="lx-footer__link" [routerLink]="link.path">{{ link.label }}</a>
+                }
               </li>
             }
           </ul>

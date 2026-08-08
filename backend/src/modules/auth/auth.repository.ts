@@ -284,15 +284,59 @@ export class AuthRepository {
       data.expiresAt instanceof Date
         ? data.expiresAt.toISOString()
         : data.expiresAt;
-    return jsonDb.insert('refresh_tokens', {
+    const row = {
       token: data.token,
       expiresAt,
       userId,
-    });
+    };
+    try {
+      // Preferred table when it exists in Supabase.
+      return await jsonDb.insertAwaited('refresh_tokens', row);
+    } catch (err) {
+      // Production DB is missing public.refresh_tokens (and DATABASE_URL can't DDL).
+      // Persist via audit_log so refresh works across serverless instances.
+      console.warn(
+        '[auth] refresh_tokens unavailable — persisting via audit_log fallback:',
+        err instanceof Error ? err.message : err,
+      );
+      const fallback = await jsonDb.insertAwaited('audit_log', {
+        userId,
+        action: 'AUTH_REFRESH_TOKEN',
+        module: 'auth',
+        details: data.token,
+        metadata: { token: data.token, expiresAt, userId },
+      });
+      return {
+        id: fallback.id,
+        token: data.token,
+        expiresAt,
+        userId,
+      };
+    }
   }
 
   async findRefreshToken(tokenHash: string) {
-    const stored = jsonDb.findOne('refresh_tokens', { token: tokenHash });
+    await jsonDb.refreshCollection('refresh_tokens');
+    let stored = jsonDb.findOne('refresh_tokens', { token: tokenHash });
+
+    if (!stored) {
+      await jsonDb.refreshCollection('audit_log');
+      const rows = jsonDb.findMany('audit_log', { action: 'AUTH_REFRESH_TOKEN' });
+      const hit = rows.find((row: any) => {
+        const metaToken = row?.metadata?.token ?? row?.details;
+        return metaToken === tokenHash;
+      });
+      if (hit) {
+        stored = {
+          id: hit.id,
+          token: tokenHash,
+          userId: hit.userId ?? hit.metadata?.userId,
+          expiresAt: hit.metadata?.expiresAt ?? hit.createdAt,
+          _fallbackAuditId: hit.id,
+        };
+      }
+    }
+
     if (!stored) return null;
     const user = await this.findById(stored.userId);
     if (!user) return null;
@@ -304,11 +348,37 @@ export class AuthRepository {
   }
 
   async deleteRefreshToken(tokenHash: string) {
-    jsonDb.delete('refresh_tokens', { token: tokenHash });
+    try {
+      await jsonDb.deleteAwaited('refresh_tokens', { token: tokenHash });
+    } catch {
+      /* table may not exist */
+    }
+    await jsonDb.refreshCollection('audit_log');
+    const rows = jsonDb
+      .findMany('audit_log', { action: 'AUTH_REFRESH_TOKEN' })
+      .filter((row: any) => (row?.metadata?.token ?? row?.details) === tokenHash);
+    for (const row of rows) {
+      await jsonDb.deleteAwaited('audit_log', { id: row.id });
+    }
   }
 
   async deleteUserRefreshTokens(userId: string) {
-    jsonDb.deleteMany('refresh_tokens', { userId });
+    try {
+      await jsonDb.refreshCollection('refresh_tokens');
+      const rows = jsonDb.findMany('refresh_tokens', { userId });
+      for (const row of rows) {
+        await jsonDb.deleteAwaited('refresh_tokens', { id: row.id });
+      }
+    } catch {
+      /* table may not exist */
+    }
+    await jsonDb.refreshCollection('audit_log');
+    const auditRows = jsonDb
+      .findMany('audit_log', { action: 'AUTH_REFRESH_TOKEN' })
+      .filter((row: any) => row.userId === userId || row?.metadata?.userId === userId);
+    for (const row of auditRows) {
+      await jsonDb.deleteAwaited('audit_log', { id: row.id });
+    }
   }
 }
 

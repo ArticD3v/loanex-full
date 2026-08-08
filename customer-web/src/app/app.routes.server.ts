@@ -32,6 +32,16 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Client,
   },
   {
+    // Careers loads jobs/applications via HTTP + takeUntilDestroyed.
+    // Prerender cancelled those subscriptions on hard refresh (no API call).
+    path: 'careers',
+    renderMode: RenderMode.Client,
+  },
+  {
+    path: 'careers/**',
+    renderMode: RenderMode.Client,
+  },
+  {
     path: '**',
     renderMode: RenderMode.Prerender,
   },

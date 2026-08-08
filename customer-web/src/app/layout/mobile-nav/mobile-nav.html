@@ -70,7 +70,7 @@
           [fragment]="item.fragment"
           routerLinkActive="is-active"
           [routerLinkActiveOptions]="{
-            paths: 'exact',
+            paths: item.matchPaths === 'subset' ? 'subset' : 'exact',
             queryParams: 'ignored',
             fragment: 'exact',
             matrixParams: 'ignored',

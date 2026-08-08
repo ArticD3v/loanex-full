@@ -4,6 +4,7 @@ import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
 import { EmiPaymentStatus, PaymentStatus } from '@prisma/client';
 import { NotFoundError } from '../../../common/errors/app-error';
+import { ensureWritableStorageDir } from '../../../common/utils/writable-storage';
 import { auditLogService } from '../../verification/service/audit-log.service';
 import { resolveProductImage } from '../../../common/utils/product-assets';
 import {
@@ -179,8 +180,8 @@ export class EmiHistoryService {
         productName: loan.application.productName,
         productImage: resolveProductImage(loan.productId),
         loanAmount: toNumber(loan.loanAmount),
-        interestRate: toNumber(loan.monthlyEmi),
-        processingFee: toNumber(loan.monthlyEmi),
+        interestRate: toNumber(loan.interestRate),
+        processingFee: toNumber(loan.processingFee),
         loanTenure: loan.loanTenure,
         emiAmount: toNumber(loan.emiAmount),
         loanStatus: loan.loanStatus,
@@ -215,7 +216,7 @@ export class EmiHistoryService {
 
   async getStatementPdf(userId: string) {
     const statement = await this.getStatement(userId);
-    const absolutePath = await this.writeStatementPdf(statement);
+    const buffer = await this.buildStatementPdfBuffer(statement);
 
     await auditLogService.log({
       userId,
@@ -229,14 +230,14 @@ export class EmiHistoryService {
     });
 
     return {
-      absolutePath,
+      buffer,
       fileName: `${statement.loan.loanAccountNumber}-statement.pdf`,
     };
   }
 
   async exportPaymentHistoryPdf(userId: string, query: Record<string, string | undefined>) {
     const history = await this.getPaymentHistory(userId, query);
-    const absolutePath = await this.writeHistoryPdf(history);
+    const buffer = await this.buildHistoryPdfBuffer(history);
 
     await auditLogService.log({
       userId,
@@ -251,14 +252,14 @@ export class EmiHistoryService {
     });
 
     return {
-      absolutePath,
+      buffer,
       fileName: `${history.summary.loanAccountNumber}-payment-history.pdf`,
     };
   }
 
   async exportPaymentHistoryExcel(userId: string, query: Record<string, string | undefined>) {
     const history = await this.getPaymentHistory(userId, query);
-    const absolutePath = await this.writeHistoryExcel(history);
+    const buffer = await this.buildHistoryExcelBuffer(history);
 
     await auditLogService.log({
       userId,
@@ -273,7 +274,7 @@ export class EmiHistoryService {
     });
 
     return {
-      absolutePath,
+      buffer,
       fileName: `${history.summary.loanAccountNumber}-payment-history.xlsx`,
     };
   }
@@ -285,14 +286,18 @@ export class EmiHistoryService {
       throw new NotFoundError('Receipt is available only for successful payments.');
     }
 
-    let absolutePath: string | null = null;
+    let buffer: Buffer | null = null;
     if (payment.receiptPath) {
-      const candidate = path.resolve(process.cwd(), payment.receiptPath);
-      if (fs.existsSync(candidate)) absolutePath = candidate;
+      const candidate = path.isAbsolute(payment.receiptPath)
+        ? payment.receiptPath
+        : path.resolve(process.cwd(), payment.receiptPath);
+      if (fs.existsSync(candidate)) {
+        buffer = fs.readFileSync(candidate);
+      }
     }
 
-    if (!absolutePath) {
-      absolutePath = await this.writePaymentReceipt(payment);
+    if (!buffer) {
+      buffer = await this.buildPaymentReceiptBuffer(payment);
     }
 
     await auditLogService.log({
@@ -308,7 +313,7 @@ export class EmiHistoryService {
 
     const emiNumber = payment.emiSchedule?.emiNumber ?? 'emi';
     return {
-      absolutePath,
+      buffer,
       fileName: `payment-${emiNumber}-receipt.pdf`,
     };
   }
@@ -329,24 +334,21 @@ export class EmiHistoryService {
     return undefined;
   }
 
-  private async writeStatementPdf(
+  private buildStatementPdfBuffer(
     statement: Awaited<ReturnType<EmiHistoryService['getStatement']>>,
-  ): Promise<string> {
-    const dir = path.resolve(process.cwd(), 'storage', 'statements');
-    fs.mkdirSync(dir, { recursive: true });
-    const fileName = `${statement.loan.loanAccountNumber}-statement.pdf`;
-    const absolutePath = path.join(dir, fileName);
-
-    await new Promise<void>((resolve, reject) => {
+  ): Promise<Buffer> {
+    return new Promise<Buffer>((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50 });
-      const stream = fs.createWriteStream(absolutePath);
-      doc.pipe(stream);
+      const chunks: Buffer[] = [];
+      doc.on('data', (chunk) => chunks.push(chunk as Buffer));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
 
       doc.fontSize(20).fillColor('#0A2E6F').text('LoanEx Loan Statement');
       doc.moveDown(0.5);
       doc.fontSize(12).fillColor('#111827');
       doc.text(`Loan Account: ${statement.loan.loanAccountNumber}`);
-      doc.text(`Application: ${statement.loan.id}`);
+      doc.text(`Application: ${statement.loan.applicationNumber}`);
       doc.text(`Product: ${statement.loan.productName ?? statement.loan.productId}`);
       doc.text(`Loan Amount: INR ${statement.loan.loanAmount.toFixed(2)}`);
       doc.text(`Interest Rate: ${statement.loan.interestRate}%`);
@@ -359,26 +361,18 @@ export class EmiHistoryService {
       doc.moveDown();
       doc.fontSize(10).fillColor('#6B7280').text('System-generated loan statement from LoanEx.');
       doc.end();
-
-      stream.on('finish', () => resolve());
-      stream.on('error', reject);
     });
-
-    return absolutePath;
   }
 
-  private async writeHistoryPdf(
+  private buildHistoryPdfBuffer(
     history: Awaited<ReturnType<EmiHistoryService['getPaymentHistory']>>,
-  ): Promise<string> {
-    const dir = path.resolve(process.cwd(), 'storage', 'statements');
-    fs.mkdirSync(dir, { recursive: true });
-    const fileName = `${history.summary.loanAccountNumber}-payment-history.pdf`;
-    const absolutePath = path.join(dir, fileName);
-
-    await new Promise<void>((resolve, reject) => {
+  ): Promise<Buffer> {
+    return new Promise<Buffer>((resolve, reject) => {
       const doc = new PDFDocument({ margin: 40, size: 'A4', layout: 'landscape' });
-      const stream = fs.createWriteStream(absolutePath);
-      doc.pipe(stream);
+      const chunks: Buffer[] = [];
+      doc.on('data', (chunk) => chunks.push(chunk as Buffer));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
 
       doc.fontSize(18).fillColor('#0A2E6F').text('LoanEx Payment History');
       doc.moveDown(0.4);
@@ -399,22 +393,12 @@ export class EmiHistoryService {
       doc.moveDown();
       doc.fontSize(10).fillColor('#6B7280').text('System-generated payment history from LoanEx.');
       doc.end();
-
-      stream.on('finish', () => resolve());
-      stream.on('error', reject);
     });
-
-    return absolutePath;
   }
 
-  private async writeHistoryExcel(
+  private async buildHistoryExcelBuffer(
     history: Awaited<ReturnType<EmiHistoryService['getPaymentHistory']>>,
-  ): Promise<string> {
-    const dir = path.resolve(process.cwd(), 'storage', 'statements');
-    fs.mkdirSync(dir, { recursive: true });
-    const fileName = `${history.summary.loanAccountNumber}-payment-history.xlsx`;
-    const absolutePath = path.join(dir, fileName);
-
+  ): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'LoanEx';
     const sheet = workbook.addWorksheet('Payment History');
@@ -448,24 +432,58 @@ export class EmiHistoryService {
     }
 
     sheet.getRow(1).font = { bold: true, color: { argb: 'FF0A2E6F' } };
-    await workbook.xlsx.writeFile(absolutePath);
-    return absolutePath;
+
+    const arrayBuffer = await workbook.xlsx.writeBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Best-effort local cache; never required for the download response.
+    try {
+      const dir = ensureWritableStorageDir('statements');
+      const fileName = `${history.summary.loanAccountNumber}-payment-history.xlsx`;
+      fs.writeFileSync(path.join(dir, fileName), buffer);
+    } catch (err) {
+      console.warn('[EMI History] Excel cache write skipped:', err);
+    }
+
+    return buffer;
   }
 
   private async writePaymentReceipt(payment: PaymentTransaction & {
     emiSchedule?: { emiNumber: number; loanAccount?: { loanAccountNumber: string; application?: { id: string; applicationNumber: string; productName: string | null } } } | null;
   }): Promise<string> {
-    const dir = path.resolve(process.cwd(), 'storage', 'emi-receipts');
-    fs.mkdirSync(dir, { recursive: true });
+    const dir = ensureWritableStorageDir('emi-receipts');
     const emiNumber = payment.emiSchedule?.emiNumber ?? 0;
     const loanNumber = payment.emiSchedule?.loanAccount?.loanAccountNumber ?? 'loan';
     const fileName = `${loanNumber}-payment-${payment.id.slice(0, 8)}-receipt.pdf`;
     const absolutePath = path.join(dir, fileName);
+    const buffer = await this.buildPaymentReceiptBuffer(payment);
+    fs.writeFileSync(absolutePath, buffer);
+    return absolutePath;
+  }
 
-    await new Promise<void>((resolve, reject) => {
+  private buildPaymentReceiptBuffer(payment: {
+    id: string;
+    amount: { toString(): string } | number;
+    paymentStatus: string;
+    razorpayPaymentId?: string | null;
+    razorpayOrderId?: string | null;
+    emiSchedule?: {
+      emiNumber: number;
+      loanAccount?: {
+        loanAccountNumber: string;
+        application?: { id?: string; applicationNumber?: string; productName?: string | null };
+      };
+    } | null;
+  }): Promise<Buffer> {
+    return new Promise<Buffer>((resolve, reject) => {
+      const emiNumber = payment.emiSchedule?.emiNumber ?? 0;
+      const loanNumber = payment.emiSchedule?.loanAccount?.loanAccountNumber ?? 'loan';
       const doc = new PDFDocument({ margin: 50 });
-      const stream = fs.createWriteStream(absolutePath);
-      doc.pipe(stream);
+      const chunks: Buffer[] = [];
+      doc.on('data', (chunk) => chunks.push(chunk as Buffer));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
       doc.fontSize(20).fillColor('#0A2E6F').text('LoanEx EMI Payment Receipt');
       doc.moveDown(0.5);
       doc.fontSize(12).fillColor('#111827');
@@ -480,11 +498,7 @@ export class EmiHistoryService {
       doc.moveDown();
       doc.fontSize(10).fillColor('#6B7280').text('System-generated receipt from LoanEx.');
       doc.end();
-      stream.on('finish', () => resolve());
-      stream.on('error', reject);
     });
-
-    return absolutePath;
   }
 }
 

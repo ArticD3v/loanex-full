@@ -16,50 +16,70 @@ export type LoanWithRelations = LoanAccount & {
 
 export class LoanRepository {
   findById(loanId: string) {
-    return jsonDb.findOne('loanAccount', { id: loanId });
+    return this.findLoanRowById(loanId);
   }
 
   findByIdForUser(loanId: string, userId: string) {
-    const loan = jsonDb.findOne('loanAccount', { id: loanId, userId });
+    const loan = this.findLoanRowById(loanId);
+    if (!loan || !this.loanOwnedBy(loan, userId)) return null;
     return this.enrich(loan);
   }
 
   findByUserId(userId: string) {
-    const results = jsonDb.findMany('loanAccount', { userId });
+    const results = this.listLoanRowsForUser(userId);
     return results.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
   }
 
-  listUserLoans(userId: string) {
-    const results = jsonDb.findMany('loanAccount', { userId });
+  async listUserLoans(userId: string) {
+    await Promise.all([
+      jsonDb.refreshCollection('loanAccount'),
+      jsonDb.refreshCollection('loan_accounts'),
+      jsonDb.refreshCollection('emi_schedules'),
+      jsonDb.refreshCollection('emi_applications'),
+    ]);
+    const results = this.listLoanRowsForUser(userId);
     return results
-      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .sort((a: any, b: any) => new Date(b.createdAt ?? b.created_at).getTime() - new Date(a.createdAt ?? a.created_at).getTime())
       .map((loan) => this.enrich(loan))
-      .filter(Boolean);
+      .filter(Boolean) as LoanWithRelations[];
   }
 
   findActiveByUserId(userId: string) {
-    const results = jsonDb.findMany('loanAccount', { userId, loanStatus: LoanStatus.ACTIVE });
+    const results = this.listLoanRowsForUser(userId).filter(
+      (r: any) => r.loanStatus === LoanStatus.ACTIVE,
+    );
     return results.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
   }
 
   findByApplicationId(applicationId: string) {
-    return jsonDb.findOne('loanAccount', { applicationId });
+    return (
+      jsonDb.findOne('loanAccount', { applicationId }) ??
+      jsonDb.findOne('loan_accounts', { applicationId })
+    );
   }
 
-  listForAdmin(status?: LoanStatus) {
-    const results = status ? jsonDb.findMany('loanAccount', { loanStatus: status }) : jsonDb.findMany('loanAccount', {});
+  async listForAdmin(status?: LoanStatus) {
+    await Promise.all([
+      jsonDb.refreshCollection('loanAccount'),
+      jsonDb.refreshCollection('loan_accounts'),
+      jsonDb.refreshCollection('emi_schedules'),
+      jsonDb.refreshCollection('emi_applications'),
+    ]);
+    const results = status
+      ? this.allLoanRows().filter((r: any) => r.loanStatus === status)
+      : this.allLoanRows();
     return results
-      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .sort((a: any, b: any) => new Date(b.createdAt ?? b.created_at).getTime() - new Date(a.createdAt ?? a.created_at).getTime())
       .map((loan) => this.enrich(loan))
-      .filter(Boolean);
+      .filter(Boolean) as LoanWithRelations[];
   }
 
   getForAdmin(loanId: string) {
-    return this.enrich(jsonDb.findOne('loanAccount', { id: loanId }));
+    return this.enrich(this.findLoanRowById(loanId));
   }
 
   countLoansToday(prefix: string) {
-    const results = jsonDb.findMany('loanAccount', {});
+    const results = this.allLoanRows();
     return results.filter((r: any) => r.loanAccountNumber?.startsWith(prefix)).length;
   }
 
@@ -70,8 +90,41 @@ export class LoanRepository {
     processingFee?: number;
     outstandingAmount?: number;
   }) {
-    jsonDb.update('loanAccount', { id: loanId }, data);
-    return this.enrich(jsonDb.findOne('loanAccount', { id: loanId }));
+    const collection = this.collectionForLoanId(loanId);
+    jsonDb.update(collection, { id: loanId }, data);
+    return this.enrich(this.findLoanRowById(loanId));
+  }
+
+  private loanOwnedBy(loan: any, userId: string): boolean {
+    if (!loan || !userId) return false;
+    return loan.userId === userId || loan.user_id === userId;
+  }
+
+  private findLoanRowById(loanId: string) {
+    return (
+      jsonDb.findOne('loanAccount', { id: loanId }) ??
+      jsonDb.findOne('loan_accounts', { id: loanId })
+    );
+  }
+
+  private collectionForLoanId(loanId: string): string {
+    if (jsonDb.findOne('loanAccount', { id: loanId })) return 'loanAccount';
+    if (jsonDb.findOne('loan_accounts', { id: loanId })) return 'loan_accounts';
+    return 'loanAccount';
+  }
+
+  private allLoanRows(): any[] {
+    const primary = jsonDb.findMany('loanAccount');
+    const secondary = jsonDb.findMany('loan_accounts');
+    const byId = new Map<string, any>();
+    for (const row of [...primary, ...secondary]) {
+      if (row?.id) byId.set(row.id, row);
+    }
+    return Array.from(byId.values());
+  }
+
+  private listLoanRowsForUser(userId: string): any[] {
+    return this.allLoanRows().filter((row) => this.loanOwnedBy(row, userId));
   }
 
   /**
@@ -132,20 +185,25 @@ export class LoanRepository {
     const order = applicationRow
       ? jsonDb.findOne('orders', { applicationId: applicationRow.id })
       : null;
-    const user = jsonDb.findOne('users', { id: loan.userId });
-    const profile = jsonDb.findOne('profiles', { id: loan.userId });
-    const schedule = jsonDb
-      .findMany('emi_schedules', { loanAccountId: loan.id })
+    const user = jsonDb.findOne('users', { id: loan.userId ?? loan.user_id });
+    const profile = jsonDb.findOne('profiles', { id: loan.userId ?? loan.user_id });
+    const loanId = loan.id;
+    const schedule = [
+      ...jsonDb.findMany('emi_schedules', { loanAccountId: loanId }),
+      ...jsonDb.findMany('emi_schedules', { loan_account_id: loanId }),
+    ]
+      .filter((row, index, arr) => arr.findIndex((r) => r.id === row.id) === index)
       .sort((a: any, b: any) => Number(a.emiNumber) - Number(b.emiNumber));
     return {
       ...loan,
-      application: applicationRow ? { ...applicationRow, order } : null,
+      userId: loan.userId ?? loan.user_id,
+      application: applicationRow ? { ...applicationRow, order } : (null as any),
       user: user || profile
         ? {
-            id: loan.userId,
+            id: loan.userId ?? loan.user_id,
             fullName: user?.fullName ?? profile?.fullName ?? 'Customer',
-            mobile: user?.mobile ?? profile?.mobileNumber ?? profile?.mobile_number ?? '',
-            email: user?.email ?? '',
+            mobile: user?.phone ?? user?.mobile ?? profile?.mobileNumber ?? profile?.mobile_number ?? '',
+            email: user?.email ?? profile?.email ?? '',
           }
         : null,
       schedule: schedule ?? [],
@@ -177,8 +235,10 @@ export class LoanRepository {
       remainingBalance: number;
     }>;
   }) {
-    const existing = jsonDb.findOne('loanAccount', { applicationId: input.applicationId });
-    if (existing) return existing;
+    const existing =
+      jsonDb.findOne('loanAccount', { applicationId: input.applicationId }) ??
+      jsonDb.findOne('loan_accounts', { applicationId: input.applicationId });
+    if (existing) return this.enrich(existing);
 
     const loan = jsonDb.insert('loanAccount', {
       loanAccountNumber: input.loanAccountNumber,
@@ -219,6 +279,72 @@ export class LoanRepository {
   async updateStatus(loanId: string, loanStatus: LoanStatus) {
     jsonDb.update('loanAccount', { id: loanId }, { loanStatus });
     return jsonDb.findOne('loanAccount', { id: loanId });
+  }
+
+  /**
+   * Replace EMI rows for a loan that has no payments yet.
+   * Used to correct schedules built from a stale 0%-style EMI.
+   */
+  async replaceUnpaidSchedule(
+    loanId: string,
+    input: {
+      emiAmount: number;
+      totalInterest: number;
+      totalPayable: number;
+      outstandingAmount: number;
+      nextEmiDueDate?: Date | null;
+      schedule: Array<{
+        emiNumber: number;
+        dueDate: Date;
+        principalAmount: number;
+        interestAmount: number;
+        emiAmount: number;
+        remainingBalance: number;
+      }>;
+    },
+  ) {
+    const loan = this.findLoanRowById(loanId);
+    if (!loan) return null;
+
+    const existingRows = [
+      ...jsonDb.findMany('emi_schedules', { loanAccountId: loanId }),
+      ...jsonDb.findMany('emi_schedules', { loan_account_id: loanId }),
+    ];
+    const hasPaid = existingRows.some((row: any) => {
+      const status = String(row.paymentStatus ?? row.payment_status ?? '').toUpperCase();
+      return status === 'PAID' || status === 'PARTIAL';
+    });
+    if (hasPaid || Number(loan.paidAmount ?? 0) > 0) {
+      return this.enrich(loan);
+    }
+
+    for (const row of existingRows) {
+      if (row?.id) jsonDb.delete('emi_schedules', { id: row.id });
+    }
+
+    const collection = this.collectionForLoanId(loanId);
+    jsonDb.update(collection, { id: loanId }, {
+      emiAmount: input.emiAmount,
+      totalInterest: input.totalInterest,
+      totalPayable: input.totalPayable,
+      outstandingAmount: input.outstandingAmount,
+      nextEmiDueDate: input.nextEmiDueDate ?? input.schedule[0]?.dueDate ?? null,
+    });
+
+    for (const row of input.schedule) {
+      jsonDb.insert('emi_schedules', {
+        loanAccountId: loanId,
+        emiNumber: row.emiNumber,
+        dueDate: row.dueDate,
+        principalAmount: row.principalAmount,
+        interestAmount: row.interestAmount,
+        emiAmount: row.emiAmount,
+        remainingBalance: row.remainingBalance,
+        paymentStatus: EmiPaymentStatus.PENDING,
+      });
+    }
+
+    return this.enrich(this.findLoanRowById(loanId));
   }
 
   async markOverdue(loanAccountId: string, asOf: Date = new Date()) {

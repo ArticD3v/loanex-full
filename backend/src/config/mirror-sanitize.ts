@@ -214,6 +214,7 @@ function sanitizeBannersRow(item: Record<string, any>, mode: 'insert' | 'update'
     badgeText: item.badgeText ?? item.badge_text ?? '',
     image_url: imageUrl,
     link: item.link ?? '/',
+    placement: item.placement ?? 'home',
     sort_order: item.sort_order ?? item.sortOrder ?? 0,
     status: item.status ?? 'active',
     createdAt: item.createdAt ?? (mode === 'insert' ? now : undefined),
@@ -231,6 +232,7 @@ function sanitizeCategoriesRow(item: Record<string, any>, mode: 'insert' | 'upda
     icon: item.icon ?? '',
     color: item.color ?? '',
     bgColor: item.bgColor ?? '',
+    parentId: item.parentId ?? item.parent_id ?? null,
     status: item.status ?? 'active',
     sortOrder: item.sortOrder ?? 0,
     createdAt: item.createdAt ?? (mode === 'insert' ? now : undefined),
@@ -329,6 +331,92 @@ export function normalizeOrderRow(row: Record<string, any>): Record<string, any>
   };
 }
 
+/** Only columns on public.paymentTransaction — purpose/status break PostgREST. */
+function sanitizePaymentTransactionRow(
+  item: Record<string, any>,
+  mode: 'insert' | 'update',
+): Record<string, any> {
+  const now = new Date().toISOString();
+  return pickDefined({
+    ...(mode === 'insert' && item.id != null && String(item.id).trim() !== ''
+      ? { id: String(item.id) }
+      : {}),
+    applicationId: item.applicationId === undefined ? undefined : item.applicationId,
+    userId: item.userId,
+    razorpayOrderId: item.razorpayOrderId,
+    razorpayPaymentId: item.razorpayPaymentId,
+    razorpaySignature: item.razorpaySignature,
+    amount: item.amount,
+    currency: item.currency,
+    paymentStatus: item.paymentStatus ?? item.status,
+    paymentType: item.paymentType ?? item.purpose,
+    receiptPath: item.receiptPath,
+    refundId: item.refundId,
+    refundStatus: item.refundStatus,
+    refundAmount: item.refundAmount,
+    emiScheduleId: item.emiScheduleId,
+    paidAt: item.paidAt,
+    createdAt: item.createdAt ?? (mode === 'insert' ? now : undefined),
+    updatedAt: item.updatedAt ?? now,
+  });
+}
+
+function sanitizeJobApplicationsRow(
+  item: Record<string, any>,
+  mode: 'insert' | 'update',
+): Record<string, any> {
+  const now = new Date().toISOString();
+  return pickDefined({
+    ...(mode === 'insert' && item.id != null && String(item.id).trim() !== ''
+      ? { id: String(item.id) }
+      : {}),
+    jobId: item.jobId ?? item.job_id,
+    fullName: item.fullName ?? item.full_name,
+    email: item.email,
+    phone: item.phone,
+    location: item.location ?? null,
+    experience: item.experience ?? null,
+    currentJobTitle: item.currentJobTitle ?? item.current_job_title ?? null,
+    skills: item.skills ?? null,
+    resumeUrl: item.resumeUrl ?? item.resume_url,
+    resumeFileName: item.resumeFileName ?? item.resume_file_name ?? null,
+    linkedinUrl: item.linkedinUrl ?? item.linkedin_url ?? null,
+    portfolioUrl: item.portfolioUrl ?? item.portfolio_url ?? null,
+    about: item.about,
+    status: item.status ?? 'Applied',
+    createdAt: item.createdAt ?? (mode === 'insert' ? now : undefined),
+    updatedAt: item.updatedAt ?? now,
+  });
+}
+
+function sanitizeGeneralApplicationsRow(
+  item: Record<string, any>,
+  mode: 'insert' | 'update',
+): Record<string, any> {
+  const now = new Date().toISOString();
+  return pickDefined({
+    ...(mode === 'insert' && item.id != null && String(item.id).trim() !== ''
+      ? { id: String(item.id) }
+      : {}),
+    fullName: item.fullName ?? item.full_name,
+    email: item.email,
+    phone: item.phone,
+    location: item.location ?? null,
+    experience: item.experience ?? null,
+    currentJobTitle: item.currentJobTitle ?? item.current_job_title ?? null,
+    skills: item.skills ?? null,
+    preferredDepartment: item.preferredDepartment ?? item.preferred_department,
+    resumeUrl: item.resumeUrl ?? item.resume_url,
+    resumeFileName: item.resumeFileName ?? item.resume_file_name ?? null,
+    linkedinUrl: item.linkedinUrl ?? item.linkedin_url ?? null,
+    portfolioUrl: item.portfolioUrl ?? item.portfolio_url ?? null,
+    about: item.about,
+    status: item.status ?? 'Applied',
+    createdAt: item.createdAt ?? (mode === 'insert' ? now : undefined),
+    updatedAt: item.updatedAt ?? now,
+  });
+}
+
 /** Strip unknown keys for collections that have broken on schema mismatch. */
 export function sanitizeMirrorPayload(
   collectionName: string,
@@ -354,6 +442,12 @@ export function sanitizeMirrorPayload(
       return sanitizeCategoriesRow(item, mode);
     case 'orders':
       return sanitizeOrdersRow(item, mode);
+    case 'paymentTransaction':
+      return sanitizePaymentTransactionRow(item, mode);
+    case 'job_applications':
+      return sanitizeJobApplicationsRow(item, mode);
+    case 'general_applications':
+      return sanitizeGeneralApplicationsRow(item, mode);
     default: {
       // Drop undefined values; keep the rest for tables that accept flexible JSON.
       const copy = { ...item };

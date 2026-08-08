@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { createRateLimiter } from '../../../common/middleware/rate-limiter';
 import { authenticate } from '../../../common/middleware/authenticate';
+import { requirePermission } from '../../../common/middleware/require-permission';
 import { validateRequest } from '../../../common/middleware/validate';
 import { asyncHandler } from '../../../common/utils/async-handler';
 import { env } from '../../../config/env';
@@ -32,8 +33,23 @@ paymentRouter.post(
   validateRequest(verifyPaymentBodySchema),
   asyncHandler(paymentController.verify),
 );
+
+// Lifetime one-time KYC fee — register before /:applicationId
+paymentRouter.get('/kyc-fee/status', asyncHandler(paymentController.getKycFeeStatus));
+paymentRouter.post('/kyc-fee/create-order', asyncHandler(paymentController.createKycFeeOrder));
+paymentRouter.post(
+  '/kyc-fee/verify',
+  validateRequest(verifyPaymentBodySchema),
+  asyncHandler(paymentController.verifyKycFeePayment),
+);
+
 paymentRouter.get('/fetch/:paymentId', asyncHandler(paymentController.fetchPayment));
-paymentRouter.post('/refund', asyncHandler(paymentController.refund));
+// Refunds are admin/ops only — customers must not self-refund SUCCESS payments.
+paymentRouter.post(
+  '/refund',
+  requirePermission('orders.edit'),
+  asyncHandler(paymentController.refund),
+);
 
 if (env.NODE_ENV !== 'production') {
   paymentRouter.post(

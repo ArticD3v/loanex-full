@@ -17,6 +17,7 @@ export const MODULE_KEYS = [
   'masters',
   'settings',
   'notifications',
+  'careers',
 ] as const;
 
 export type ModuleKey = (typeof MODULE_KEYS)[number];
@@ -37,6 +38,7 @@ export const MODULES: { key: ModuleKey; label: string; description: string }[] =
   { key: 'masters', label: 'Master Data', description: 'Suppliers, dealers, warehouses' },
   { key: 'settings', label: 'Settings', description: 'Portal settings' },
   { key: 'notifications', label: 'Notifications', description: 'Push & in-app notifications' },
+  { key: 'careers', label: 'Careers', description: 'Job openings & hiring' },
 ];
 
 export const ACTION_LABELS: Record<ActionKey, string> = {

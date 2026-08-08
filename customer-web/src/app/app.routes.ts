@@ -61,6 +61,11 @@ export const routes: Routes = [
           import('./features/support/support.routes').then((m) => m.SUPPORT_ROUTES),
       },
       {
+        path: 'careers',
+        loadChildren: () =>
+          import('./features/careers/careers.routes').then((m) => m.CAREERS_ROUTES),
+      },
+      {
         path: 'profile',
         loadChildren: () =>
           import('./features/profile/profile.routes').then((m) => m.PROFILE_ROUTES),
@@ -207,6 +212,11 @@ export const routes: Routes = [
             (m) => m.NotificationCenterComponent,
           ),
         title: 'Notifications — LoanEx',
+      },
+      {
+        path: 'emi',
+        pathMatch: 'full',
+        redirectTo: 'verification',
       },
       {
         path: 'emi/pending-review',

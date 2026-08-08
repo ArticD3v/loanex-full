@@ -101,6 +101,32 @@ export class PaymentController {
     );
     return sendSuccess(res, data, 'Dev payment signature created');
   };
+
+  getKycFeeStatus = async (req: Request, res: Response) => {
+    const data = await paymentService.getKycFeeStatus(
+      requireUserId(req as AuthenticatedRequest),
+    );
+    return sendSuccess(res, data, 'KYC verification fee status fetched');
+  };
+
+  createKycFeeOrder = async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    const data = await paymentService.createKycFeeOrder(requireUserId(authReq), {
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+    return sendSuccess(res, data, 'KYC verification fee order created', 201);
+  };
+
+  verifyKycFeePayment = async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    const body = req.body as VerifyPaymentBody;
+    const data = await paymentService.verifyKycFeePayment(requireUserId(authReq), body, {
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+    return sendSuccess(res, data, 'KYC verification fee payment verified');
+  };
 }
 
 export const paymentController = new PaymentController();

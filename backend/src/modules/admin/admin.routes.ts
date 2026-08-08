@@ -14,10 +14,20 @@ import { notificationController } from '../notifications/controller/notification
 import { adminCreateNotificationSchema } from '../notifications/validator/notification.validator';
 import { orderController } from '../order/controller/order.controller';
 import { adminUpdateOrderStatusSchema } from '../order/validator/order.validator';
+import { adminJobsRouter } from '../careers';
 
 export const adminRouter = Router();
 
 adminRouter.use(authenticate);
+
+// Destructive wipe — never mount in production.
+if (process.env.NODE_ENV !== 'production') {
+  adminRouter.post(
+    '/dev/clear-orders-emi',
+    requirePermission('users.edit'),
+    asyncHandler(adminController.clearOrdersAndEmi),
+  );
+}
 
 // —— Users ——
 adminRouter.get('/users', requirePermission('users.view'), asyncHandler(adminController.listUsers));
@@ -140,3 +150,6 @@ for (const collection of [
   adminRouter.put(`/${collection}/:id`, requirePermission('masters.edit'), asyncHandler(adminController.updateMaster));
   adminRouter.delete(`/${collection}/:id`, requirePermission('masters.delete'), asyncHandler(adminController.deleteMaster));
 }
+
+// —— Careers job openings (Admin Mobile App) ——
+adminRouter.use('/jobs', adminJobsRouter);

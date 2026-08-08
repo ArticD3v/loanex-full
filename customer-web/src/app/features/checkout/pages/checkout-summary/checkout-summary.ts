@@ -9,7 +9,6 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { formatInr } from '../../../../shared/utils/currency';
 import { EmiPlanSelectionService } from '../../../emi/services/emi-plan-selection.service';
-import { calculateEmiBreakdown } from '../../../products/utils/emi-calc.helper';
 import { CheckoutIntentService } from '../../services/checkout-intent.service';
 import {
   CheckoutApiService,
@@ -145,24 +144,32 @@ export class CheckoutSummaryComponent implements OnInit {
           this.submitting.set(false);
           if (result.nextStep === 'EMI_VERIFICATION') {
             const unitPrice = result.summary.pricing.unitPrice;
-            const downPayment = Math.round(unitPrice * 0.2);
-            const tenure = 6;
-            const emi = calculateEmiBreakdown({
-              productPrice: unitPrice,
-              downPayment,
-              processingFee: 0,
-              tenureMonths: tenure,
-            });
-            this.emiPlan.save({
-              productId: result.summary.product.id,
-              variantId: result.summary.product.variantId ?? this.variantId() ?? undefined,
-              productName: result.summary.product.name,
-              sellingPrice: unitPrice,
-              requestedAmount: emi.loanAmount,
-              requestedDownPayment: downPayment,
-              requestedTenure: tenure,
-              estimatedMonthlyEmi: emi.monthlyEmi,
-            });
+            const productId = result.summary.product.id;
+            const existing = this.emiPlan.get();
+            // Prefer PDP-selected plan for this product — never invent terms.
+            if (
+              existing &&
+              existing.productId === productId &&
+              existing.requestedDownPayment > 0 &&
+              existing.requestedTenure > 0
+            ) {
+              this.emiPlan.save({
+                ...existing,
+                productName: result.summary.product.name,
+                sellingPrice: unitPrice,
+                variantId:
+                  result.summary.product.variantId ??
+                  this.variantId() ??
+                  existing.variantId,
+              });
+            } else {
+              this.submitting.set(false);
+              this.error.set(
+                'Please choose an EMI plan on the product page before continuing checkout.',
+              );
+              void this.router.navigate(['/products', productId]);
+              return;
+            }
           }
           void this.router.navigateByUrl(
             result.nextStep === 'DIRECT_PAYMENT'
