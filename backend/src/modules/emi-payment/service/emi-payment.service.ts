@@ -25,6 +25,7 @@ import {
 } from '../../payment/service/razorpay.service';
 import { auditLogService } from '../../verification/service/audit-log.service';
 import { resolveProductImage } from '../../../common/utils/product-assets';
+import { jsonDb } from '../../../config/json-db';
 import { emiPaymentRepository } from '../repository/emi-payment.repository';
 
 function toNumber(value: { toString(): string } | number | null | undefined): number {
@@ -492,20 +493,63 @@ export class EmiPaymentService {
       throw new BadRequestError('loanId query parameter is required.');
     }
 
-    const items = await emiPaymentRepository.listEmiPaymentsForLoan(loanId);
-    return {
-      total: items.length,
-      items: items.map((item) => ({
+    const emiItems = await emiPaymentRepository.listEmiPaymentsForLoan(loanId);
+
+    // Include the loan's down-payment transaction so the ledger shows the full
+    // lifecycle (down payment + each EMI instalment), not just instalments.
+    // The DP transaction is keyed by the loan's applicationId, not by an
+    // emiScheduleId, so it never appears in listEmiPaymentsForLoan.
+    const loan = jsonDb.findOne('loanAccount', { id: loanId });
+    const downPaymentItems = loan?.applicationId
+      ? jsonDb
+          .findMany('paymentTransaction', {
+            applicationId: loan.applicationId,
+            paymentType: PaymentType.DOWN_PAYMENT,
+          })
+          .sort(
+            (a: any, b: any) =>
+              new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime(),
+          )
+      : [];
+
+    const items = [
+      ...downPaymentItems.map((p: any) => ({
+        id: p.id,
+        type: 'DOWN_PAYMENT' as const,
+        emiScheduleId: null,
+        emiNumber: null,
+        amount: toNumber(p.amount),
+        paymentStatus: p.paymentStatus,
+        razorpayOrderId: p.razorpayOrderId ?? null,
+        razorpayPaymentId: p.razorpayPaymentId ?? null,
+        paidAt: p.paidAt ?? null,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      })),
+      ...emiItems.map((item) => ({
         id: item.id,
+        type: 'EMI' as const,
         emiScheduleId: item.emiScheduleId,
         emiNumber: item.emiSchedule?.emiNumber ?? null,
         amount: toNumber(item.amount),
         paymentStatus: item.paymentStatus,
         razorpayOrderId: item.razorpayOrderId,
         razorpayPaymentId: item.razorpayPaymentId,
+        // completeEmiPayment stamps paidAt on the emi_schedules row, not on
+        // the paymentTransaction — prefer the schedule's paidAt for a real
+        // capture time, falling back to the transaction row / created time.
+        paidAt: item.emiSchedule?.paidAt ?? item.paidAt ?? null,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
       })),
+    ].sort(
+      (a: any, b: any) =>
+        new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime(),
+    );
+
+    return {
+      total: items.length,
+      items,
     };
   }
 
