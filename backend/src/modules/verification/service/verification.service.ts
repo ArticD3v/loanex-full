@@ -53,9 +53,69 @@ export class VerificationService {
     };
   }
 
-  async digilockerGenerate(userId: string, aadhaarNumber?: string) {
+  /**
+   * Prefer the caller's browsing origin when it is in CORS_ORIGINS / FRONTEND_URL.
+   * Never invent an arbitrary host — prevents DigiLocker returning to a different
+   * origin than the one holding the customer's auth tokens.
+   */
+  private resolveFrontendOrigin(requestedOrigin?: string): string {
+    const fallback = (env.FRONTEND_URL || 'https://www.mrloanex.com').replace(/\/$/, '');
+    const allowed = String(env.CORS_ORIGINS || '')
+      .split(',')
+      .map((s) => s.trim().replace(/\/$/, ''))
+      .filter(Boolean);
+
+    let fallbackOrigin = fallback;
+    try {
+      fallbackOrigin = new URL(fallback).origin;
+    } catch {
+      /* keep fallback string */
+    }
+
+    if (!requestedOrigin?.trim()) {
+      return fallbackOrigin;
+    }
+
+    try {
+      const parsed = new URL(requestedOrigin.trim());
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return fallbackOrigin;
+      }
+      const origin = parsed.origin;
+      if (origin === fallbackOrigin || allowed.includes(origin)) {
+        return origin;
+      }
+    } catch {
+      /* ignore invalid */
+    }
+
+    return fallbackOrigin;
+  }
+
+  async digilockerGenerate(
+    userId: string,
+    aadhaarNumber?: string,
+    options?: { frontendOrigin?: string },
+  ) {
     const user = await verificationRepository.findUserById(userId);
     if (!user) throw new NotFoundError('User not found');
+
+    const existingKyc = await verificationRepository.findKycByUserId(userId);
+    if (existingKyc?.aadharVerified) {
+      const status = await this.getAadhaarStatus(userId);
+      return {
+        alreadyVerified: true as const,
+        verified: true as const,
+        client_id: status.client_id,
+        digilocker_url: null,
+        url: null,
+        token: status.client_id,
+        expiry_seconds: 0,
+        masked_aadhaar: status.masked_aadhaar,
+        name: status.name,
+        message: 'Aadhaar is already verified for this account.',
+      };
+    }
 
     const profileId = user.profiles?.id;
     if (!profileId) {
@@ -63,8 +123,9 @@ export class VerificationService {
     }
 
     const creds = requireDigilockerCredentials();
-    const frontend = env.FRONTEND_URL || 'https://loanex.vercel.app';
-    const redirectUrl = `${frontend}/verification`;
+    const frontend = this.resolveFrontendOrigin(options?.frontendOrigin);
+    // Dedicated callback so DigiLocker returns never hit the app `**` → Home catch-all.
+    const redirectUrl = `${frontend}/verification/digilocker-callback`;
     const logoUrl = `${frontend}/assets/logo.png`;
 
     const payload: Record<string, any> = {
@@ -108,6 +169,9 @@ export class VerificationService {
     return {
       client_id: clientId,
       digilocker_url: url ?? null,
+      url: url ?? null,
+      token: clientId,
+      expiry_seconds: 600,
       message: 'DigiLocker URL generated. Redirect user to complete Aadhaar verification.',
     };
   }
@@ -115,6 +179,25 @@ export class VerificationService {
   async digilockerFetch(userId: string, clientId: string) {
     const user = await verificationRepository.findUserById(userId);
     if (!user) throw new NotFoundError('User not found');
+
+    const existingKyc = await verificationRepository.findKycByUserId(userId);
+    if (existingKyc?.aadharVerified) {
+      const status = await this.getAadhaarStatus(userId);
+      return {
+        alreadyVerified: true as const,
+        verified: true as const,
+        status: 'ok',
+        data: existingKyc.aadharRawData ?? null,
+        name: status.name ?? existingKyc.fullName ?? '',
+        gender: status.gender ?? existingKyc.gender ?? '',
+        dob: status.dob ?? existingKyc.dob ?? '',
+        masked_aadhaar: status.masked_aadhaar ?? existingKyc.aadhar_number ?? '',
+        father_name: '',
+        address: existingKyc.address ?? {},
+        profile_image: status.profileImage ?? '',
+        message: 'Aadhaar is already verified for this account.',
+      };
+    }
 
     const profileId = user.profiles?.id;
     if (!profileId) {
@@ -193,6 +276,8 @@ export class VerificationService {
 
     return {
       verified: true,
+      status: 'ok',
+      data: d,
       name: xml.full_name ?? meta.name ?? '',
       gender: xml.gender ?? meta.gender ?? '',
       dob: xml.dob ?? meta.dob ?? '',
@@ -232,6 +317,17 @@ export class VerificationService {
     const kyc = await verificationRepository.findKycByUserId(userId);
     if (!kyc?.aadharVerified) {
       throw new BadRequestError('Aadhaar must be verified before fetching credit report.');
+    }
+
+    if (kyc.pan_verified) {
+      return {
+        alreadyVerified: true as const,
+        verified: true as const,
+        score: Number(kyc.cibil_score ?? 0),
+        message: 'PAN is already verified for this account.',
+        data: null,
+        nextStep: 'BANK_VERIFICATION' as const,
+      };
     }
 
     const { mobile_no, pan, first_name, last_name, dob } = payload;

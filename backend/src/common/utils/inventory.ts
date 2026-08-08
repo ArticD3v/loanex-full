@@ -1,5 +1,14 @@
 import { jsonDb } from '../../config/json-db';
 import { supabase } from '../../config/supabase';
+import { env } from '../../config/env';
+import { getMongoDb, isMongoConfigured } from '../../config/mongo';
+
+function useMongoPrimary(): boolean {
+  return (
+    env.DATA_PRIMARY === 'mongodb' ||
+    (env.DATA_PRIMARY === 'auto' && isMongoConfigured())
+  );
+}
 
 /** Quantity at or below which a product reads as "Low Stock". */
 export const LOW_STOCK_THRESHOLD = 5;
@@ -161,12 +170,45 @@ export async function decrementStockDurable(
 
     jsonDb.updateLocal('products', { id: item.productId }, buildLocalPayload(c));
 
-    // 1) Product-level stock — atomic when the RPC is deployed, else an
-    //    absolute update. Retry once, then log and continue rather than throw
-    //    (a confirmed, paid order must not 500).
     const now = new Date().toISOString();
     let stockPersisted = false;
 
+    if (useMongoPrimary()) {
+      try {
+        const db = await getMongoDb();
+        const result = await db.collection('products').findOneAndUpdate(
+          { _id: item.productId as any },
+          {
+            $inc: { stock: -c.quantity },
+            $set: {
+              updatedAt: now,
+              ...(item.variantId && c.variantBefore !== undefined
+                ? { variants: c.variants }
+                : {}),
+            },
+          },
+          { returnDocument: 'after' },
+        );
+        stockPersisted = Boolean(result);
+        if (result && typeof (result as any).stock === 'number' && (result as any).stock < 0) {
+          await db.collection('products').updateOne(
+            { _id: item.productId as any },
+            { $set: { stock: 0, updatedAt: now } },
+          );
+        }
+      } catch (e) {
+        console.error(
+          `[Inventory] Mongo durable stock update FAILED for ${item.productId} (${c.before}->${c.after}): ${String(e)}`,
+        );
+      }
+      results.push({
+        ...toResult(c),
+        ...(stockPersisted ? { persisted: true as const } : {}),
+      });
+      continue;
+    }
+
+    // Legacy Supabase path (PostgreSQL kept intact; used only when Mongo is not primary)
     const viaRpc = async () =>
       supabase.rpc('decrement_product_stock', {
         p_product_id: item.productId,
@@ -175,11 +217,6 @@ export async function decrementStockDurable(
 
     let rpc = await viaRpc();
     if (rpc.error) {
-      // Any RPC error (missing function PGRST202, transient network/DB failure)
-      // falls back to an absolute write of the same computed value. That is
-      // idempotent even if the RPC actually committed before a lost response,
-      // because c.after is already the post-decrement value in memory — so no
-      // double-decrement, strictly more durable than logging and giving up.
       console.error(
         `[Inventory] durable stock RPC failed for ${item.productId} (${c.before}->${c.after}): ${rpc.error.message} — falling back to absolute write`,
       );
@@ -198,13 +235,9 @@ export async function decrementStockDurable(
         stockPersisted = true;
       }
     } else {
-      // data is the new stock returned by the RPC. null means the product row
-      // does not exist in Supabase (e.g. a mirror-mode-only product) — nothing
-      // was persisted; 0 is a real persisted value (sold out).
       stockPersisted = rpc.data != null;
     }
 
-    // 2) Variant sub-stock — best-effort (variants JSONB column may be absent).
     if (item.variantId && c.variantBefore !== undefined) {
       try {
         const { error: variantError } = await supabase

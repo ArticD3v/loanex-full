@@ -28,14 +28,16 @@ export class LoanController {
     const file = await loanService.getStatement(requireUserId(req as AuthenticatedRequest));
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
-    return res.sendFile(file.absolutePath);
+    res.setHeader('Content-Length', String(file.buffer.length));
+    return res.send(file.buffer);
   };
 
   getAgreement = async (req: Request, res: Response) => {
     const file = await loanService.getAgreement(requireUserId(req as AuthenticatedRequest));
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
-    return res.sendFile(file.absolutePath);
+    res.setHeader('Content-Length', String(file.buffer.length));
+    return res.send(file.buffer);
   };
 
   listForAdmin = async (req: Request, res: Response) => {

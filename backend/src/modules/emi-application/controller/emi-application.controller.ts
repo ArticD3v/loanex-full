@@ -15,6 +15,16 @@ function parseEvent(req: Request): 'viewed' | 'refreshed' | undefined {
   return undefined;
 }
 
+function parseApplicationId(req: Request): string | undefined {
+  const q = typeof req.query.applicationId === 'string' ? req.query.applicationId.trim() : '';
+  if (q) return q;
+  const bodyId =
+    typeof (req.body as { applicationId?: string })?.applicationId === 'string'
+      ? String((req.body as { applicationId?: string }).applicationId).trim()
+      : '';
+  return bodyId || undefined;
+}
+
 export class EmiApplicationController {
   getReview = async (req: Request, res: Response) => {
     const data = await emiApplicationService.getReview(
@@ -42,9 +52,23 @@ export class EmiApplicationController {
       {
         event: parseEvent(req) ?? 'viewed',
         ipAddress: req.ip,
+        applicationId: parseApplicationId(req),
       },
     );
     return sendSuccess(res, data, 'Current EMI application fetched');
+  };
+
+  getById = async (req: Request, res: Response) => {
+    const applicationId = String(req.params.applicationId ?? '');
+    const data = await emiApplicationService.getById(
+      requireUserId(req as AuthenticatedRequest),
+      applicationId,
+      {
+        event: parseEvent(req) ?? 'viewed',
+        ipAddress: req.ip,
+      },
+    );
+    return sendSuccess(res, data, 'EMI application fetched');
   };
 
   getStatus = async (req: Request, res: Response) => {
@@ -61,7 +85,7 @@ export class EmiApplicationController {
   getCurrentOffer = async (req: Request, res: Response) => {
     const data = await emiApplicationService.getCurrentOffer(
       requireUserId(req as AuthenticatedRequest),
-      { ipAddress: req.ip },
+      { ipAddress: req.ip, applicationId: parseApplicationId(req) },
     );
     return sendSuccess(res, data, 'Approved loan offer fetched');
   };
@@ -71,6 +95,7 @@ export class EmiApplicationController {
     const data = await emiApplicationService.acceptOffer(requireUserId(authReq), {
       ipAddress: req.ip,
       userAgent: req.get('user-agent'),
+      applicationId: parseApplicationId(req),
     });
     return sendSuccess(res, data, 'Loan offer accepted successfully');
   };
@@ -80,8 +105,31 @@ export class EmiApplicationController {
     const data = await emiApplicationService.declineOffer(requireUserId(authReq), {
       ipAddress: req.ip,
       userAgent: req.get('user-agent'),
+      applicationId: parseApplicationId(req),
     });
     return sendSuccess(res, data, 'Loan offer declined');
+  };
+
+  savePlanDraft = async (req: Request, res: Response) => {
+    const data = await emiApplicationService.savePlanDraft(
+      requireUserId(req as AuthenticatedRequest),
+      req.body,
+    );
+    return sendSuccess(res, data, 'EMI plan draft saved');
+  };
+
+  getPlanDraft = async (req: Request, res: Response) => {
+    const data = await emiApplicationService.getPlanDraft(
+      requireUserId(req as AuthenticatedRequest),
+    );
+    return sendSuccess(res, data, 'EMI plan draft fetched');
+  };
+
+  clearPlanDraft = async (req: Request, res: Response) => {
+    const data = await emiApplicationService.clearPlanDraft(
+      requireUserId(req as AuthenticatedRequest),
+    );
+    return sendSuccess(res, data, 'EMI plan draft cleared');
   };
 
   devApprove = async (req: Request, res: Response) => {

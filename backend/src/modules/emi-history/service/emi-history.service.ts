@@ -456,7 +456,7 @@ export class EmiHistoryService {
     const loanNumber = payment.emiSchedule?.loanAccount?.loanAccountNumber ?? 'loan';
     const fileName = `${loanNumber}-payment-${payment.id.slice(0, 8)}-receipt.pdf`;
     const absolutePath = path.join(dir, fileName);
-    const buffer = await this.buildPaymentReceiptBuffer(payment);
+    const buffer = await this.buildPaymentReceiptBuffer(payment as any);
     fs.writeFileSync(absolutePath, buffer);
     return absolutePath;
   }

@@ -7,3 +7,11 @@ coverage
 storage
 .vercel
 .env*
+
+.env.from-vercel
+.env.vercel-pull
+.env.runtime
+.env.decrypted
+
+.env.local
+.env.*.local

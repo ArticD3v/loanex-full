@@ -6,7 +6,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Dialog } from 'primeng/dialog';
 import { formatInr } from '../../../../shared/utils/currency';
 import {
@@ -24,12 +24,14 @@ import {
 export class ApprovedLoanOfferComponent implements OnInit {
   private readonly emiApi = inject(EmiApplicationService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly loading = signal(true);
   readonly submitting = signal(false);
   readonly error = signal<string | null>(null);
   readonly offer = signal<ApprovedLoanOffer | null>(null);
   readonly declineVisible = signal(false);
+  private applicationId: string | undefined;
 
   readonly hasInterestRate = computed(() => {
     const rate = this.offer()?.interestRate;
@@ -42,6 +44,8 @@ export class ApprovedLoanOfferComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.applicationId =
+      this.route.snapshot.queryParamMap.get('applicationId') ?? undefined;
     this.loadOffer();
   }
 
@@ -66,15 +70,21 @@ export class ApprovedLoanOfferComponent implements OnInit {
     return `${value}% p.a.`;
   }
 
+  private appQuery(): Record<string, string> | undefined {
+    return this.applicationId ? { applicationId: this.applicationId } : undefined;
+  }
+
   acceptOffer(): void {
     if (this.submitting()) return;
     this.submitting.set(true);
     this.error.set(null);
 
-    this.emiApi.acceptOffer().subscribe({
+    this.emiApi.acceptOffer(this.applicationId).subscribe({
       next: () => {
         this.submitting.set(false);
-        void this.router.navigateByUrl('/application/down-payment');
+        void this.router.navigate(['/application/down-payment'], {
+          queryParams: this.appQuery(),
+        });
       },
       error: () => {
         this.submitting.set(false);
@@ -97,11 +107,11 @@ export class ApprovedLoanOfferComponent implements OnInit {
     this.submitting.set(true);
     this.error.set(null);
 
-    this.emiApi.declineOffer().subscribe({
+    this.emiApi.declineOffer(this.applicationId).subscribe({
       next: () => {
         this.submitting.set(false);
         this.declineVisible.set(false);
-        void this.router.navigateByUrl('/');
+        void this.router.navigateByUrl('/my-emis');
       },
       error: () => {
         this.submitting.set(false);
@@ -114,7 +124,7 @@ export class ApprovedLoanOfferComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    this.emiApi.getCurrentOffer().subscribe({
+    this.emiApi.getCurrentOffer(this.applicationId).subscribe({
       next: (data) => {
         this.loading.set(false);
         this.offer.set(data);
@@ -133,19 +143,20 @@ export class ApprovedLoanOfferComponent implements OnInit {
     };
     const status = body?.error?.details?.status;
     const code = body?.error?.details?.code ?? body?.error?.code;
+    const q = this.appQuery();
 
     if (code === 'OFFER_ALREADY_ACCEPTED' || status === 'OFFER_ACCEPTED') {
-      void this.router.navigateByUrl('/application/down-payment');
+      void this.router.navigate(['/application/down-payment'], { queryParams: q });
       return;
     }
 
     if (status === 'PENDING' || status === 'UNDER_REVIEW') {
-      void this.router.navigateByUrl('/application/pending');
+      void this.router.navigate(['/application/pending'], { queryParams: q });
       return;
     }
 
     if (status === 'REJECTED') {
-      void this.router.navigateByUrl('/application/rejected');
+      void this.router.navigate(['/application/rejected'], { queryParams: q });
     }
   }
 }

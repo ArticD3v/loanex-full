@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import PDFDocument from 'pdfkit';
 import {
   BadRequestError,
@@ -124,10 +122,7 @@ export class LoanService {
     }
     const healed = await this.healUnpaidSchedule(loan);
     const file = await this.generateDocument(userId, healed.id, 'statement');
-    return {
-      ...file,
-      fileName: path.basename(file.relativePath),
-    };
+    return file;
   }
 
   async getAgreement(userId: string) {
@@ -138,10 +133,7 @@ export class LoanService {
     }
     const healed = await this.healUnpaidSchedule(loan);
     const file = await this.generateDocument(userId, healed.id, 'agreement');
-    return {
-      ...file,
-      fileName: path.basename(file.relativePath),
-    };
+    return file;
   }
 
   async listForAdmin(statusQuery?: string) {
@@ -375,30 +367,26 @@ export class LoanService {
     });
   }
 
+  /**
+   * Build PDF in memory — Vercel/Lambda has a read-only FS outside /tmp, so
+   * never mkdir under process.cwd()/storage or use res.sendFile for this path.
+   */
   async generateDocument(userId: string, loanId: string, type: 'statement' | 'agreement') {
     const loan = await loanRepository.findByIdForUser(loanId, userId);
     if (!loan) {
       throw new NotFoundError('Loan account not found');
     }
 
-    const folder = type === 'statement' ? 'statements' : 'agreements';
     const fileName = `${type}_${loan.loanAccountNumber}_${Date.now()}.pdf`;
-    const storageDir = path.join(process.cwd(), 'storage', folder);
-
-    if (!fs.existsSync(storageDir)) {
-      fs.mkdirSync(storageDir, { recursive: true });
-    }
-
-    const absolutePath = path.join(storageDir, fileName);
-    const relativePath = path.join('storage', folder, fileName);
-
     const dashboard = buildDashboardPayload(loan);
     const summary = dashboard.loan;
 
-    await new Promise<void>((resolve, reject) => {
+    const buffer = await new Promise<Buffer>((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50 });
-      const stream = fs.createWriteStream(absolutePath);
-      doc.pipe(stream);
+      const chunks: Buffer[] = [];
+      doc.on('data', (chunk) => chunks.push(chunk as Buffer));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
 
       doc.fontSize(20).fillColor('#0A2E6F').text(
         type === 'statement' ? 'LoanEx Loan Statement' : 'LoanEx Loan Agreement',
@@ -418,11 +406,30 @@ export class LoanService {
 
       if (type === 'statement') {
         doc.moveDown();
-        doc.text('Recent payments:');
-        for (const payment of dashboard.recentPayments) {
-          doc.text(
-            `EMI #${payment.emiNumber} | ${payment.amount.toFixed(2)} | ${payment.status}`,
-          );
+        doc.text('EMI schedule:');
+        for (const row of dashboard.schedule) {
+          const due =
+            row.dueDate instanceof Date
+              ? row.dueDate.toISOString().slice(0, 10)
+              : String(row.dueDate ?? '').slice(0, 10);
+          doc
+            .fontSize(10)
+            .text(
+              `EMI #${row.emiNumber} | Due ${due} | INR ${Number(row.emiAmount).toFixed(2)} | ${row.paymentStatus}`,
+            );
+        }
+        doc.moveDown(0.5);
+        doc.fontSize(12).text('Recent payments:');
+        if (dashboard.recentPayments.length === 0) {
+          doc.fontSize(10).text('No EMI payments recorded yet.');
+        } else {
+          for (const payment of dashboard.recentPayments) {
+            doc
+              .fontSize(10)
+              .text(
+                `EMI #${payment.emiNumber} | ${payment.amount.toFixed(2)} | ${payment.status}`,
+              );
+          }
         }
       } else {
         doc.moveDown();
@@ -435,11 +442,9 @@ export class LoanService {
       }
 
       doc.end();
-      stream.on('finish', () => resolve());
-      stream.on('error', reject);
     });
 
-    return { absolutePath, relativePath };
+    return { buffer, fileName };
   }
 }
 

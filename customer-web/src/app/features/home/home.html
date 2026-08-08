@@ -34,10 +34,11 @@
     [limit]="6"
   />
 
-  <!-- Section 5: New Arrivals -->
+  <!-- Section 5: New Arrivals — reuses Popular on EMI featured request (no duplicate HTTP) -->
   <app-popular-products
     title="New Arrivals"
     [limit]="6"
+    [reuseFeaturedCache]="true"
   />
 
   <!-- Snapmint 3-Step EMI Flow -->

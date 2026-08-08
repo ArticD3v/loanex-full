@@ -21,6 +21,15 @@ export class PaymentRepository {
     return { ...app, order };
   }
 
+  async findApplicationForUserFresh(applicationId: string, userId: string) {
+    await Promise.all([
+      jsonDb.refreshCollection('emi_applications'),
+      jsonDb.refreshCollection('orders'),
+      jsonDb.refreshCollection('paymentTransaction'),
+    ]);
+    return this.findApplicationForUser(applicationId, userId);
+  }
+
   findLatestApplicationForUser(userId: string) {
     const apps = jsonDb.findMany('emi_applications', { userId })
       .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -203,6 +212,10 @@ export class PaymentRepository {
     const estimatedDeliveryDate = new Date();
     estimatedDeliveryDate.setDate(estimatedDeliveryDate.getDate() + 7);
 
+    // Orders may already exist from admin approval on another serverless
+    // instance — refresh Mongo before deciding insert vs link.
+    await jsonDb.refreshCollection('orders');
+
     jsonDb.update('paymentTransaction', { id: input.transactionId }, {
       razorpayPaymentId: input.razorpayPaymentId,
       razorpaySignature: input.razorpaySignature,
@@ -213,8 +226,13 @@ export class PaymentRepository {
     jsonDb.update('emi_applications', { id: input.applicationId }, { status: EmiApplicationStatus.ACTIVE_EMI });
     const application = jsonDb.findOne('emi_applications', { id: input.applicationId });
 
-    let existing = jsonDb.findOne('orders', { applicationId: input.applicationId });
+    let existing =
+      jsonDb.findOne('orders', { applicationId: input.applicationId }) ??
+      (input.orderNumber
+        ? jsonDb.findOne('orders', { orderNumber: input.orderNumber })
+        : null);
     let order = existing;
+    let inventoryDecremented = Boolean(existing?.paymentTransactionId);
 
     // Reduce inventory exactly once per order — only when this payment is what
     // creates or links the order (a second success short-circuits earlier). The
@@ -243,43 +261,70 @@ export class PaymentRepository {
         jsonDb.findMany('addresses', { userId: input.userId })[0] ??
         null;
 
-      order = await jsonDb.insertAwaited('orders', {
-        orderNumber: input.orderNumber,
-        applicationId: input.applicationId,
-        userId: input.userId,
-        profileId: input.userId,
-        productId: input.productId,
-        quantity: 1,
+      try {
+        order = await jsonDb.insertAwaited('orders', {
+          orderNumber: input.orderNumber,
+          applicationId: input.applicationId,
+          userId: input.userId,
+          profileId: input.userId,
+          productId: input.productId,
+          quantity: 1,
+          paymentTransactionId: payment.id,
+          orderStatus: OrderStatus.ORDER_CONFIRMED,
+          status: OrderStatus.ORDER_CONFIRMED,
+          paymentMethod: 'EMI',
+          payment_status: 'SUCCESS',
+          estimatedDeliveryDate,
+          deliveryAddress: defaultAddress?.fullAddress ?? null,
+          items: [{ productId: input.productId, quantity: 1 }],
+          totalAmount: application?.sellingPrice ?? application?.approvedLoanAmount ?? 0,
+          subtotal: application?.sellingPrice ?? application?.approvedLoanAmount ?? 0,
+          total: application?.sellingPrice ?? application?.approvedLoanAmount ?? 0,
+        });
+      } catch (err: any) {
+        // Concurrent approve/verify or stale in-memory catalog can race on the
+        // unique orderNumber index — recover by linking the existing Mongo row.
+        const message = String(err?.message || err || '');
+        const isDuplicate =
+          err?.code === 11000 || /E11000|duplicate key/i.test(message);
+        if (!isDuplicate) throw err;
+
+        await jsonDb.refreshCollection('orders');
+        order =
+          jsonDb.findOne('orders', { applicationId: input.applicationId }) ??
+          jsonDb.findOne('orders', { orderNumber: input.orderNumber });
+        if (!order) throw err;
+
+        existing = order;
+      }
+
+      if (!inventoryDecremented && order) {
+        await decrementStockDurable(inventoryItems);
+        inventoryDecremented = true;
+      }
+    }
+
+    if (order && !order.paymentTransactionId) {
+      await jsonDb.updateAwaited('orders', { id: order.id }, {
         paymentTransactionId: payment.id,
         orderStatus: OrderStatus.ORDER_CONFIRMED,
         status: OrderStatus.ORDER_CONFIRMED,
-        paymentMethod: 'EMI',
         payment_status: 'SUCCESS',
-        estimatedDeliveryDate,
-        deliveryAddress: defaultAddress?.fullAddress ?? null,
-        items: [{ productId: input.productId, quantity: 1 }],
-        totalAmount: application?.sellingPrice ?? application?.approvedLoanAmount ?? 0,
-        subtotal: application?.sellingPrice ?? application?.approvedLoanAmount ?? 0,
-        total: application?.sellingPrice ?? application?.approvedLoanAmount ?? 0,
+        estimatedDeliveryDate: order.estimatedDeliveryDate ?? estimatedDeliveryDate,
+        applicationId: order.applicationId || input.applicationId,
+        userId: order.userId || input.userId,
       });
-      await decrementStockDurable(inventoryItems);
+      order = jsonDb.findOne('orders', { id: order.id });
+      if (!inventoryDecremented) {
+        await decrementStockDurable(inventoryItems);
+        inventoryDecremented = true;
+      }
     }
 
-    if (existing && !existing.paymentTransactionId) {
-      await jsonDb.updateAwaited('orders', { id: existing.id }, {
-        paymentTransactionId: payment.id,
-        orderStatus: OrderStatus.ORDER_CONFIRMED,
-        status: OrderStatus.ORDER_CONFIRMED,
-        payment_status: 'SUCCESS',
-        estimatedDeliveryDate: existing.estimatedDeliveryDate ?? estimatedDeliveryDate,
-      });
-      order = jsonDb.findOne('orders', { id: existing.id });
-      await decrementStockDurable(inventoryItems);
-    }
-
-    const freshOrder = jsonDb.findOne('orders', { id: order.id });
+    const freshOrder = order?.id ? jsonDb.findOne('orders', { id: order.id }) : null;
     if (!freshOrder) throw new Error('Order not found');
 
+    await jsonDb.refreshCollection('orderTracking');
     const hasTracking = jsonDb.findMany('orderTracking', { orderId: freshOrder.id }).length;
     if (hasTracking === 0) {
       jsonDb.insert('orderTracking', {

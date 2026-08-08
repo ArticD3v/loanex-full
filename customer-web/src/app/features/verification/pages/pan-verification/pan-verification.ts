@@ -46,7 +46,7 @@ export class PanVerificationComponent implements OnInit {
     this.verification.getPanStatus().subscribe({
       next: (status) => {
         if (!status.aadhaarVerified) {
-          void this.router.navigateByUrl('/aadhaar-verification');
+          void this.router.navigateByUrl('/verification');
           return;
         }
 
@@ -54,7 +54,7 @@ export class PanVerificationComponent implements OnInit {
           this.verified.set(true);
           this.maskedPan.set(status.panNumberMasked);
           window.setTimeout(() => {
-            void this.router.navigateByUrl('/bank-verification');
+            void this.router.navigateByUrl('/verification/summary');
           }, 1200);
         }
       },
@@ -103,7 +103,7 @@ export class PanVerificationComponent implements OnInit {
           this.maskedPan.set(res.panNumberMasked ?? null);
 
           window.setTimeout(() => {
-            void this.router.navigateByUrl('/bank-verification');
+            void this.router.navigateByUrl('/verification/summary');
           }, 1400);
         },
         error: () => {

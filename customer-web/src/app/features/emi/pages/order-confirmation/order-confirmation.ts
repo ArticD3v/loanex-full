@@ -50,9 +50,14 @@ export class OrderConfirmationComponent implements OnInit {
       return;
     }
 
-    const source = orderRef ? this.orderApi.getById(orderRef) : this.orderApi.getCurrent();
+    if (!orderRef) {
+      // Never silently load "latest order" — send user to My Orders.
+      this.loading.set(false);
+      void this.router.navigateByUrl('/my-orders');
+      return;
+    }
 
-    source.subscribe({
+    this.orderApi.getById(orderRef).subscribe({
       next: (data) => {
         this.loading.set(false);
         this.order.set(data);

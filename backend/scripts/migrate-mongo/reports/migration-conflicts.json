@@ -1,0 +1,44 @@
+[
+  {
+    "collection": "products",
+    "id": "6d3650c1-a09a-40a0-b4b4-fc80d289ae81",
+    "error": "E11000 duplicate key error collection: loanex.products index: slug_1 dup key: { slug: null }",
+    "type": "WRITE_FAILED"
+  },
+  {
+    "collection": "products",
+    "id": "32a2456f-d5c0-4fc9-92ad-a4ebc7f21c42",
+    "error": "E11000 duplicate key error collection: loanex.products index: slug_1 dup key: { slug: null }",
+    "type": "WRITE_FAILED"
+  },
+  {
+    "collection": "products",
+    "id": "ae471262-2c0f-447f-b48d-6ed241409868",
+    "error": "E11000 duplicate key error collection: loanex.products index: slug_1 dup key: { slug: null }",
+    "type": "WRITE_FAILED"
+  },
+  {
+    "collection": "orders",
+    "id": "d6e40b78-e70c-4470-9fb2-52f78ea70760",
+    "error": "E11000 duplicate key error collection: loanex.orders index: orderNumber_1 dup key: { orderNumber: null }",
+    "type": "WRITE_FAILED"
+  },
+  {
+    "collection": "orders",
+    "id": "1dc1de97-3534-4378-bef3-8e98c30ff524",
+    "error": "E11000 duplicate key error collection: loanex.orders index: orderNumber_1 dup key: { orderNumber: null }",
+    "type": "WRITE_FAILED"
+  },
+  {
+    "collection": "orders",
+    "id": "a34d5bc1-e2c3-4641-adb6-c5f647982d04",
+    "error": "E11000 duplicate key error collection: loanex.orders index: orderNumber_1 dup key: { orderNumber: null }",
+    "type": "WRITE_FAILED"
+  },
+  {
+    "collection": "orders",
+    "id": "4ea9d2de-1988-4054-a934-77e3963131bd",
+    "error": "E11000 duplicate key error collection: loanex.orders index: orderNumber_1 dup key: { orderNumber: null }",
+    "type": "WRITE_FAILED"
+  }
+]

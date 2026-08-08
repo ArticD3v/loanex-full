@@ -188,14 +188,42 @@ export class EmiApplicationService {
     );
   }
 
-  getCurrent(event: 'viewed' | 'refreshed' = 'viewed'): Observable<EmiApplicationCurrentResponse> {
+  getCurrent(
+    event: 'viewed' | 'refreshed' = 'viewed',
+    applicationId?: string,
+  ): Observable<EmiApplicationCurrentResponse> {
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
 
-    const params = new HttpParams().set('event', event);
+    let params = new HttpParams().set('event', event);
+    if (applicationId) {
+      params = params.set('applicationId', applicationId);
+    }
 
     return this.http
       .get<ApiSuccess<EmiApplicationCurrentResponse>>(`${this.baseUrl}/current`, { params })
+      .pipe(
+        map((res) => res.data),
+        tap(() => this.loadingSignal.set(false)),
+        catchError((err: unknown) => {
+          this.loadingSignal.set(false);
+          this.errorSignal.set(this.extractError(err));
+          return throwError(() => err);
+        }),
+      );
+  }
+
+  getById(
+    applicationId: string,
+    event: 'viewed' | 'refreshed' = 'viewed',
+  ): Observable<EmiApplicationCurrentResponse> {
+    this.loadingSignal.set(true);
+    this.errorSignal.set(null);
+    const params = new HttpParams().set('event', event);
+    return this.http
+      .get<ApiSuccess<EmiApplicationCurrentResponse>>(`${this.baseUrl}/${applicationId}`, {
+        params,
+      })
       .pipe(
         map((res) => res.data),
         tap(() => this.loadingSignal.set(false)),
@@ -229,12 +257,17 @@ export class EmiApplicationService {
       );
   }
 
-  getCurrentOffer(): Observable<ApprovedLoanOffer> {
+  getCurrentOffer(applicationId?: string): Observable<ApprovedLoanOffer> {
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
 
+    let params = new HttpParams();
+    if (applicationId) {
+      params = params.set('applicationId', applicationId);
+    }
+
     return this.http
-      .get<ApiSuccess<ApprovedLoanOffer>>(`${this.baseUrl}/current-offer`)
+      .get<ApiSuccess<ApprovedLoanOffer>>(`${this.baseUrl}/current-offer`, { params })
       .pipe(
         map((res) => res.data),
         tap(() => this.loadingSignal.set(false)),
@@ -263,34 +296,42 @@ export class EmiApplicationService {
       );
   }
 
-  acceptOffer(): Observable<EmiApplication> {
+  acceptOffer(applicationId?: string): Observable<EmiApplication> {
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
 
-    return this.http.post<ApiSuccess<EmiApplication>>(`${this.baseUrl}/accept-offer`, {}).pipe(
-      map((res) => res.data),
-      tap(() => this.loadingSignal.set(false)),
-      catchError((err: unknown) => {
-        this.loadingSignal.set(false);
-        this.errorSignal.set(this.extractError(err));
-        return throwError(() => err);
-      }),
-    );
+    return this.http
+      .post<ApiSuccess<EmiApplication>>(`${this.baseUrl}/accept-offer`, {
+        ...(applicationId ? { applicationId } : {}),
+      })
+      .pipe(
+        map((res) => res.data),
+        tap(() => this.loadingSignal.set(false)),
+        catchError((err: unknown) => {
+          this.loadingSignal.set(false);
+          this.errorSignal.set(this.extractError(err));
+          return throwError(() => err);
+        }),
+      );
   }
 
-  declineOffer(): Observable<EmiApplication> {
+  declineOffer(applicationId?: string): Observable<EmiApplication> {
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
 
-    return this.http.post<ApiSuccess<EmiApplication>>(`${this.baseUrl}/decline-offer`, {}).pipe(
-      map((res) => res.data),
-      tap(() => this.loadingSignal.set(false)),
-      catchError((err: unknown) => {
-        this.loadingSignal.set(false);
-        this.errorSignal.set(this.extractError(err));
-        return throwError(() => err);
-      }),
-    );
+    return this.http
+      .post<ApiSuccess<EmiApplication>>(`${this.baseUrl}/decline-offer`, {
+        ...(applicationId ? { applicationId } : {}),
+      })
+      .pipe(
+        map((res) => res.data),
+        tap(() => this.loadingSignal.set(false)),
+        catchError((err: unknown) => {
+          this.loadingSignal.set(false);
+          this.errorSignal.set(this.extractError(err));
+          return throwError(() => err);
+        }),
+      );
   }
 
   /** Dev/test only — simulates Admin approval from the pending page. */

@@ -20,6 +20,7 @@ notificationRouter.use(authenticate);
 notificationRouter.use(limiter);
 
 notificationRouter.get('/', asyncHandler(notificationController.list));
+notificationRouter.post('/', asyncHandler(notificationController.createForSelf));
 notificationRouter.patch('/read-all', asyncHandler(notificationController.markAllRead));
 notificationRouter.get('/:id', asyncHandler(notificationController.getById));
 notificationRouter.patch('/:id/read', asyncHandler(notificationController.markRead));

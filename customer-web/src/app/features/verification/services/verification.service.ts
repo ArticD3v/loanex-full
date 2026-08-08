@@ -188,10 +188,12 @@ export class VerificationService {
   digilockerGenerate(aadhaarNumber?: string): Observable<{ client_id: string; digilocker_url: string | null; message: string }> {
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
+    const frontendOrigin =
+      typeof window !== 'undefined' ? window.location.origin : undefined;
     return this.http
       .post<ApiSuccess<{ client_id: string; digilocker_url: string | null; message: string }>>(
         `${this.baseUrl}/aadhaar/digilocker/generate`,
-        { aadhaar_number: aadhaarNumber ?? '' },
+        { aadhaar_number: aadhaarNumber ?? '', frontendOrigin },
       )
       .pipe(
         map((res) => res.data),

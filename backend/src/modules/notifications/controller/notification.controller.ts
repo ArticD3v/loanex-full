@@ -18,6 +18,29 @@ export class NotificationController {
     return sendSuccess(res, data, 'Notifications fetched');
   };
 
+  /** POST / — customer self-create (in-app only). */
+  createForSelf = async (req: Request, res: Response) => {
+    const userId = requireUserId(req as AuthenticatedRequest);
+    const body = req.body as {
+      title?: string;
+      message?: string;
+      type?: string;
+      route?: string;
+      metadata?: Record<string, unknown>;
+    };
+    const data = await notificationService.createForSelf({
+      userId,
+      title: String(body.title ?? ''),
+      message: String(body.message ?? ''),
+      typeHint: body.type,
+      metadata: {
+        ...(body.metadata ?? {}),
+        ...(body.route ? { route: body.route } : {}),
+      },
+    });
+    return sendSuccess(res, data, 'Notification created', 201);
+  };
+
   getById = async (req: Request, res: Response) => {
     const data = await notificationService.getById(
       String(req.params.id ?? ''),

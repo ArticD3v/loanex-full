@@ -115,6 +115,7 @@
                 <div class="lx-my-emis__actions">
                   <a
                     [routerLink]="ctaFor(item).routerLink"
+                    [queryParams]="ctaFor(item).queryParams"
                     class="lx-btn lx-btn--primary"
                   >
                     {{ ctaFor(item).label }}

@@ -16,7 +16,7 @@ export const authGuard: CanActivateFn = (_route, state) => {
   });
 };
 
-export const guestGuard: CanActivateFn = () => {
+export const guestGuard: CanActivateFn = (_route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
@@ -24,5 +24,11 @@ export const guestGuard: CanActivateFn = () => {
     return true;
   }
 
-  return router.createUrlTree(['/']);
+  // Prefer intended destination from query or in-memory returnUrl — never force Home.
+  const queryReturn = state.root.queryParamMap.get('returnUrl');
+  if (queryReturn) {
+    auth.setReturnUrl(queryReturn);
+  }
+  const target = auth.getReturnUrl();
+  return router.parseUrl(target);
 };

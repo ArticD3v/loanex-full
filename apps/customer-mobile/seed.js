@@ -1,7 +1,24 @@
+/**
+ * Dev seed script — seeds catalog data via Supabase REST when configured.
+ *
+ * Requires env (do NOT hardcode secrets):
+ *   SUPABASE_URL
+ *   SUPABASE_SERVICE_ROLE_KEY
+ *
+ * Prefer seeding through Backend API → MongoDB for production data.
+ */
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = 'https://sfddelyotptsfbigwllg.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZGRlbHlvdHB0c2ZiaWd3bGxnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjUzNjY4NiwiZXhwIjoyMDk4MTEyNjg2fQ.kHrUiC69sTYqES2uT5Tbza9Yd-0oW3YKhrxQX3JjOTc';
+const supabaseUrl = process.env.SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error(
+    'Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY. Set them in the environment; secrets must not be hardcoded.',
+  );
+  process.exit(1);
+}
+
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function seed() {

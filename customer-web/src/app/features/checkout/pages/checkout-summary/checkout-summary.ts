@@ -194,7 +194,7 @@ export class CheckoutSummaryComponent implements OnInit {
       void this.router.navigateByUrl(`/products/${productId}`);
       return;
     }
-    void this.router.navigateByUrl('/');
+    void this.router.navigateByUrl('/products');
   }
 
   formatAddress(address: {

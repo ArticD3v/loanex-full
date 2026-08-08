@@ -100,7 +100,26 @@ export class RolesService {
   async resolveUserPermissions(userId: string): Promise<string[]> {
     let user = jsonDb.findOne('users', { id: userId });
 
-    // Serverless fallback: the user may live on another instance (Supabase).
+    // Mongo is the auth source of truth — load staff/customer users from there
+    // when this serverless instance's memory cache is cold/stale.
+    if (!user) {
+      try {
+        const { authRepository } = await import('../auth/auth.repository');
+        const fromMongo = await authRepository.findById(userId);
+        if (fromMongo) {
+          user = fromMongo;
+          const collection = jsonDb.getCollection('users');
+          if (!collection.some((u: any) => u.id === fromMongo.id)) {
+            const { profiles: _profiles, ...row } = fromMongo as any;
+            collection.push(row);
+          }
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+
+    // Legacy Supabase fallback (pre-Mongo deployments).
     if (!user) {
       try {
         const { data, error } = await supabase.from('users').select('*').eq('id', userId).limit(1);
@@ -119,6 +138,14 @@ export class RolesService {
     const roleId = user.role_id ?? user.roleId ?? null;
     if (roleId) {
       let role = jsonDb.findOne('roles', { id: roleId });
+      if (!role) {
+        try {
+          await jsonDb.refreshCollection('roles');
+          role = jsonDb.findOne('roles', { id: roleId });
+        } catch {
+          /* keep local state */
+        }
+      }
       if (!role) {
         // A role created on another serverless instance may not be cached yet.
         try {

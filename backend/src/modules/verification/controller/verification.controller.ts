@@ -48,12 +48,19 @@ export class VerificationController {
   // DigiLocker: Generate token → returns redirect URL
   digilockerGenerate = async (req: Request, res: Response) => {
     const userId = requireUserId(req as AuthenticatedRequest);
-    const { aadhaar_number } = (req.body ?? {}) as { aadhaar_number?: string };
-    const cleanAadhaar = aadhaar_number ? aadhaar_number.replace(/\s/g, '') : '';
-    const data = await verificationService.digilockerGenerate(
-      userId,
-      cleanAadhaar,
-    );
+    const body = (req.body ?? {}) as {
+      aadhaar_number?: string;
+      frontendOrigin?: string;
+      frontend_origin?: string;
+    };
+    const cleanAadhaar = body.aadhaar_number ? body.aadhaar_number.replace(/\s/g, '') : '';
+    const frontendOrigin =
+      (typeof body.frontendOrigin === 'string' && body.frontendOrigin) ||
+      (typeof body.frontend_origin === 'string' && body.frontend_origin) ||
+      undefined;
+    const data = await verificationService.digilockerGenerate(userId, cleanAadhaar, {
+      frontendOrigin,
+    });
     return sendSuccess(res, data, data.message);
   };
 

@@ -14,14 +14,18 @@ async function getHeaders() {
   return headers;
 }
 
+async function parse(res: Response) {
+  const json = await res.json();
+  if (!json.success) throw new Error(json.message || `Request failed (${res.status})`);
+  return json;
+}
+
 export const api = {
   get: async (endpoint: string) => {
     const res = await fetch(`${SERVER_URL}/api/v1${endpoint}`, {
       headers: await getHeaders(),
     });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.message);
-    return json;
+    return parse(res);
   },
   post: async (endpoint: string, body: any) => {
     const res = await fetch(`${SERVER_URL}/api/v1${endpoint}`, {
@@ -29,9 +33,7 @@ export const api = {
       headers: await getHeaders(),
       body: JSON.stringify(body),
     });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.message);
-    return json;
+    return parse(res);
   },
   put: async (endpoint: string, body: any) => {
     const res = await fetch(`${SERVER_URL}/api/v1${endpoint}`, {
@@ -39,17 +41,21 @@ export const api = {
       headers: await getHeaders(),
       body: JSON.stringify(body),
     });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.message);
-    return json;
+    return parse(res);
+  },
+  patch: async (endpoint: string, body?: any) => {
+    const res = await fetch(`${SERVER_URL}/api/v1${endpoint}`, {
+      method: 'PATCH',
+      headers: await getHeaders(),
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+    return parse(res);
   },
   delete: async (endpoint: string) => {
     const res = await fetch(`${SERVER_URL}/api/v1${endpoint}`, {
       method: 'DELETE',
       headers: await getHeaders(),
     });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.message);
-    return json;
-  }
+    return parse(res);
+  },
 };

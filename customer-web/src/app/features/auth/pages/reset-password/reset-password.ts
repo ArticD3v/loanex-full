@@ -9,6 +9,7 @@ import {
   otpCodeValidator,
   strongPasswordValidator,
 } from '../../../../shared/validators/auth.validators';
+import { PasswordResetSessionService } from '../../services/password-reset-session.service';
 
 @Component({
   selector: 'app-reset-password',
@@ -22,6 +23,7 @@ export class ResetPassword {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly resetSession = inject(PasswordResetSessionService);
 
   readonly loading = this.auth.loading;
   readonly error = this.auth.error;
@@ -40,8 +42,12 @@ export class ResetPassword {
 
   constructor() {
     const mobile = this.route.snapshot.queryParamMap.get('mobile') ?? '';
-    const otp = this.route.snapshot.queryParamMap.get('otp') ?? '';
-    this.form.patchValue({ mobile, otp });
+    const fromSession = this.resetSession.consume();
+    const otp = fromSession?.otp ?? '';
+    this.form.patchValue({
+      mobile: fromSession?.mobile || mobile,
+      otp,
+    });
   }
 
   togglePassword(): void {

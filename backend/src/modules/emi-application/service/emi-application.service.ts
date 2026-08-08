@@ -17,6 +17,11 @@ import {
 } from '../../loan/service/emi-calculator.service';
 import type { CreateEmiApplicationBody } from '../dto/emi-application.dto';
 import { emiApplicationRepository } from '../repository/emi-application.repository';
+import { paymentRepository } from '../../payment/repository/payment.repository';
+import {
+  KYC_FEE_AMOUNT_INR,
+  KYC_VERIFICATION_PURPOSE,
+} from '../../payment/kyc-fee.constants';
 
 function toNumber(value: { toString(): string } | number | null | undefined): number | null {
   if (value === null || value === undefined) return null;
@@ -309,6 +314,17 @@ export class EmiApplicationService {
       );
     }
 
+    // Lifetime ₹299 KYC fee — Mongo-backed SUCCESS payment required before EMI create.
+    const kycFeePaid = await paymentRepository.findSuccessKycVerification(userId);
+    if (!kycFeePaid) {
+      throw new ConflictError('KYC verification fee must be paid before submitting an EMI application.', {
+        code: 'KYC_FEE_REQUIRED',
+        paid: false,
+        amount: KYC_FEE_AMOUNT_INR,
+        purpose: KYC_VERIFICATION_PURPOSE,
+      });
+    }
+
     const existing = await emiApplicationRepository.findActiveByUserId(userId);
     if (existing) {
       throw new ConflictError('An active EMI application already exists for this account.', {
@@ -365,15 +381,22 @@ export class EmiApplicationService {
 
   async getCurrent(
     userId: string,
-    meta?: { event?: 'viewed' | 'refreshed'; ipAddress?: string | null },
+    meta?: {
+      event?: 'viewed' | 'refreshed';
+      ipAddress?: string | null;
+      applicationId?: string;
+    },
   ) {
-    const app = await emiApplicationRepository.findByUserId(userId);
+    const app = meta?.applicationId
+      ? await emiApplicationRepository.findByIdForUser(meta.applicationId, userId)
+      : await emiApplicationRepository.findByUserId(userId);
     if (!app) {
       throw new NotFoundError('No EMI application found for this account.');
     }
 
     const customer = await emiApplicationRepository.findCustomerVerification(userId);
     const payload = toStatusPayload(app, customer);
+    const order = await orderRepository.findByApplicationId(app.id);
 
     await auditLogService.log({
       userId,
@@ -387,7 +410,23 @@ export class EmiApplicationService {
       },
     });
 
-    return payload;
+    return {
+      ...payload,
+      application: {
+        ...payload.application,
+        orderId: order?.id ?? null,
+        orderNumber: order?.orderNumber ?? null,
+      },
+    };
+  }
+
+  /** Explicit application lookup — same payload shape as getCurrent. */
+  async getById(
+    userId: string,
+    applicationId: string,
+    meta?: { event?: 'viewed' | 'refreshed'; ipAddress?: string | null },
+  ) {
+    return this.getCurrent(userId, { ...meta, applicationId });
   }
 
   async getStatus(
@@ -438,9 +477,11 @@ export class EmiApplicationService {
 
   async getCurrentOffer(
     userId: string,
-    meta?: { ipAddress?: string | null },
+    meta?: { ipAddress?: string | null; applicationId?: string },
   ) {
-    const app = await emiApplicationRepository.findByUserId(userId);
+    const app = meta?.applicationId
+      ? await emiApplicationRepository.findByIdForUser(meta.applicationId, userId)
+      : await emiApplicationRepository.findByUserId(userId);
     if (!app) {
       throw new NotFoundError('No EMI application found for this account.');
     }
@@ -510,9 +551,11 @@ export class EmiApplicationService {
 
   async acceptOffer(
     userId: string,
-    meta?: { ipAddress?: string | null; userAgent?: string | null },
+    meta?: { ipAddress?: string | null; userAgent?: string | null; applicationId?: string },
   ) {
-    const app = await emiApplicationRepository.findByUserId(userId);
+    const app = meta?.applicationId
+      ? await emiApplicationRepository.findByIdForUser(meta.applicationId, userId)
+      : await emiApplicationRepository.findByUserId(userId);
     if (!app) {
       throw new NotFoundError('No EMI application found for this account.');
     }
@@ -560,9 +603,11 @@ export class EmiApplicationService {
 
   async declineOffer(
     userId: string,
-    meta?: { ipAddress?: string | null; userAgent?: string | null },
+    meta?: { ipAddress?: string | null; userAgent?: string | null; applicationId?: string },
   ) {
-    const app = await emiApplicationRepository.findByUserId(userId);
+    const app = meta?.applicationId
+      ? await emiApplicationRepository.findByIdForUser(meta.applicationId, userId)
+      : await emiApplicationRepository.findByUserId(userId);
     if (!app) {
       throw new NotFoundError('No EMI application found for this account.');
     }
@@ -1000,6 +1045,93 @@ export class EmiApplicationService {
     const count = await emiApplicationRepository.countApplicationsToday(prefix);
     const seq = String(count + 1).padStart(4, '0');
     return `${prefix}${seq}`;
+  }
+
+  /**
+   * Persist selected EMI plan to Mongo (profiles.emiPlanDraft) so logout/new tab
+   * / deep links can recover it. Not business-final until EMI submit.
+   */
+  async savePlanDraft(
+    userId: string,
+    plan: {
+      productId: string;
+      variantId?: string;
+      productName: string;
+      sellingPrice: number;
+      requestedAmount: number;
+      requestedDownPayment: number;
+      requestedTenure: number;
+      estimatedMonthlyEmi: number;
+    },
+  ) {
+    if (!plan?.productId) {
+      throw new BadRequestError('productId is required for EMI plan draft.');
+    }
+    await jsonDb.refreshCollection('profiles');
+    const profile =
+      jsonDb.findOne('profiles', { id: userId }) ||
+      jsonDb.findOne('profiles', { userId });
+    const draft = {
+      ...plan,
+      updatedAt: new Date().toISOString(),
+    };
+    if (profile) {
+      await jsonDb.updateAwaited('profiles', { id: profile.id }, { emiPlanDraft: draft });
+    } else {
+      await jsonDb.insertAwaited('profiles', {
+        id: userId,
+        userId,
+        emiPlanDraft: draft,
+      });
+    }
+    return { saved: true as const, plan: draft };
+  }
+
+  async getPlanDraft(userId: string) {
+    await jsonDb.refreshCollection('profiles');
+    const profile =
+      jsonDb.findOne('profiles', { id: userId }) ||
+      jsonDb.findOne('profiles', { userId });
+    const draft = profile?.emiPlanDraft ?? null;
+    if (draft?.productId) {
+      return { plan: draft };
+    }
+
+    // Recover from an open/pending application when draft was cleared.
+    const app =
+      (await emiApplicationRepository.findActiveByUserId(userId)) ||
+      (await emiApplicationRepository.findByUserId(userId));
+    if (
+      app?.productId &&
+      app.requestedTenure != null &&
+      app.requestedAmount != null
+    ) {
+      return {
+        plan: {
+          productId: app.productId,
+          productName: app.productName ?? '',
+          sellingPrice: Number(app.sellingPrice ?? 0),
+          requestedAmount: Number(app.requestedAmount ?? 0),
+          requestedDownPayment: Number(app.requestedDownPayment ?? 0),
+          requestedTenure: Number(app.requestedTenure),
+          estimatedMonthlyEmi: Number(app.estimatedMonthlyEmi ?? 0),
+          recoveredFromApplicationId: app.id,
+        },
+      };
+    }
+
+    return { plan: null };
+  }
+
+  async clearPlanDraft(userId: string) {
+    await jsonDb.refreshCollection('profiles');
+    const profile =
+      jsonDb.findOne('profiles', { id: userId }) ||
+      jsonDb.findOne('profiles', { userId });
+    if (profile) {
+      await jsonDb.updateAwaited('profiles', { id: profile.id }, { emiPlanDraft: null });
+    }
+    return { cleared: true as const };
   }
 }
 

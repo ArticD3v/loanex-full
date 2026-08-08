@@ -227,9 +227,13 @@ export class EmiApplicationRepository {
     });
   }
 
-  findKycSummary(userId: string) {
-    const customer = jsonDb.findOne('customer_kyc', { userId });
-    return customer;
+  /**
+   * Refresh from MongoDB before reading so EMI eligibility uses durable KYC,
+   * not a stale warm-instance cache.
+   */
+  async findKycSummary(userId: string) {
+    await jsonDb.refreshCollection('customer_kyc');
+    return jsonDb.findOne('customer_kyc', { userId });
   }
 
   findLatestMobileVerification(userId: string) {

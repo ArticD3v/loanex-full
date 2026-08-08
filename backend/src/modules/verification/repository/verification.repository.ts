@@ -4,7 +4,12 @@ import { authRepository } from '../../auth/auth.repository';
 export class VerificationRepository {
   // ─── KYC status from customer_kyc ───────────────────────────────────────────
 
+  /**
+   * Always refresh from MongoDB (when primary) so warm serverless instances
+   * see KYC writes performed by other instances.
+   */
   async findKycByUserId(userId: string) {
+    await jsonDb.refreshCollection('customer_kyc');
     return jsonDb.findOne('customer_kyc', { userId });
   }
 
@@ -29,17 +34,18 @@ export class VerificationRepository {
       faceRawData?: any;
     },
   ) {
+    await jsonDb.refreshCollection('customer_kyc');
     const existing = jsonDb.findOne('customer_kyc', { userId });
     if (existing) {
-      jsonDb.update('customer_kyc', { id: existing.id }, data);
-      return jsonDb.findOne('customer_kyc', { id: existing.id });
+      return jsonDb.updateAwaited('customer_kyc', { id: existing.id }, data);
     }
-    return jsonDb.insert('customer_kyc', { userId, ...data });
+    return jsonDb.insertAwaited('customer_kyc', { userId, ...data });
   }
 
   // ─── DigiLocker reports ──────────────────────────────────────────────────────
 
   async findDigilockerByProfileId(profileId: string) {
+    await jsonDb.refreshCollection('digilocker_reports');
     const records = jsonDb.findMany('digilocker_reports', { profileId });
     if (records.length === 0) return null;
     return records.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
@@ -63,12 +69,12 @@ export class VerificationRepository {
       rawData?: any;
     },
   ) {
+    await jsonDb.refreshCollection('digilocker_reports');
     const existing = jsonDb.findOne('digilocker_reports', { profileId });
     if (existing) {
-      jsonDb.update('digilocker_reports', { id: existing.id }, data);
-      return jsonDb.findOne('digilocker_reports', { id: existing.id });
+      return jsonDb.updateAwaited('digilocker_reports', { id: existing.id }, data);
     }
-    return jsonDb.insert('digilocker_reports', { profileId, ...data });
+    return jsonDb.insertAwaited('digilocker_reports', { profileId, ...data });
   }
 
   // ─── User helpers ────────────────────────────────────────────────────────────

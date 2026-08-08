@@ -11,11 +11,28 @@ import {
 import { isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
+import { Observable, shareReplay } from 'rxjs';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WishlistService } from '../../../wishlist/services/wishlist.service';
-import { CatalogProduct, ProductsApiService } from '../../../products/services/products-api.service';
+import {
+  CatalogProduct,
+  ProductListResponse,
+  ProductsApiService,
+} from '../../../products/services/products-api.service';
 import { formatInr } from '../../../../shared/utils/currency';
 import { PopularProduct } from '../../models/catalog.models';
+
+/**
+ * Shared Home featured-products request so "New Arrivals" can reuse
+ * the primary "Popular on EMI" response without a second HTTP call.
+ */
+let sharedHomeFeaturedRequest$: Observable<ProductListResponse> | null = null;
+
+/**
+ * Confirmed empty against production catalog (categories API returns
+ * Mobiles / Laptops / TVs; product rows use category "Mobiles").
+ */
+const EMPTY_HOME_CATEGORY_QUERIES = new Set(['Smartphone', 'Laptop', 'Smart TV']);
 
 @Component({
   selector: 'app-popular-products',
@@ -35,6 +52,11 @@ export class PopularProducts {
   readonly title = input<string>('Popular on EMI');
   readonly category = input<string | null>(null);
   readonly limit = input<number>(6);
+  /**
+   * When true (New Arrivals), skip a second featured HTTP call and reuse
+   * the shared Home featured request started by Popular on EMI.
+   */
+  readonly reuseFeaturedCache = input(false);
 
   /** Always navigates to /products; optional category becomes a shareable query param. */
   readonly viewAllQueryParams = () => {
@@ -52,19 +74,38 @@ export class PopularProducts {
         return;
       }
 
-      const params: Record<string, string | number | boolean | undefined> = {
-        limit: this.limit(),
-      };
-      if (this.category()) {
-        params['category'] = this.category()!;
-      } else {
-        params['featured'] = true;
+      const category = this.category()?.trim() || null;
+      const limit = this.limit();
+
+      if (category && EMPTY_HOME_CATEGORY_QUERIES.has(category)) {
+        // Performance: empty category API call.
+        // Production categories are Mobiles / Laptops / TVs; these query values
+        // return 0 products. Keep this code commented for easy rollback.
+        // this.productsApi
+        //   .list({ limit, category })
+        //   .pipe(takeUntilDestroyed(this.destroyRef))
+        //   .subscribe({ ... });
+        this.loading.set(false);
+        this.products.set([]);
+        return;
       }
 
-      this.productsApi
-        .list(params)
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe({
+      if (!category && this.reuseFeaturedCache()) {
+        // Performance: duplicate featured products API call.
+        // Reusing the existing featured products request from Popular on EMI.
+        // Keep this code commented for easy rollback.
+        // this.productsApi
+        //   .list({ limit, featured: true })
+        //   .pipe(takeUntilDestroyed(this.destroyRef))
+        //   .subscribe({ ... });
+
+        if (!sharedHomeFeaturedRequest$) {
+          this.loading.set(false);
+          this.products.set([]);
+          return;
+        }
+
+        sharedHomeFeaturedRequest$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
           next: (data) => {
             this.loading.set(false);
             this.products.set(data.items.map((item) => this.toPopularProduct(item)));
@@ -75,6 +116,35 @@ export class PopularProducts {
             this.products.set([]);
           },
         });
+        return;
+      }
+
+      const params: Record<string, string | number | boolean | undefined> = {
+        limit,
+      };
+      if (category) {
+        params['category'] = category;
+      } else {
+        params['featured'] = true;
+      }
+
+      const request$ = this.productsApi.list(params).pipe(shareReplay(1));
+      if (!category) {
+        // Primary Home featured request (Popular on EMI).
+        sharedHomeFeaturedRequest$ = request$;
+      }
+
+      request$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: (data) => {
+          this.loading.set(false);
+          this.products.set(data.items.map((item) => this.toPopularProduct(item)));
+        },
+        error: () => {
+          this.loading.set(false);
+          this.error.set(this.productsApi.error() ?? 'Unable to load products.');
+          this.products.set([]);
+        },
+      });
     });
   }
 

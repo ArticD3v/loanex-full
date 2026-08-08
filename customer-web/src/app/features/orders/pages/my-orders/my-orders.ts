@@ -47,9 +47,18 @@ export class MyOrdersComponent implements OnInit {
     this.load();
   }
 
-  /** Link the success banner to the newest order once the list has loaded. */
+  /** Prefer explicit order from payment success query; never invent identity from list position alone. */
   viewOrderId(): string | null {
-    return this.orders()?.items?.[0]?.id ?? null;
+    const params = this.route.snapshot.queryParamMap;
+    const explicit =
+      params.get('orderId') ||
+      params.get('orderNumber') ||
+      null;
+    if (explicit) return explicit;
+    // Fallback: match paymentId note is unavailable — send user to first list item only if single order.
+    const items = this.orders()?.items ?? [];
+    if (items.length === 1) return items[0].id;
+    return null;
   }
 
   dismissBanner(): void {

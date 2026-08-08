@@ -8,6 +8,26 @@
     <div class="lx-summary__alert" role="alert">{{ err }}</div>
   }
 
+  @if (planMissing()) {
+    <div class="lx-summary__alert" role="status">
+      Select an EMI plan from a product page to continue.
+      <a routerLink="/products" class="lx-btn lx-btn--outline" style="margin-left: 0.5rem">Browse products</a>
+    </div>
+  }
+
+  @if (feePaidContinue()) {
+    <div class="lx-summary__actions" style="margin-bottom: 1rem">
+      <button
+        type="button"
+        class="lx-btn lx-btn--primary"
+        [disabled]="submitting() || !product()"
+        (click)="continueAfterPaidFee()"
+      >
+        {{ submitting() ? 'Continuing…' : 'Continue EMI submission' }}
+      </button>
+    </div>
+  }
+
   @if (loading() && !review()) {
     <div class="lx-summary__loading" aria-live="polite">Loading verification summary…</div>
   }

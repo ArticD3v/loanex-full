@@ -79,8 +79,10 @@ function isDownPaymentCompleted(
 }
 
 export class PaymentService {
-  async getDownPaymentContext(userId: string) {
-    const app = await paymentRepository.findLatestApplicationForUser(userId);
+  async getDownPaymentContext(userId: string, applicationId?: string) {
+    const app = applicationId
+      ? await paymentRepository.findApplicationForUserFresh(applicationId, userId)
+      : await paymentRepository.findLatestApplicationForUser(userId);
     if (!app) {
       throw new NotFoundError('No EMI application found for this account.');
     }
@@ -121,9 +123,11 @@ export class PaymentService {
 
   async createOrder(
     userId: string,
-    meta?: { ipAddress?: string | null; userAgent?: string | null },
+    meta?: { ipAddress?: string | null; userAgent?: string | null; applicationId?: string },
   ) {
-    const app = await paymentRepository.findLatestApplicationForUser(userId);
+    const app = meta?.applicationId
+      ? await paymentRepository.findApplicationForUserFresh(meta.applicationId, userId)
+      : await paymentRepository.findLatestApplicationForUser(userId);
     if (!app) {
       throw new NotFoundError('No EMI application found for this account.');
     }
@@ -135,6 +139,8 @@ export class PaymentService {
       throw new ConflictError('Down payment already completed.', {
         code: 'PAYMENT_ALREADY_COMPLETED',
         nextStep: 'ORDER_CONFIRMATION',
+        orderNumber: app.order?.orderNumber ?? null,
+        orderId: app.order?.id ?? null,
       });
     }
 
@@ -231,6 +237,9 @@ export class PaymentService {
     }
 
     if (transaction.paymentStatus === PaymentStatus.SUCCESS) {
+      // Prior verify may have marked SUCCESS then crashed (e.g. duplicate order
+      // insert). Finish loan/order side-effects so the customer is not stuck.
+      const loan = await loanService.ensureLoanAfterDownPayment(transaction.applicationId);
       const order = await paymentRepository.findOrderByApplication(
         transaction.applicationId,
         userId,
@@ -239,6 +248,8 @@ export class PaymentService {
         paymentStatus: 'SUCCESS' as const,
         alreadyProcessed: true,
         orderNumber: order?.orderNumber ?? null,
+        orderId: order?.id ?? null,
+        loanAccountNumber: loan?.loanAccountNumber ?? null,
         nextStep: 'ORDER_CONFIRMATION' as const,
       };
     }
@@ -295,7 +306,7 @@ export class PaymentService {
       }
     }
 
-    const app = await paymentRepository.findApplicationForUser(
+    const app = await paymentRepository.findApplicationForUserFresh(
       transaction.applicationId,
       userId,
     );

@@ -27,10 +27,13 @@ export class BannersApiService {
   private readonly loadingSignal = signal(false);
   private readonly errorSignal = signal<string | null>(null);
   private readonly bannersSignal = signal<StoreBanner[]>([]);
+  /** True after the primary Home Hero `list()` finishes (success or error). */
+  private readonly loadedSignal = signal(false);
 
   readonly loading = this.loadingSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
   readonly banners = this.bannersSignal.asReadonly();
+  readonly loaded = this.loadedSignal.asReadonly();
 
   list(): Observable<StoreBanner[]> {
     this.loadingSignal.set(true);
@@ -51,11 +54,13 @@ export class BannersApiService {
       tap((banners) => {
         this.bannersSignal.set(banners);
         this.loadingSignal.set(false);
+        this.loadedSignal.set(true);
       }),
       catchError(() => {
         this.loadingSignal.set(false);
         this.errorSignal.set('Unable to load banners.');
         this.bannersSignal.set([]);
+        this.loadedSignal.set(true);
         return of([]);
       }),
     );

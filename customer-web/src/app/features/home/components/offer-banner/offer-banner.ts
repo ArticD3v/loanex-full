@@ -8,10 +8,11 @@ import {
   signal,
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
+import { filter, map, take } from 'rxjs';
 import { OfferBannerContent } from '../../models/home-sections.models';
-import { BannersApiService } from '../../services/banners-api.service';
+import { BannersApiService, StoreBanner } from '../../services/banners-api.service';
 
 @Component({
   selector: 'app-offer-banner',
@@ -34,41 +35,58 @@ export class OfferBanner {
         return;
       }
 
-      this.bannersApi
-        .list()
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe((banners) => {
-          const promotional =
-            banners.find(
-              (banner) => String(banner.placement || '').toLowerCase() === 'promotional',
-            ) ??
-            banners.find((banner) => Number(banner.sortOrder) >= 10) ??
-            banners[0];
+      // Performance: duplicate /banners request.
+      // Primary banner request is already loaded on Home by Hero via bannersApi.list().
+      // Keep this code commented for easy rollback.
+      // this.bannersApi
+      //   .list()
+      //   .pipe(takeUntilDestroyed(this.destroyRef))
+      //   .subscribe((banners) => {
+      //     this.applyBanners(banners);
+      //   });
 
-          if (!promotional?.imageUrl) {
-            this.content.set(null);
-            this.loading.set(false);
-            return;
-          }
-
-          const titleParts = this.splitTitle(promotional.title);
-          const link = promotional.link?.trim() || '/products';
-          const path = link.startsWith('http') ? '/products' : link.split('?')[0] || '/products';
-
-          this.content.set({
-            titleLine1: titleParts[0],
-            titleLine2: titleParts[1],
-            description:
-              promotional.subtitle ||
-              'Unlock exclusive EMI deals and limited-time savings on top brands.',
-            ctaLabel: promotional.badgeText || 'Explore Offers',
-            ctaPath: path,
-            imageSrc: promotional.imageUrl,
-            imageAlt: promotional.title || 'LoanEx promotional offer',
-          });
-          this.loading.set(false);
-        });
+      // Reuse banners already loaded into BannersApiService by the Hero request.
+      toObservable(this.bannersApi.loaded)
+        .pipe(
+          filter((loaded) => loaded),
+          take(1),
+          map(() => this.bannersApi.banners()),
+          takeUntilDestroyed(this.destroyRef),
+        )
+        .subscribe((banners) => this.applyBanners(banners));
     });
+  }
+
+  private applyBanners(banners: StoreBanner[]): void {
+    const promotional =
+      banners.find(
+        (banner) => String(banner.placement || '').toLowerCase() === 'promotional',
+      ) ??
+      banners.find((banner) => Number(banner.sortOrder) >= 10) ??
+      banners[0];
+
+    if (!promotional?.imageUrl) {
+      this.content.set(null);
+      this.loading.set(false);
+      return;
+    }
+
+    const titleParts = this.splitTitle(promotional.title);
+    const link = promotional.link?.trim() || '/products';
+    const path = link.startsWith('http') ? '/products' : link.split('?')[0] || '/products';
+
+    this.content.set({
+      titleLine1: titleParts[0],
+      titleLine2: titleParts[1],
+      description:
+        promotional.subtitle ||
+        'Unlock exclusive EMI deals and limited-time savings on top brands.',
+      ctaLabel: promotional.badgeText || 'Explore Offers',
+      ctaPath: path,
+      imageSrc: promotional.imageUrl,
+      imageAlt: promotional.title || 'LoanEx promotional offer',
+    });
+    this.loading.set(false);
   }
 
   private splitTitle(title: string): [string, string] {

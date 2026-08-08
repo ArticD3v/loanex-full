@@ -10,17 +10,27 @@ function requireUserId(req: AuthenticatedRequest): string {
 
 export class PaymentController {
   getContext = async (req: Request, res: Response) => {
+    const applicationId =
+      typeof req.query.applicationId === 'string' ? req.query.applicationId.trim() : undefined;
     const data = await paymentService.getDownPaymentContext(
       requireUserId(req as AuthenticatedRequest),
+      applicationId || undefined,
     );
     return sendSuccess(res, data, 'Down payment context loaded');
   };
 
   createOrder = async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
+    const applicationId =
+      typeof req.body?.applicationId === 'string'
+        ? String(req.body.applicationId).trim()
+        : typeof req.query.applicationId === 'string'
+          ? req.query.applicationId.trim()
+          : undefined;
     const data = await paymentService.createOrder(requireUserId(authReq), {
       ipAddress: req.ip,
       userAgent: req.get('user-agent'),
+      applicationId: applicationId || undefined,
     });
     return sendSuccess(res, data, 'Razorpay order created', 201);
   };

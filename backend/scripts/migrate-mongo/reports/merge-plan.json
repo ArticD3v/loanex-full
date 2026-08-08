@@ -1,0 +1,238 @@
+[
+  {
+    "mongo": "profiles",
+    "sources": [
+      "profiles",
+      "user_profiles"
+    ],
+    "sourceCounts": {
+      "profiles": 1,
+      "user_profiles": 0
+    },
+    "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
+    "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
+  },
+  {
+    "mongo": "addresses",
+    "sources": [
+      "addresses",
+      "user_addresses",
+      "userAddress"
+    ],
+    "sourceCounts": {
+      "addresses": 6,
+      "user_addresses": 0,
+      "userAddress": 0
+    },
+    "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
+    "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
+  },
+  {
+    "mongo": "reviews",
+    "sources": [
+      "reviews",
+      "product_reviews"
+    ],
+    "sourceCounts": {
+      "reviews": 0,
+      "product_reviews": 0
+    },
+    "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
+    "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
+  },
+  {
+    "mongo": "orderTracking",
+    "sources": [
+      "orderTracking",
+      "order_tracking"
+    ],
+    "sourceCounts": {
+      "orderTracking": 0,
+      "order_tracking": 0
+    },
+    "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
+    "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
+  },
+  {
+    "mongo": "paymentTransaction",
+    "sources": [
+      "paymentTransaction",
+      "payment_transactions"
+    ],
+    "sourceCounts": {
+      "paymentTransaction": 0,
+      "payment_transactions": 0
+    },
+    "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
+    "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
+  },
+  {
+    "mongo": "loanAccount",
+    "sources": [
+      "loanAccount",
+      "loan_accounts"
+    ],
+    "sourceCounts": {
+      "loanAccount": 0,
+      "loan_accounts": 0
+    },
+    "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
+    "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
+  },
+  {
+    "mongo": "emi_schedules",
+    "sources": [
+      "emi_schedules",
+      "emi_schedule"
+    ],
+    "sourceCounts": {
+      "emi_schedules": 0,
+      "emi_schedule": 0
+    },
+    "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
+    "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
+  },
+  {
+    "mongo": "customer_kyc",
+    "sources": [
+      "customer_kyc",
+      "kyc"
+    ],
+    "sourceCounts": {
+      "customer_kyc": 1,
+      "kyc": 0
+    },
+    "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
+    "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
+  },
+  {
+    "mongo": "customerVerification",
+    "sources": [
+      "customerVerification",
+      "customer_verifications"
+    ],
+    "sourceCounts": {
+      "customerVerification": 0,
+      "customer_verifications": 0
+    },
+    "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
+    "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
+  },
+  {
+    "mongo": "aadhaarVerification",
+    "sources": [
+      "aadhaarVerification",
+      "aadhaar_verifications"
+    ],
+    "sourceCounts": {
+      "aadhaarVerification": 0,
+      "aadhaar_verifications": 0
+    },
+    "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
+    "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
+  },
+  {
+    "mongo": "panVerification",
+    "sources": [
+      "panVerification",
+      "pan_verifications"
+    ],
+    "sourceCounts": {
+      "panVerification": 0,
+      "pan_verifications": 0
+    },
+    "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
+    "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
+  },
+  {
+    "mongo": "bankVerification",
+    "sources": [
+      "bankVerification",
+      "bank_verifications"
+    ],
+    "sourceCounts": {
+      "bankVerification": 0,
+      "bank_verifications": 0
+    },
+    "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
+    "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
+  },
+  {
+    "mongo": "mobileVerification",
+    "sources": [
+      "mobileVerification",
+      "mobile_verifications"
+    ],
+    "sourceCounts": {
+      "mobileVerification": 0,
+      "mobile_verifications": 0
+    },
+    "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
+    "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
+  },
+  {
+    "mongo": "notification",
+    "sources": [
+      "notification",
+      "notifications"
+    ],
+    "sourceCounts": {
+      "notification": 0,
+      "notifications": 6
+    },
+    "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
+    "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
+  },
+  {
+    "mongo": "audit_log",
+    "sources": [
+      "audit_log",
+      "audit_logs"
+    ],
+    "sourceCounts": {
+      "audit_log": 0,
+      "audit_logs": 0
+    },
+    "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
+    "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
+  },
+  {
+    "mongo": "autopayMandate",
+    "sources": [
+      "autopayMandate",
+      "autopay_mandates"
+    ],
+    "sourceCounts": {
+      "autopayMandate": 0,
+      "autopay_mandates": 0
+    },
+    "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
+    "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
+  },
+  {
+    "mongo": "checkoutSession",
+    "sources": [
+      "checkoutSession",
+      "checkout_sessions"
+    ],
+    "sourceCounts": {
+      "checkoutSession": 0,
+      "checkout_sessions": 0
+    },
+    "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
+    "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
+  },
+  {
+    "mongo": "supportTicket",
+    "sources": [
+      "supportTicket",
+      "support_tickets"
+    ],
+    "sourceCounts": {
+      "supportTicket": 0,
+      "support_tickets": 0
+    },
+    "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
+    "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
+  }
+]

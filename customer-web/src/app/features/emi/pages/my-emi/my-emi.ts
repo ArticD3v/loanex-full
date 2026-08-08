@@ -56,13 +56,13 @@ export class EmiDashboardComponent implements OnInit {
 
   contactSupport(): void {
     const loan = this.dashboard()?.loan;
-    const subject = encodeURIComponent(
-      `Support request for loan ${loan?.loanAccountNumber ?? ''}`,
-    );
-    const body = encodeURIComponent(
-      `Hello LoanEx Support,\n\nI need help with loan ${loan?.loanAccountNumber ?? '—'}.\nApplication: ${loan?.applicationNumber ?? '—'}\nStatus: ${loan?.loanStatus ?? '—'}\n`,
-    );
-    window.location.href = `mailto:support@loanex.in?subject=${subject}&body=${body}`;
+    void this.router.navigate(['/support'], {
+      queryParams: {
+        topic: 'loan',
+        loanAccountNumber: loan?.loanAccountNumber ?? undefined,
+        applicationNumber: loan?.applicationNumber ?? undefined,
+      },
+    });
   }
 
   downloadStatement(): void {
