@@ -86,25 +86,51 @@ export class MyEmisComponent implements OnInit {
   }
 
   ctaFor(item: EmiApplicationHistoryItem): Cta {
+    const applicationId = item.id;
+    const withApp = (routerLink: string): Cta => ({
+      label: '',
+      routerLink,
+      queryParams: applicationId ? { applicationId } : undefined,
+    });
+
     switch (item.nextStep) {
       case 'VIEW_OFFER':
-        return { label: 'View Approved Offer', routerLink: '/application/approved' };
+        return { ...withApp('/application/approved'), label: 'View Approved Offer' };
       case 'PAY_DOWN_PAYMENT':
-        return { label: 'Pay Down Payment', routerLink: '/application/down-payment' };
+        return { ...withApp('/application/down-payment'), label: 'Pay Down Payment' };
       case 'VIEW_LOAN':
-        return { label: 'View My EMI', routerLink: '/my-emi' };
+        return {
+          label: 'View My EMI',
+          routerLink: '/my-emi',
+          queryParams: applicationId ? { applicationId } : undefined,
+        };
       case 'VIEW_ORDER':
         return item.orderNumber || item.orderId
-          ? { label: 'Track Order', routerLink: `/orders/${item.orderNumber || item.orderId}` }
-          : { label: 'Order Confirmation', routerLink: '/order/confirmation' };
+          ? {
+              label: 'Track Order',
+              routerLink: `/orders/${item.orderNumber || item.orderId}`,
+            }
+          : {
+              label: 'Order Confirmation',
+              routerLink: '/order/confirmation',
+              queryParams: {
+                ...(item.orderNumber ? { orderNumber: item.orderNumber } : {}),
+                ...(item.orderId ? { orderId: item.orderId } : {}),
+                ...(applicationId ? { applicationId } : {}),
+              },
+            };
       case 'APPLY_AGAIN':
         return item.status === 'REJECTED'
-          ? { label: 'View Rejection Details', routerLink: '/application/rejected' }
+          ? { ...withApp('/application/rejected'), label: 'View Rejection Details' }
           : { label: 'Continue Shopping', routerLink: '/products' };
       case 'LOAN_COMPLETED':
-        return { label: 'View Loan Statement', routerLink: '/my-emi/statement' };
+        return {
+          label: 'View Loan Statement',
+          routerLink: '/my-emi/statement',
+          queryParams: applicationId ? { applicationId } : undefined,
+        };
       default:
-        return { label: 'View Status', routerLink: '/application/pending' };
+        return { ...withApp('/application/pending'), label: 'View Status' };
     }
   }
 

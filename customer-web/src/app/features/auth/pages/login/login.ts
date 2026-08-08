@@ -67,7 +67,11 @@ export class Login {
     const { identifier, password } = this.form.getRawValue();
     // Password login only — OTP login is disabled on the API.
     this.auth.login({ identifier: identifier.trim(), password }).subscribe({
-      next: () => {
+      next: (data) => {
+        if (data.requiresOtp || !data.accessToken || !data.user) {
+          // Session not established — do not navigate away.
+          return;
+        }
         this.auth.redirectAfterAuth();
       },
     });

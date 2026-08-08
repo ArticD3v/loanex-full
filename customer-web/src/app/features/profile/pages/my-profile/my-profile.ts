@@ -12,6 +12,7 @@ import {
 } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
+import { VerificationService } from '../../../verification/services/verification.service';
 import {
   AddressPayload,
   Gender,
@@ -63,6 +64,7 @@ export class MyProfileComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly profileApi = inject(ProfileService);
   private readonly auth = inject(AuthService);
+  private readonly verificationApi = inject(VerificationService);
 
   readonly states = INDIAN_STATES;
   readonly loading = signal(true);
@@ -73,6 +75,9 @@ export class MyProfileComponent implements OnInit {
   readonly addresses = signal<ProfileAddress[]>([]);
   readonly editingAddressId = signal<string | null>(null);
   readonly showAddressForm = signal(false);
+  readonly kycLoading = signal(false);
+  readonly aadhaarVerified = signal(false);
+  readonly panVerified = signal(false);
 
   readonly personalForm = this.fb.nonNullable.group({
     fullName: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
@@ -95,6 +100,19 @@ export class MyProfileComponent implements OnInit {
 
   ngOnInit(): void {
     this.load();
+    this.loadKycStatus();
+  }
+
+  private loadKycStatus(): void {
+    this.kycLoading.set(true);
+    this.verificationApi.getStatus().subscribe({
+      next: (status) => {
+        this.kycLoading.set(false);
+        this.aadhaarVerified.set(status.aadhaarVerified);
+        this.panVerified.set(status.panVerified);
+      },
+      error: () => this.kycLoading.set(false),
+    });
   }
 
   onPincodeInput(event: Event): void {

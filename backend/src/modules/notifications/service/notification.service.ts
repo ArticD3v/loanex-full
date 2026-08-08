@@ -4,6 +4,7 @@ import {
   NotificationType,
 } from '../repository/notification.repository';
 import {
+  BadRequestError,
   ForbiddenError,
   NotFoundError,
 } from '../../../common/errors/app-error';
@@ -263,6 +264,33 @@ export class NotificationService {
         };
       }),
     };
+  }
+
+  async createForSelf(input: {
+    userId: string;
+    title: string;
+    message: string;
+    typeHint?: string;
+    metadata?: Record<string, unknown>;
+  }) {
+    if (!input.title.trim()) {
+      throw new BadRequestError('Notification title is required.');
+    }
+    const hint = String(input.typeHint ?? 'general').toLowerCase();
+    let type = NotificationType.SYSTEM;
+    if (hint === 'kyc') type = NotificationType.KYC_APPROVED;
+    else if (hint === 'order') type = NotificationType.ORDER_CONFIRMED;
+    else if (hint === 'emi') type = NotificationType.EMI_DUE_REMINDER;
+    else if (hint === 'payment') type = NotificationType.DOWN_PAYMENT_SUCCESS;
+
+    return this.dispatch({
+      userId: input.userId,
+      type,
+      title: input.title,
+      message: input.message,
+      metadata: input.metadata,
+      channels: ['inapp'],
+    });
   }
 
   async adminCreate(input: {

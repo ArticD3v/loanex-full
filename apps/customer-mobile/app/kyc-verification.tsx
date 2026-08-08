@@ -268,7 +268,7 @@ export default function KYCVerificationScreen() {
     setVerifiedName(data.name || '');
     setVerifiedDob(data.dob || '');
     setVerifiedGender(data.gender || '');
-    setVerifiedAadharNumber(data.idNumber || 'XXXXXXXXXXXX');
+    setVerifiedAadharNumber(data.aadhaarNumber || data.idNumber || 'XXXXXXXXXXXX');
     setVerifiedRaw(data.raw);
     
     // Attempt to save to database via backend

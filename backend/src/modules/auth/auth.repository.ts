@@ -1,11 +1,62 @@
-import { jsonDb } from '../../config/json-db';
-import { supabase } from '../../config/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import { jsonDb } from '../../config/json-db';
+import { getMongoDb, isMongoConfigured } from '../../config/mongo';
 
+/**
+ * Customer (and shared) auth persistence.
+ *
+ * MongoDB `users` / `profiles` are the ONLY durable source of truth for
+ * authentication lookups and registration. In-memory jsonDb and Supabase are
+ * not consulted for user credential reads.
+ *
+ * OTP helpers still use jsonDb (ephemeral). Refresh tokens still persist via
+ * jsonDb.insertAwaited which mirrors to Mongo when DATA_PRIMARY is Mongo.
+ */
 export class AuthRepository {
+  private assertMongoForAuth(): void {
+    if (!isMongoConfigured()) {
+      throw new Error('MongoDB is required for authentication');
+    }
+  }
+
+  private stripMongoId<T extends Record<string, any>>(row: T | null | undefined): T | null {
+    if (!row) return null;
+    const { _id, ...rest } = row as T & { _id?: unknown };
+    if ((rest as any).id == null && _id != null) {
+      (rest as any).id = String(_id);
+    }
+    return rest as T;
+  }
+
+  /**
+   * Best-effort mirror into process memory for non-auth modules that still
+   * read jsonDb. Auth itself never treats this cache as authoritative.
+   */
+  private seedLocalCache(collectionName: 'users' | 'profiles', row: any): void {
+    if (!row?.id) return;
+    try {
+      const collection = jsonDb.getCollection(collectionName);
+      const idx = collection.findIndex((item: any) => item.id === row.id);
+      const clean = this.stripMongoId({ ...row }) as any;
+      if (idx === -1) {
+        collection.push(clean);
+      } else {
+        collection[idx] = { ...collection[idx], ...clean };
+      }
+    } catch {
+      /* non-auth cache only */
+    }
+  }
+
   private async formatUserWithProfile(user: any) {
     if (!user) return null;
-    const profile = jsonDb.findOne('profiles', { id: user.id });
+    this.assertMongoForAuth();
+    const db = await getMongoDb();
+    const profileDoc = await db.collection('profiles').findOne({
+      $or: [{ id: user.id }, { _id: user.id as any }],
+    });
+    const profile = this.stripMongoId(profileDoc as any);
+    if (profile) this.seedLocalCache('profiles', profile);
     return {
       ...user,
       profiles: profile || null,
@@ -13,9 +64,7 @@ export class AuthRepository {
   }
 
   /**
-   * Pick the best account row when duplicates exist (e.g. demo seed + real
-   * registration share the same phone). Prefer the row that actually has a
-   * password hash so phone+password login verifies against the right account.
+   * Prefer the row that carries a password hash when duplicates share a phone/email.
    */
   private pickBestUserMatch(rows: any[]): any | null {
     if (!rows || rows.length === 0) return null;
@@ -32,90 +81,34 @@ export class AuthRepository {
     })[0];
   }
 
-  /**
-   * Source-mode serverless instances hydrate once at cold start.
-   * Users created on another instance exist in Supabase but not in memory —
-   * always fall back to Supabase and seed the local cache on hit.
-   */
-  private async loadUserFromSupabase(where: {
-    id?: string;
-    phone?: string;
-    email?: string;
-  }): Promise<any | null> {
-    try {
-      let query = supabase.from('users').select('*').limit(20);
-      if (where.id) query = query.eq('id', where.id);
-      if (where.phone) query = query.eq('phone', where.phone);
-      if (where.email) query = query.eq('email', where.email);
-
-      const { data, error } = await query;
-      if (error || !data || data.length === 0) return null;
-
-      // Duplicate rows (demo seed + real account) can share a phone/email —
-      // prefer the row that carries an encrypted password.
-      const best = this.pickBestUserMatch(data);
-      if (!best) return null;
-
-      // Seed in-memory cache so subsequent reads in this instance are fast.
-      // Mutate local collection only — do not re-mirror a row we just read.
-      const collection = jsonDb.getCollection('users');
-      const idx = collection.findIndex((u: any) => u.id === best.id);
-      if (idx === -1) {
-        collection.push(best);
-      } else {
-        collection[idx] = {
-          ...collection[idx],
-          ...best,
-          encryptedPassword:
-            best.encryptedPassword || collection[idx].encryptedPassword,
-        };
-      }
-
-      // Also pull profile if missing locally.
-      if (!jsonDb.findOne('profiles', { id: best.id })) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', best.id)
-          .limit(1);
-        if (profile && profile.length > 0) {
-          jsonDb.getCollection('profiles').push(profile[0]);
-        }
-      }
-
-      return best;
-    } catch (err) {
-      console.error('[AuthRepository] Supabase user lookup failed', err);
-      return null;
-    }
+  private async findUsersInMongo(filter: Record<string, unknown>): Promise<any[]> {
+    this.assertMongoForAuth();
+    const db = await getMongoDb();
+    const docs = await db.collection('users').find(filter).limit(20).toArray();
+    return docs
+      .map((doc) => this.stripMongoId(doc as any))
+      .filter(Boolean) as any[];
   }
 
   async findByEmail(email: string) {
     const normalized = email.trim().toLowerCase();
-    const local = this.pickBestUserMatch(jsonDb.findMany('users', { email: normalized }));
-    let user = local;
-    if (!user) {
-      user = await this.loadUserFromSupabase({ email: normalized });
-    }
+    const rows = await this.findUsersInMongo({ email: normalized });
+    const user = this.pickBestUserMatch(rows);
     return this.formatUserWithProfile(user);
   }
 
   async findByMobile(mobile: string) {
     const phone = mobile.trim();
-    const local = this.pickBestUserMatch(jsonDb.findMany('users', { phone }));
-    let user = local;
-    if (!user) {
-      user = await this.loadUserFromSupabase({ phone });
-    }
+    const rows = await this.findUsersInMongo({ phone });
+    const user = this.pickBestUserMatch(rows);
     return this.formatUserWithProfile(user);
   }
 
   async findById(id: string) {
-    const local = this.pickBestUserMatch(jsonDb.findMany('users', { id }));
-    let user = local;
-    if (!user) {
-      user = await this.loadUserFromSupabase({ id });
-    }
+    const rows = await this.findUsersInMongo({
+      $or: [{ id }, { _id: id as any }],
+    } as any);
+    const user = this.pickBestUserMatch(rows);
     return this.formatUserWithProfile(user);
   }
 
@@ -140,19 +133,25 @@ export class AuthRepository {
     mobileVerified?: boolean;
     dob?: string;
     gender?: string;
-  }) {
+  }): Promise<any> {
+    this.assertMongoForAuth();
     const id = uuidv4();
     const now = new Date().toISOString();
     const status = data.status ?? 'PENDING';
     const mobileVerified =
       data.mobileVerified ?? String(status).toUpperCase() === 'ACTIVE';
+    const email = String(data.email ?? '')
+      .trim()
+      .toLowerCase();
+    // `data.password` is expected to already be a bcrypt hash from AuthService.
+    const passwordHash = data.password ?? '';
 
-    // Await Supabase mirror so password hash is durable across serverless instances.
-    const user = await jsonDb.insertAwaited('users', {
+    const userDoc: Record<string, any> = {
+      _id: id,
       id,
       phone: data.mobile,
-      email: data.email,
-      encryptedPassword: data.password ?? '',
+      email,
+      encryptedPassword: passwordHash,
       role: 'authenticated',
       status,
       mobileVerified,
@@ -161,44 +160,71 @@ export class AuthRepository {
       updated_at: now,
       createdAt: now,
       updatedAt: now,
-    });
+    };
 
-    const profile = await jsonDb.insertAwaited('profiles', {
+    const profileDoc: Record<string, any> = {
+      _id: id,
       id,
       mobile_number: data.mobile,
       fullName: data.fullName,
-      email: data.email,
+      email,
       ...(data.dob ? { dob: data.dob } : {}),
       ...(data.gender ? { gender: data.gender } : {}),
+      created_at: now,
+      updated_at: now,
       createdAt: now,
       updatedAt: now,
-    });
+    };
+
+    const db = await getMongoDb();
+    await db.collection('users').replaceOne({ _id: id as any }, userDoc, { upsert: true });
+    await db.collection('profiles').replaceOne({ _id: id as any }, profileDoc, { upsert: true });
+
+    const user = this.stripMongoId(userDoc)!;
+    const profile = this.stripMongoId(profileDoc)!;
+    this.seedLocalCache('users', user);
+    this.seedLocalCache('profiles', profile);
 
     return { ...user, profiles: profile };
   }
 
   async updateUser(id: string, data: any) {
-    // Ensure row is in memory before update.
-    await this.findById(id);
-    const updated = await jsonDb.updateAwaited('users', { id }, data);
+    this.assertMongoForAuth();
+    const existing = await this.findById(id);
+    if (!existing) return null;
+
+    const now = new Date().toISOString();
+    const { profiles: _profiles, _id: _ignored, ...restExisting } = existing as any;
+    const updatePayload = {
+      ...data,
+      updatedAt: now,
+      updated_at: now,
+    };
+
+    const db = await getMongoDb();
+    await db.collection('users').updateOne(
+      { $or: [{ id }, { _id: id as any }] },
+      { $set: updatePayload },
+    );
+
+    const updated = this.stripMongoId({
+      ...restExisting,
+      ...updatePayload,
+      id,
+    });
+    if (updated) this.seedLocalCache('users', updated);
     return this.formatUserWithProfile(updated);
   }
 
   async activateUser(id: string) {
     const now = new Date().toISOString();
-    await this.findById(id);
-    const user = await jsonDb.updateAwaited(
-      'users',
-      { id },
-      {
-        status: 'ACTIVE',
-        mobileVerified: true,
-        mobile_verified: true,
-        updatedAt: now,
-        updated_at: now,
-      },
-    );
-    return this.formatUserWithProfile(user || jsonDb.findOne('users', { id }));
+    return this.updateUser(id, {
+      status: 'ACTIVE',
+      mobileVerified: true,
+      mobile_verified: true,
+      updatedAt: now,
+      updated_at: now,
+    });
   }
 
   async invalidateOtps(mobile: string, purpose: any) {
@@ -290,11 +316,8 @@ export class AuthRepository {
       userId,
     };
     try {
-      // Preferred table when it exists in Supabase.
       return await jsonDb.insertAwaited('refresh_tokens', row);
     } catch (err) {
-      // Production DB is missing public.refresh_tokens (and DATABASE_URL can't DDL).
-      // Persist via audit_log so refresh works across serverless instances.
       console.warn(
         '[auth] refresh_tokens unavailable — persisting via audit_log fallback:',
         err instanceof Error ? err.message : err,

@@ -1,0 +1,169 @@
+{
+  "validation": [
+    {
+      "pg": "products",
+      "mongo": "products",
+      "pgCount": 4,
+      "mongoCount": 4,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "orders",
+      "mongo": "orders",
+      "pgCount": 5,
+      "mongoCount": 5,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "categories",
+      "mongo": "categories",
+      "pgCount": 3,
+      "mongoCount": 3,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "brands",
+      "mongo": "brands",
+      "pgCount": 11,
+      "mongoCount": 11,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "banners",
+      "mongo": "banners",
+      "pgCount": 2,
+      "mongoCount": 2,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "addresses",
+      "mongo": "addresses",
+      "pgCount": 6,
+      "mongoCount": 6,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "profiles",
+      "mongo": "profiles",
+      "pgCount": 1,
+      "mongoCount": 1,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "customer_kyc",
+      "mongo": "customer_kyc",
+      "pgCount": 1,
+      "mongoCount": 1,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "notifications",
+      "mongo": "notification",
+      "pgCount": 6,
+      "mongoCount": 6,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "wishlist_items",
+      "mongo": "wishlist_items",
+      "pgCount": 1,
+      "mongoCount": 1,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "sub_categories",
+      "mongo": "sub_categories",
+      "pgCount": 9,
+      "mongoCount": 9,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "dealers",
+      "mongo": "dealers",
+      "pgCount": 4,
+      "mongoCount": 4,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "warehouses",
+      "mongo": "warehouses",
+      "pgCount": 4,
+      "mongoCount": 4,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "suppliers",
+      "mongo": "suppliers",
+      "pgCount": 3,
+      "mongoCount": 3,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "manufacturers",
+      "mongo": "manufacturers",
+      "pgCount": 4,
+      "mongoCount": 4,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "product_attributes",
+      "mongo": "product_attributes",
+      "pgCount": 6,
+      "mongoCount": 6,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "product_attribute_values",
+      "mongo": "product_attribute_values",
+      "pgCount": 35,
+      "mongoCount": 35,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "emi_details",
+      "mongo": "emi_details",
+      "pgCount": 2,
+      "mongoCount": 2,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "digilocker_reports",
+      "mongo": "digilocker_reports",
+      "pgCount": 2,
+      "mongoCount": 2,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "product_dealers",
+      "mongo": "product_dealers",
+      "pgCount": 3,
+      "mongoCount": 3,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "product_suppliers",
+      "mongo": "product_suppliers",
+      "pgCount": 5,
+      "mongoCount": 5,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "payment_transactions",
+      "mongo": "paymentTransaction",
+      "pgCount": 0,
+      "mongoCount": 0,
+      "status": "MATCHED"
+    },
+    {
+      "pg": "users",
+      "mongo": "users",
+      "pgCount": 0,
+      "mongoCount": 0,
+      "status": "MATCHED"
+    }
+  ],
+  "matched": 23,
+  "missing": [],
+  "dup": [],
+  "failed": []
+}

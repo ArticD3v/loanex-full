@@ -68,6 +68,7 @@ export class IdentityVerificationComponent implements OnInit, OnDestroy {
     profile_image: string; address?: any;
   } | null>(null);
   private pollIntervalId: ReturnType<typeof setInterval> | null = null;
+  private digilockerMessageHandler: ((event: MessageEvent) => void) | null = null;
   readonly verifyingAadhaar = signal(false);
 
   // PAN / Experian State
@@ -107,20 +108,30 @@ export class IdentityVerificationComponent implements OnInit, OnDestroy {
     const userMobile = this.auth.user()?.mobile ?? '';
     this.displayMobile.set(userMobile);
     this.loadStatus();
+    this.listenForDigilockerMessage();
 
-    // Check if returning from DigiLocker redirect
+    // Returning from DigiLocker (query) or same-tab resume (localStorage).
+    // Do NOT delete digilocker_client_id until verification succeeds.
     const queryClientId = this.route.snapshot.queryParamMap.get('client_id');
-    const storedClientId = localStorage.getItem('digilocker_client_id');
+    const storedClientId =
+      typeof localStorage !== 'undefined'
+        ? localStorage.getItem('digilocker_client_id')
+        : null;
     const clientId = queryClientId || storedClientId;
 
-    if (clientId && !this.aadhaarVerified()) {
-      localStorage.removeItem('digilocker_client_id');
+    if (clientId) {
+      this.digilockerClientId.set(clientId);
+      this.digilockerStep.set('fetching');
       this.checkAndFetchDigilocker(clientId, true);
     }
   }
 
   ngOnDestroy(): void {
     this.stopPollingDigilocker();
+    if (typeof window !== 'undefined' && this.digilockerMessageHandler) {
+      window.removeEventListener('message', this.digilockerMessageHandler);
+      this.digilockerMessageHandler = null;
+    }
   }
 
   private loadStatus(): void {
@@ -129,10 +140,10 @@ export class IdentityVerificationComponent implements OnInit, OnDestroy {
         this.bootstrapping.set(false);
         this.aadhaarVerified.set(status.aadhaarVerified);
         this.panVerified.set(status.panVerified);
-        // this.bankVerified.set(status.bankVerified);
 
         if (status.aadhaarVerified) {
           this.digilockerStep.set('done');
+          this.clearDigilockerClientId();
           this.verification.getAadhaarStatus().subscribe({
             next: (res) => {
               const data: any = res;
@@ -173,6 +184,24 @@ export class IdentityVerificationComponent implements OnInit, OnDestroy {
               });
             }
           });
+        } else {
+          // Resume pending DigiLocker from Mongo-backed client_id when local state was lost.
+          this.verification.getAadhaarStatus().subscribe({
+            next: (aadhaar) => {
+              const pendingId = (aadhaar as { client_id?: string | null }).client_id;
+              if (!pendingId || this.aadhaarVerified()) return;
+              if (this.digilockerClientId()) return;
+              this.digilockerClientId.set(pendingId);
+              if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('digilocker_client_id', pendingId);
+              }
+              this.digilockerStep.set('redirect');
+              this.startPollingDigilocker(pendingId);
+            },
+            error: () => {
+              /* optional resume */
+            },
+          });
         }
         
         if (status.kyc?.cibil_score) {
@@ -182,11 +211,6 @@ export class IdentityVerificationComponent implements OnInit, OnDestroy {
         if (status.kyc?.panNumber) {
           this.maskedPan.set(this.maskString(status.kyc.panNumber));
         }
-
-        // Bank verification temporarily disabled — after Aadhaar + PAN use Continue button / goToSummary()
-        // if (status.panVerified) {
-        //   this.hydrateBankSection(status.bankVerified);
-        // }
       },
       error: () => {
         this.bootstrapping.set(false);
@@ -231,11 +255,22 @@ export class IdentityVerificationComponent implements OnInit, OnDestroy {
     this.verification.digilockerGenerate().subscribe({
       next: (res) => {
         this.verifyingAadhaar.set(false);
+        if ((res as { alreadyVerified?: boolean; verified?: boolean }).alreadyVerified ||
+            (res as { verified?: boolean }).verified) {
+          this.aadhaarVerified.set(true);
+          this.digilockerStep.set('done');
+          this.clearDigilockerClientId();
+          this.toastSuccess('Aadhaar is already verified.');
+          this.loadStatus();
+          return;
+        }
         this.digilockerClientId.set(res.client_id);
         if (res.digilocker_url) {
           this.digilockerUrl.set(res.digilocker_url);
           this.digilockerStep.set('redirect');
-          localStorage.setItem('digilocker_client_id', res.client_id);
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('digilocker_client_id', res.client_id);
+          }
           this.openDigilockerPopup(res.digilocker_url, res.client_id);
         } else {
           this.toastWarn('Failed to generate DigiLocker URL.');
@@ -246,6 +281,20 @@ export class IdentityVerificationComponent implements OnInit, OnDestroy {
         this.toastError(this.verification.error() ?? 'DigiLocker init failed.');
       }
     });
+  }
+
+  private listenForDigilockerMessage(): void {
+    if (typeof window === 'undefined') return;
+    this.digilockerMessageHandler = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { type?: string; client_id?: string | null };
+      if (data?.type !== 'loanex-digilocker-complete') return;
+      const clientId = data.client_id || this.digilockerClientId();
+      if (clientId && !this.aadhaarVerified()) {
+        this.checkAndFetchDigilocker(clientId, true);
+      }
+    };
+    window.addEventListener('message', this.digilockerMessageHandler);
   }
 
   private openDigilockerPopup(url: string, clientId: string): void {
@@ -260,21 +309,33 @@ export class IdentityVerificationComponent implements OnInit, OnDestroy {
     );
 
     if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-      this.toastWarn('Popup blocked. Please allow popups or use the manual link.');
+      this.toastWarn(
+        'Popup blocked. Opening DigiLocker in a new tab — keep this page open.',
+      );
+      // Prefer a new tab over navigating away from /verification (prevents Home bounce).
+      const tab = window.open(url, '_blank', 'noopener,noreferrer');
+      if (!tab) {
+        this.toastError(
+          'Unable to open DigiLocker. Please allow popups/new tabs and try again.',
+        );
+        this.digilockerStep.set('enter');
+        return;
+      }
+      this.startPollingDigilocker(clientId);
       return;
     }
 
     this.startPollingDigilocker(clientId, popup);
   }
 
-  private startPollingDigilocker(clientId: string, popup: Window): void {
+  private startPollingDigilocker(clientId: string, popup?: Window): void {
     this.stopPollingDigilocker();
     let attempts = 0;
     const maxAttempts = 60; // 5 mins at 5s interval
 
     this.pollIntervalId = setInterval(() => {
       attempts++;
-      if (popup.closed) {
+      if (popup && popup.closed) {
         this.stopPollingDigilocker();
         this.checkAndFetchDigilocker(clientId, true);
         return;
@@ -283,12 +344,15 @@ export class IdentityVerificationComponent implements OnInit, OnDestroy {
       
       if (attempts >= maxAttempts) {
         this.stopPollingDigilocker();
-        this.toastWarn('DigiLocker verification timed out.');
+        this.toastWarn('DigiLocker verification timed out. You can retry from this page.');
+        this.digilockerStep.set('redirect');
+        this.verifyingAadhaar.set(false);
       }
     }, 5000);
   }
 
   checkAndFetchDigilocker(clientId: string, isFinal: boolean = false, popup?: Window): void {
+    if (this.aadhaarVerified()) return;
     this.verifyingAadhaar.set(true);
     this.verification.digilockerFetch(clientId).subscribe({
       next: (res) => {
@@ -298,6 +362,7 @@ export class IdentityVerificationComponent implements OnInit, OnDestroy {
             try { popup.close(); } catch (_) {}
           }
           this.verifyingAadhaar.set(false);
+          this.clearDigilockerClientId();
           this.digilockerKycData.set({
             name: res.name,
             gender: res.gender,
@@ -311,13 +376,31 @@ export class IdentityVerificationComponent implements OnInit, OnDestroy {
           this.maskedAadhaar.set(res.masked_aadhaar);
           this.digilockerStep.set('done');
           this.toastSuccess('Aadhaar verified successfully via DigiLocker.');
+          // Strip client_id from URL without leaving /verification.
+          void this.router.navigate([], {
+            relativeTo: this.route,
+            queryParams: { client_id: null },
+            queryParamsHandling: 'merge',
+            replaceUrl: true,
+          });
           this.loadStatus(); // Reload to pre-fill the experian form
+        } else if (isFinal) {
+          this.verifyingAadhaar.set(false);
+          this.digilockerStep.set('redirect');
+          this.toastWarn(
+            'DigiLocker authorization is not complete yet. Finish in DigiLocker, then wait or retry.',
+          );
         }
       },
       error: () => {
         if (isFinal) {
           this.stopPollingDigilocker();
           this.verifyingAadhaar.set(false);
+          this.digilockerStep.set('redirect');
+          this.toastError(
+            this.verification.error() ??
+              'Could not confirm DigiLocker yet. Stay on this page and retry — you will not be sent Home.',
+          );
         }
       }
     });
@@ -330,9 +413,25 @@ export class IdentityVerificationComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Re-open DigiLocker without navigating the current /verification tab away. */
   continueDigilockerRedirect(): void {
-    if (this.digilockerUrl()) {
-      window.location.href = this.digilockerUrl()!;
+    const url = this.digilockerUrl();
+    const clientId = this.digilockerClientId();
+    if (url && clientId) {
+      this.openDigilockerPopup(url, clientId);
+      return;
+    }
+    if (clientId && !url) {
+      this.startDigilocker();
+      return;
+    }
+    this.toastWarn('DigiLocker session expired. Please start verification again.');
+    this.digilockerStep.set('enter');
+  }
+
+  private clearDigilockerClientId(): void {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('digilocker_client_id');
     }
   }
 

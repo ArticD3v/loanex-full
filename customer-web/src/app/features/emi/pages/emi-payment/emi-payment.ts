@@ -194,7 +194,7 @@ export class EmiPaymentComponent implements OnInit {
       next: (result) => {
         this.paying.set(false);
         this.info.set(result.message || 'EMI payment successful.');
-        void this.router.navigateByUrl('/my-emi');
+        void this.router.navigateByUrl('/my-emi', { replaceUrl: true });
       },
       error: () => {
         this.paying.set(false);

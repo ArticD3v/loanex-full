@@ -122,15 +122,20 @@ export class PaymentService {
   readonly loading = this.loadingSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
 
-  getDownPaymentContext(): Observable<DownPaymentContext> {
+  getDownPaymentContext(applicationId?: string): Observable<DownPaymentContext> {
+    const options = applicationId
+      ? { params: { applicationId } }
+      : {};
     return this.wrap(
-      this.http.get<ApiSuccess<DownPaymentContext>>(`${this.baseUrl}/down-payment`),
+      this.http.get<ApiSuccess<DownPaymentContext>>(`${this.baseUrl}/down-payment`, options),
     );
   }
 
-  createOrder(): Observable<CreatePaymentOrderResponse> {
+  createOrder(applicationId?: string): Observable<CreatePaymentOrderResponse> {
     return this.wrap(
-      this.http.post<ApiSuccess<CreatePaymentOrderResponse>>(`${this.baseUrl}/create-order`, {}),
+      this.http.post<ApiSuccess<CreatePaymentOrderResponse>>(`${this.baseUrl}/create-order`, {
+        ...(applicationId ? { applicationId } : {}),
+      }),
     );
   }
 

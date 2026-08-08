@@ -6,6 +6,7 @@
         <p>Manage your personal details and saved delivery addresses.</p>
       </div>
       <a routerLink="/profile/settings" class="lx-btn lx-btn--outline">Settings</a>
+      <a routerLink="/verification" class="lx-btn lx-btn--outline">KYC Status</a>
     </header>
 
     @if (error(); as err) {
@@ -18,6 +19,21 @@
     @if (loading()) {
       <p class="lx-profile__loading" aria-live="polite">Loading your profile…</p>
     } @else {
+      <section class="lx-profile__section" aria-labelledby="lx-profile-kyc-title">
+        <h2 id="lx-profile-kyc-title">KYC Verification</h2>
+        @if (kycLoading()) {
+          <p>Loading KYC status…</p>
+        } @else {
+          <p>
+            Aadhaar: <strong>{{ aadhaarVerified() ? 'Verified' : 'Pending' }}</strong>
+            · PAN: <strong>{{ panVerified() ? 'Verified' : 'Pending' }}</strong>
+          </p>
+          <a routerLink="/verification" class="lx-btn lx-btn--outline">
+            {{ aadhaarVerified() && panVerified() ? 'View KYC' : 'Continue Verification' }}
+          </a>
+        }
+      </section>
+
       <form class="lx-profile__form" [formGroup]="personalForm" (ngSubmit)="savePersonal()">
         <section class="lx-profile__section" aria-labelledby="lx-profile-personal-title">
           <h2 id="lx-profile-personal-title">Personal Information</h2>

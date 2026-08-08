@@ -1,0 +1,1236 @@
+{
+  "tableCount": 76,
+  "inventory": {
+    "aadhaarVerification": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "aadhaar_verifications": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "addresses": {
+      "exists": true,
+      "count": 6,
+      "columns": [
+        "apartment",
+        "area",
+        "city",
+        "created_at",
+        "full_address",
+        "house_number",
+        "id",
+        "is_default",
+        "is_residential_verified",
+        "label",
+        "landmark",
+        "mobile_number",
+        "pincode",
+        "profile_id",
+        "receiver_name",
+        "state",
+        "street",
+        "user_id"
+      ],
+      "sampleIds": [
+        "dfa142e2-29f3-4e19-ae8f-badb810eef41",
+        "306a28f8-d0f7-4031-b38f-144abb0cb063",
+        "1f59f146-2bf7-4aa6-80ca-1fe9e1edeaf5"
+      ],
+      "sampleKeys": [
+        "apartment",
+        "area",
+        "city",
+        "created_at",
+        "full_address",
+        "house_number",
+        "id",
+        "is_default",
+        "is_residential_verified",
+        "label",
+        "landmark",
+        "mobile_number",
+        "pincode",
+        "profile_id",
+        "receiver_name",
+        "state",
+        "street",
+        "user_id"
+      ]
+    },
+    "audit_log": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "audit_logs": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "autopayMandate": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "autopay_mandates": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "bankVerification": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "bank_verifications": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "banners": {
+      "exists": true,
+      "count": 2,
+      "columns": [
+        "badge_text",
+        "created_at",
+        "id",
+        "image_url",
+        "link",
+        "sort_order",
+        "status",
+        "subtitle",
+        "title"
+      ],
+      "sampleIds": [
+        "6305bc43-fe3d-4293-b692-bcae6900fcf6",
+        "ebafef97-d54e-498a-b6dc-ba25c96f1000"
+      ],
+      "sampleKeys": [
+        "badge_text",
+        "created_at",
+        "id",
+        "image_url",
+        "link",
+        "sort_order",
+        "status",
+        "subtitle",
+        "title"
+      ]
+    },
+    "branches": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "brands": {
+      "exists": true,
+      "count": 11,
+      "columns": [
+        "created_at",
+        "description",
+        "id",
+        "logo",
+        "name",
+        "status",
+        "updated_at"
+      ],
+      "sampleIds": [
+        "cc4a68df-447c-4dcf-af05-fbe6fa240a40",
+        "130db72f-f2f9-4fa9-9a6f-aed67cc5cea5",
+        "5b1eac7d-2a79-4e88-9d62-d8b907c96224"
+      ],
+      "sampleKeys": [
+        "created_at",
+        "description",
+        "id",
+        "logo",
+        "name",
+        "status",
+        "updated_at"
+      ]
+    },
+    "cart_items": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "categories": {
+      "exists": true,
+      "count": 3,
+      "columns": [
+        "bg_color",
+        "color",
+        "created_at",
+        "description",
+        "icon",
+        "id",
+        "name",
+        "sort_order",
+        "status"
+      ],
+      "sampleIds": [
+        "acfc3b4a-b4e4-4949-8d63-3b80beb9e84d",
+        "c1a502ec-8060-49b7-8050-c7a50aea7b96",
+        "3a42ad02-0d12-4049-a5f1-996191d30729"
+      ],
+      "sampleKeys": [
+        "bg_color",
+        "color",
+        "created_at",
+        "description",
+        "icon",
+        "id",
+        "name",
+        "sort_order",
+        "status"
+      ]
+    },
+    "checkoutSession": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "checkout_sessions": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "customerVerification": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "customer_kyc": {
+      "exists": true,
+      "count": 1,
+      "columns": [
+        "aadhar_number",
+        "aadhar_raw_data",
+        "aadhar_verified",
+        "address",
+        "cibil_checked",
+        "cibil_score",
+        "created_at",
+        "credit_eligibility_status",
+        "credit_report_fetched_at",
+        "dob",
+        "experian_raw_data",
+        "face_liveness_score",
+        "face_match_score",
+        "face_raw_data",
+        "face_verified",
+        "full_name",
+        "gender",
+        "id",
+        "kyc_completed",
+        "kyc_completed_at",
+        "pan_name_match_score",
+        "pan_number",
+        "pan_verified",
+        "profile_id",
+        "raw_kyc_data",
+        "updated_at",
+        "user_id"
+      ],
+      "sampleIds": [
+        "5b7285d0-4c61-4e99-a5ef-295950c2d1f6"
+      ],
+      "sampleKeys": [
+        "aadhar_number",
+        "aadhar_raw_data",
+        "aadhar_verified",
+        "address",
+        "cibil_checked",
+        "cibil_score",
+        "created_at",
+        "credit_eligibility_status",
+        "credit_report_fetched_at",
+        "dob",
+        "experian_raw_data",
+        "face_liveness_score",
+        "face_match_score",
+        "face_raw_data",
+        "face_verified",
+        "full_name",
+        "gender",
+        "id",
+        "kyc_completed",
+        "kyc_completed_at",
+        "pan_name_match_score",
+        "pan_number",
+        "pan_verified",
+        "profile_id",
+        "raw_kyc_data",
+        "updated_at",
+        "user_id"
+      ]
+    },
+    "customer_verifications": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "dealers": {
+      "exists": true,
+      "count": 4,
+      "columns": [
+        "branch",
+        "commission",
+        "created_at",
+        "dealer_address",
+        "dealer_code",
+        "dealer_mobile",
+        "dealer_name",
+        "email",
+        "gst_number",
+        "hold_days",
+        "id",
+        "payment_schedule",
+        "status",
+        "updated_at"
+      ],
+      "sampleIds": [
+        "ff892a97-3356-4535-a966-d7e2629e8ae6",
+        "e9e3d62d-5d4c-449b-ad9f-f2708969d849",
+        "c7db189e-8dba-4483-a6e6-dd01b938609a"
+      ],
+      "sampleKeys": [
+        "branch",
+        "commission",
+        "created_at",
+        "dealer_address",
+        "dealer_code",
+        "dealer_mobile",
+        "dealer_name",
+        "email",
+        "gst_number",
+        "hold_days",
+        "id",
+        "payment_schedule",
+        "status",
+        "updated_at"
+      ]
+    },
+    "delivery_partners": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "delivery_zones": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "digilocker_reports": {
+      "exists": true,
+      "count": 2,
+      "columns": [
+        "care_of",
+        "client_id",
+        "created_at",
+        "dob",
+        "father_name",
+        "full_address",
+        "gender",
+        "id",
+        "masked_aadhaar",
+        "name",
+        "profile_id",
+        "profile_image",
+        "raw_data",
+        "updated_at",
+        "xml_url",
+        "yob",
+        "zip"
+      ],
+      "sampleIds": [
+        "38c90cd9-5bbe-4470-9728-a7c63dd0a007",
+        "9a0fcbc4-91a0-4e3a-b4b7-e37407a7080a"
+      ],
+      "sampleKeys": [
+        "care_of",
+        "client_id",
+        "created_at",
+        "dob",
+        "father_name",
+        "full_address",
+        "gender",
+        "id",
+        "masked_aadhaar",
+        "name",
+        "profile_id",
+        "profile_image",
+        "raw_data",
+        "updated_at",
+        "xml_url",
+        "yob",
+        "zip"
+      ]
+    },
+    "emi_applications": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "emi_details": {
+      "exists": true,
+      "count": 2,
+      "columns": [
+        "admin_proposal",
+        "balance_for_emi",
+        "created_at",
+        "customer_accepted",
+        "customer_accepted_at",
+        "customer_notes",
+        "dealer_id",
+        "dealer_snapshot",
+        "delivery_charge",
+        "down_payment_amount",
+        "downpayment_paid",
+        "downpayment_paid_at",
+        "emi_status",
+        "final_emi_amount",
+        "first_payment_rule",
+        "id",
+        "interest_rate",
+        "monthly_amount",
+        "months",
+        "next_due_date",
+        "order_id",
+        "paid_installments",
+        "regular_emi_amount",
+        "schedule",
+        "service_charge",
+        "tenure",
+        "total_amount",
+        "total_payable",
+        "updated_at"
+      ],
+      "sampleIds": [
+        "bb246745-3d17-4fc9-ae66-58fbb686767a",
+        "146b9707-c463-4b3b-bf9c-29b25dc4a13d"
+      ],
+      "sampleKeys": [
+        "admin_proposal",
+        "balance_for_emi",
+        "created_at",
+        "customer_accepted",
+        "customer_accepted_at",
+        "customer_notes",
+        "dealer_id",
+        "dealer_snapshot",
+        "delivery_charge",
+        "down_payment_amount",
+        "downpayment_paid",
+        "downpayment_paid_at",
+        "emi_status",
+        "final_emi_amount",
+        "first_payment_rule",
+        "id",
+        "interest_rate",
+        "monthly_amount",
+        "months",
+        "next_due_date",
+        "order_id",
+        "paid_installments",
+        "regular_emi_amount",
+        "schedule",
+        "service_charge",
+        "tenure",
+        "total_amount",
+        "total_payable",
+        "updated_at"
+      ]
+    },
+    "emi_plans": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "emi_schedule": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "emi_schedules": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "experian_reports": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "fi_cases": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "general_applications": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "job_applications": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "job_openings": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "kyc": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "loanAccount": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "loan_accounts": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "manufacturers": {
+      "exists": true,
+      "count": 4,
+      "columns": [
+        "address",
+        "contact_person",
+        "created_at",
+        "email",
+        "gst_number",
+        "id",
+        "name",
+        "phone",
+        "status",
+        "updated_at"
+      ],
+      "sampleIds": [
+        "a3bc2f17-67bc-44bf-80f7-46b649e74990",
+        "6e04c4e9-f921-4d68-a8d3-6d46672e7d69",
+        "33fad4c2-22c3-4393-bee5-2c9cc27e38b6"
+      ],
+      "sampleKeys": [
+        "address",
+        "contact_person",
+        "created_at",
+        "email",
+        "gst_number",
+        "id",
+        "name",
+        "phone",
+        "status",
+        "updated_at"
+      ]
+    },
+    "mobileVerification": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "mobile_verifications": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "notification": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "notifications": {
+      "exists": true,
+      "count": 6,
+      "columns": [
+        "actionUrl",
+        "category",
+        "createdAt",
+        "created_at",
+        "data",
+        "id",
+        "isRead",
+        "message",
+        "priority",
+        "read",
+        "readAt",
+        "route",
+        "title",
+        "type",
+        "updatedAt",
+        "userId",
+        "user_id"
+      ],
+      "sampleIds": [
+        "5f197e7c-971b-4e9a-b00b-cec7e59b81b0",
+        "3c1e788d-c60b-45de-9924-3274b2e978aa",
+        "7a517970-b0af-41c8-8b83-e07712d1bbe1"
+      ],
+      "sampleKeys": [
+        "actionUrl",
+        "category",
+        "createdAt",
+        "created_at",
+        "data",
+        "id",
+        "isRead",
+        "message",
+        "priority",
+        "read",
+        "readAt",
+        "route",
+        "title",
+        "type",
+        "updatedAt",
+        "userId",
+        "user_id"
+      ]
+    },
+    "orderTracking": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "order_items": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "order_tracking": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "orders": {
+      "exists": true,
+      "count": 5,
+      "columns": [
+        "address_id",
+        "address_snapshot",
+        "applicationId",
+        "courierPartner",
+        "createdAt",
+        "created_at",
+        "deliveryAddress",
+        "estimatedDeliveryDate",
+        "id",
+        "invoicePath",
+        "items",
+        "notes",
+        "orderNumber",
+        "orderStatus",
+        "paymentTransactionId",
+        "payment_method",
+        "payment_status",
+        "phone",
+        "productBrand",
+        "productId",
+        "profile_id",
+        "quantity",
+        "receiptPath",
+        "status",
+        "subtotal",
+        "total",
+        "total_amount",
+        "trackingNumber",
+        "updatedAt",
+        "updated_at",
+        "userId",
+        "user_id",
+        "variantId",
+        "warehouse"
+      ],
+      "sampleIds": [
+        "ed43064c-7cbf-4fcc-8af5-f5356101e4b5",
+        "d6e40b78-e70c-4470-9fb2-52f78ea70760",
+        "1dc1de97-3534-4378-bef3-8e98c30ff524"
+      ],
+      "sampleKeys": [
+        "address_id",
+        "address_snapshot",
+        "applicationId",
+        "courierPartner",
+        "createdAt",
+        "created_at",
+        "deliveryAddress",
+        "estimatedDeliveryDate",
+        "id",
+        "invoicePath",
+        "items",
+        "notes",
+        "orderNumber",
+        "orderStatus",
+        "paymentTransactionId",
+        "payment_method",
+        "payment_status",
+        "phone",
+        "productBrand",
+        "productId",
+        "profile_id",
+        "quantity",
+        "receiptPath",
+        "status",
+        "subtotal",
+        "total",
+        "total_amount",
+        "trackingNumber",
+        "updatedAt",
+        "updated_at",
+        "userId",
+        "user_id",
+        "variantId",
+        "warehouse"
+      ]
+    },
+    "otps": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "panVerification": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "pan_verifications": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "paymentTransaction": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "payment_transactions": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "pincodes": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "product_attribute_values": {
+      "exists": true,
+      "count": 35,
+      "columns": [
+        "attribute_id",
+        "created_at",
+        "id",
+        "status",
+        "updated_at",
+        "value"
+      ],
+      "sampleIds": [
+        "894a4711-8775-4205-a2a0-77cd55fb7cfb",
+        "0ee56dd4-3a0a-46fd-8c4f-247116dd275c",
+        "b2719651-802f-454c-8cd1-d0650ba5b3ea"
+      ],
+      "sampleKeys": [
+        "attribute_id",
+        "created_at",
+        "id",
+        "status",
+        "updated_at",
+        "value"
+      ]
+    },
+    "product_attributes": {
+      "exists": true,
+      "count": 6,
+      "columns": [
+        "created_at",
+        "id",
+        "name",
+        "status",
+        "updated_at"
+      ],
+      "sampleIds": [
+        "0a20a9da-770e-41e6-a6b7-b9c337206093",
+        "edee2543-4e74-4bbc-8ebe-14fed096e6ff",
+        "b214d587-e96d-4aa0-8b4f-4dc2dd77e6cb"
+      ],
+      "sampleKeys": [
+        "created_at",
+        "id",
+        "name",
+        "status",
+        "updated_at"
+      ]
+    },
+    "product_dealers": {
+      "exists": true,
+      "count": 3,
+      "columns": [
+        "created_at",
+        "dealer_id",
+        "id",
+        "product_id",
+        "purchase_price"
+      ],
+      "sampleIds": [
+        "0a18adb5-07da-4736-af64-9eb671d24336",
+        "f97970a4-b043-46c0-9088-4cddce0bb099",
+        "805e5ce3-2d18-46ee-95e1-57f69541a044"
+      ],
+      "sampleKeys": [
+        "created_at",
+        "dealer_id",
+        "id",
+        "product_id",
+        "purchase_price"
+      ]
+    },
+    "product_emi_plans": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "product_photos": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "product_reviews": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "product_suppliers": {
+      "exists": true,
+      "count": 5,
+      "columns": [
+        "id",
+        "product_id",
+        "supplier_id"
+      ],
+      "sampleIds": [
+        "e920318a-8f4b-4dc0-b90b-177de1cec335",
+        "11cb1a96-90ea-4fad-bccb-be9ef4ab337d",
+        "d06c27f2-e7ea-414d-801b-7fe59b0c3419"
+      ],
+      "sampleKeys": [
+        "id",
+        "product_id",
+        "supplier_id"
+      ]
+    },
+    "product_variant_attributes": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "product_variants": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "products": {
+      "exists": true,
+      "count": 4,
+      "columns": [
+        "brand",
+        "category",
+        "category_id",
+        "createdAt",
+        "created_at",
+        "deliveryCharge",
+        "description",
+        "discountPrice",
+        "emiAvailable",
+        "emiStartingFrom",
+        "emi_available",
+        "featured",
+        "id",
+        "image",
+        "images",
+        "isActive",
+        "isFeatured",
+        "name",
+        "price",
+        "rating",
+        "recommended",
+        "shortDescription",
+        "sku",
+        "slug",
+        "specifications",
+        "status",
+        "stock",
+        "thumbnail",
+        "totalReviews",
+        "trending",
+        "updatedAt",
+        "variant"
+      ],
+      "sampleIds": [
+        "b26ecb44-6568-41e3-912e-452b8f5ef9aa",
+        "6d3650c1-a09a-40a0-b4b4-fc80d289ae81",
+        "32a2456f-d5c0-4fc9-92ad-a4ebc7f21c42"
+      ],
+      "sampleKeys": [
+        "brand",
+        "category",
+        "category_id",
+        "createdAt",
+        "created_at",
+        "deliveryCharge",
+        "description",
+        "discountPrice",
+        "emiAvailable",
+        "emiStartingFrom",
+        "emi_available",
+        "featured",
+        "id",
+        "image",
+        "images",
+        "isActive",
+        "isFeatured",
+        "name",
+        "price",
+        "rating",
+        "recommended",
+        "shortDescription",
+        "sku",
+        "slug",
+        "specifications",
+        "status",
+        "stock",
+        "thumbnail",
+        "totalReviews",
+        "trending",
+        "updatedAt",
+        "variant"
+      ]
+    },
+    "profiles": {
+      "exists": true,
+      "count": 1,
+      "columns": [
+        "created_at",
+        "dob",
+        "email",
+        "full_name",
+        "gender",
+        "id",
+        "kyc_status",
+        "mobile_number",
+        "updated_at"
+      ],
+      "sampleIds": [
+        "3b3e77d5-b49e-4fba-b99b-0e108ccef83a"
+      ],
+      "sampleKeys": [
+        "created_at",
+        "dob",
+        "email",
+        "full_name",
+        "gender",
+        "id",
+        "kyc_status",
+        "mobile_number",
+        "updated_at"
+      ]
+    },
+    "refresh_tokens": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "reviews": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "roles": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "sub_categories": {
+      "exists": true,
+      "count": 9,
+      "columns": [
+        "category_id",
+        "created_at",
+        "description",
+        "id",
+        "image",
+        "name",
+        "sort_order",
+        "status",
+        "updated_at"
+      ],
+      "sampleIds": [
+        "b62a9fb2-e1cc-45bf-b11e-b0690275de72",
+        "9f0744c2-ce1f-4670-a38e-cbbac0710179",
+        "52d89596-05b5-4439-97ab-be8f8ae87953"
+      ],
+      "sampleKeys": [
+        "category_id",
+        "created_at",
+        "description",
+        "id",
+        "image",
+        "name",
+        "sort_order",
+        "status",
+        "updated_at"
+      ]
+    },
+    "suppliers": {
+      "exists": true,
+      "count": 3,
+      "columns": [
+        "address",
+        "bank_details",
+        "code",
+        "contact_person",
+        "created_at",
+        "email",
+        "gst_number",
+        "id",
+        "name",
+        "payment_terms",
+        "phone",
+        "status",
+        "updated_at"
+      ],
+      "sampleIds": [
+        "6ca6d2a0-9627-40ad-a4f1-db74a7be4f3e",
+        "10c02b41-39b2-43db-b543-5cf83dadb608",
+        "fdd4d0db-0bb3-4eb2-8d51-4bf6f17558cf"
+      ],
+      "sampleKeys": [
+        "address",
+        "bank_details",
+        "code",
+        "contact_person",
+        "created_at",
+        "email",
+        "gst_number",
+        "id",
+        "name",
+        "payment_terms",
+        "phone",
+        "status",
+        "updated_at"
+      ]
+    },
+    "supportTicket": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "support_tickets": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "userAddress": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "user_addresses": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "user_profiles": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "users": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "warehouses": {
+      "exists": true,
+      "count": 4,
+      "columns": [
+        "address",
+        "capacity",
+        "contact_person",
+        "created_at",
+        "id",
+        "name",
+        "phone",
+        "status",
+        "updated_at"
+      ],
+      "sampleIds": [
+        "f9193ced-8f91-4777-8d2f-c435716bdfbb",
+        "04a733f7-8eb0-4418-9135-cef30667e095",
+        "b6099ccf-3d89-4504-aea5-2b771dc53697"
+      ],
+      "sampleKeys": [
+        "address",
+        "capacity",
+        "contact_person",
+        "created_at",
+        "id",
+        "name",
+        "phone",
+        "status",
+        "updated_at"
+      ]
+    },
+    "wholesalers": {
+      "exists": true,
+      "count": 0,
+      "columns": [],
+      "sampleIds": [],
+      "sampleKeys": []
+    },
+    "wishlist_items": {
+      "exists": true,
+      "count": 1,
+      "columns": [
+        "createdAt",
+        "created_at",
+        "id",
+        "productId",
+        "product_id",
+        "updatedAt",
+        "userId",
+        "user_id",
+        "variantId"
+      ],
+      "sampleIds": [
+        "feab3671-6b9b-4a88-85ab-9007ce14d1d9"
+      ],
+      "sampleKeys": [
+        "createdAt",
+        "created_at",
+        "id",
+        "productId",
+        "product_id",
+        "updatedAt",
+        "userId",
+        "user_id",
+        "variantId"
+      ]
+    }
+  }
+}

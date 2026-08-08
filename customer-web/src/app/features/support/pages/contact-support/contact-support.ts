@@ -6,6 +6,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
 import {
   SupportIssueType,
@@ -26,6 +27,7 @@ const MAX_ATTACHMENT_BYTES = 500 * 1024;
 export class ContactSupportComponent implements OnInit {
   private readonly supportApi = inject(SupportService);
   private readonly auth = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
 
   readonly loading = signal(true);
@@ -44,7 +46,36 @@ export class ContactSupportComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.prefillFromQuery();
     this.loadTickets();
+  }
+
+  private prefillFromQuery(): void {
+    const q = this.route.snapshot.queryParamMap;
+    const loanAccountNumber = q.get('loanAccountNumber')?.trim();
+    const applicationNumber = q.get('applicationNumber')?.trim();
+    const topic = q.get('topic')?.trim();
+
+    if (!loanAccountNumber && !applicationNumber && topic !== 'loan') return;
+
+    this.form.patchValue({
+      issueType: 'EMI_ISSUE' as SupportIssueType,
+      subject: loanAccountNumber
+        ? `Support request for loan ${loanAccountNumber}`
+        : 'Support request for my EMI loan',
+      description: [
+        'Hello LoanEx Support,',
+        '',
+        'I need help with my loan.',
+        loanAccountNumber ? `Loan account: ${loanAccountNumber}` : null,
+        applicationNumber ? `Application: ${applicationNumber}` : null,
+        '',
+        'Please describe your issue below:',
+        '',
+      ]
+        .filter((line) => line !== null)
+        .join('\n'),
+    });
   }
 
   onFileSelected(event: Event): void {

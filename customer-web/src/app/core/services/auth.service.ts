@@ -36,7 +36,19 @@ export class AuthService {
 
   constructor() {
     if (this.tokens.hasAccessToken()) {
-      this.fetchMe().subscribe({ error: () => {} });
+      if (!this.tokens.hasValidAccessToken()) {
+        // Expired JWT — silent refresh via HttpOnly cookie before first API call.
+        this.refreshToken().subscribe({
+          next: () => this.fetchMe().subscribe({ error: () => this.tokens.clear() }),
+          error: () => this.tokens.clear(),
+        });
+      } else {
+        this.fetchMe().subscribe({
+          error: () => {
+            this.tokens.clear();
+          },
+        });
+      }
     }
   }
 
@@ -55,14 +67,38 @@ export class AuthService {
     );
   }
 
+  /**
+   * Only allow same-app relative paths. Reject protocol-relative (`//evil`)
+   * and absolute URLs to prevent open redirects.
+   */
+  sanitizeReturnUrl(url: string | null | undefined): string | null {
+    if (url == null || url === '') return null;
+    const trimmed = String(url).trim();
+    if (!trimmed.startsWith('/')) return null;
+    if (trimmed.startsWith('//')) return null;
+    if (trimmed.startsWith('/\\')) return null;
+    if (trimmed.includes('://')) return null;
+    if (trimmed === '/auth' || trimmed.startsWith('/auth/')) return null;
+    return trimmed;
+  }
+
   setReturnUrl(url: string | null | undefined): void {
-    if (url && url !== '/auth' && !url.startsWith('/auth/')) {
-      this.returnUrl = url;
+    if (url == null || url === '') {
+      this.returnUrl = '/';
+      return;
+    }
+    const safe = this.sanitizeReturnUrl(url);
+    if (safe) {
+      this.returnUrl = safe;
     }
   }
 
   getReturnUrl(): string {
-    return this.returnUrl || '/';
+    return this.sanitizeReturnUrl(this.returnUrl) || '/';
+  }
+
+  clearReturnUrl(): void {
+    this.returnUrl = '/';
   }
 
   clearError(): void {
@@ -220,9 +256,13 @@ export class AuthService {
       .pipe(map((res) => res.data));
 
     return request$.pipe(
-      tap(() => this.tokens.clear()),
+      tap(() => {
+        this.tokens.clear();
+        this.clearReturnUrl();
+      }),
       catchError((err) => {
         this.tokens.clear();
+        this.clearReturnUrl();
         return throwError(() => err);
       }),
     );
@@ -230,6 +270,7 @@ export class AuthService {
 
   redirectAfterAuth(): void {
     const target = this.getReturnUrl();
+    this.clearReturnUrl();
     void this.router.navigateByUrl(target);
   }
 

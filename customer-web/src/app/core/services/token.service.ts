@@ -52,9 +52,39 @@ export class TokenService {
     return !!this.accessTokenSignal();
   }
 
+  /**
+   * True when an access token exists and its JWT `exp` claim is still in the future.
+   * Malformed tokens are treated as invalid so guards do not accept garbage forever.
+   */
+  hasValidAccessToken(): boolean {
+    const token = this.accessTokenSignal();
+    if (!token) return false;
+    const exp = this.readJwtExp(token);
+    if (exp == null) {
+      // Non-JWT opaque tokens — presence is enough (legacy).
+      return true;
+    }
+    // 30s clock skew tolerance
+    return exp * 1000 > Date.now() + 30_000;
+  }
+
   /** True when a refresh token exists in memory or legacy localStorage. */
   hasRefreshToken(): boolean {
     return !!this.refreshTokenSignal();
+  }
+
+  private readJwtExp(token: string): number | null {
+    try {
+      const parts = token.split('.');
+      if (parts.length < 2) return null;
+      const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      if (typeof atob === 'undefined') return null;
+      const json = atob(payload);
+      const parsed = JSON.parse(json) as { exp?: number };
+      return typeof parsed.exp === 'number' ? parsed.exp : null;
+    } catch {
+      return null;
+    }
   }
 
   private read(key: string): string | null {

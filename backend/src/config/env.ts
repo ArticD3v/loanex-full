@@ -87,9 +87,18 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   /**
    * mirror  = db.json stays the boot source, every write is mirrored to Supabase.
-   * source  = Supabase is the boot source of truth (required in production).
+   * source  = Supabase is the boot source of truth (legacy; prefer mongodb when configured).
    */
   SUPABASE_SYNC_MODE: z.enum(['mirror', 'source']).default('source'),
+  /** MongoDB Atlas — preferred application data store after migration. */
+  MONGODB_URI: z.string().optional().default(''),
+  MONGODB_DB_NAME: z.string().optional().default('loanex'),
+  /**
+   * mongodb = hydrate/mirror via MongoDB (PostgreSQL/Supabase kept intact as backup).
+   * supabase = legacy jsonDb ↔ Supabase path.
+   * auto = use mongodb when MONGODB_URI is set, else supabase.
+   */
+  DATA_PRIMARY: z.enum(['auto', 'mongodb', 'supabase']).default('auto'),
   /** Secret for the internal cron endpoint (EMI reminders). Vercel Cron sends it as Bearer token when configured. */
   CRON_SECRET: z.string().optional().default(''),
   /** IDSPay / DigiLocker — required for Aadhaar KYC (no hardcoded fallbacks). */
@@ -121,8 +130,14 @@ if (env.NODE_ENV === 'production') {
     console.error('[SECURITY] PAYMENT_DEV_BYPASS must be false in production — forcing off');
     (env as { PAYMENT_DEV_BYPASS: boolean }).PAYMENT_DEV_BYPASS = false;
   }
-  if (env.SUPABASE_SYNC_MODE !== 'source') {
-    console.error('[SECURITY] SUPABASE_SYNC_MODE should be "source" in production');
+  const mongoPrimary =
+    env.DATA_PRIMARY === 'mongodb' ||
+    (env.DATA_PRIMARY === 'auto' && Boolean(env.MONGODB_URI?.trim()));
+  if (!mongoPrimary && env.SUPABASE_SYNC_MODE !== 'source') {
+    console.error('[SECURITY] SUPABASE_SYNC_MODE should be "source" in production when MongoDB is not primary');
+  }
+  if (mongoPrimary && !env.MONGODB_URI?.trim()) {
+    console.error('[SECURITY] DATA_PRIMARY=mongodb but MONGODB_URI is missing');
   }
   if (!env.AUTHKEY_API_KEY?.trim()) {
     console.error('[SECURITY] AUTHKEY_API_KEY is missing — OTP send will fail closed');

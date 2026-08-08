@@ -31,6 +31,7 @@ import { productRouter } from './modules/product';
 import { categoryRouter } from './modules/category';
 import { reviewsRouter } from './modules/reviews';
 import { bannerRouter } from './modules/banner';
+import { auditLogRouter } from './modules/verification/routes/audit-log.routes';
 import {
   generalApplicationsRouter,
   jobApplicationsRouter,
@@ -150,6 +151,7 @@ export function createApp() {
   app.use(`${env.API_PREFIX}/verification`, verificationRouter);
   app.use(`${env.API_PREFIX}/verification/pan`, panVerificationRouter);
   app.use(`${env.API_PREFIX}/verification/bank`, bankVerificationRouter);
+  app.use(`${env.API_PREFIX}/audit-log`, auditLogRouter);
   app.use(`${env.API_PREFIX}/emi/applications`, emiApplicationRouter);
   app.use(`${env.API_PREFIX}/payments`, paymentRouter);
   app.use(`${env.API_PREFIX}/orders`, orderRouter);

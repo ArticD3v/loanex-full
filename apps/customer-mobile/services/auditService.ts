@@ -1,18 +1,17 @@
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/apiClient';
 
+/** Audit via Backend API → MongoDB. */
 export async function logAction(
   userId: string,
   action: string,
   entityType: string,
   entityId: string,
-  changes: any
+  changes: any,
 ): Promise<void> {
-  const { error } = await supabase.from('audit_log').insert({
-    user_id: userId,
+  await api.post('/audit-log', {
     action,
-    entity_type: entityType,
-    entity_id: entityId,
-    changes,
+    entityType,
+    entityId,
+    changes: { ...(changes || {}), requestedBy: userId },
   });
-  if (error) throw error;
 }

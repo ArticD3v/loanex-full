@@ -144,6 +144,12 @@ for (const collection of [
   'wholesalers',
   'delivery_partners',
   'delivery_zones',
+  'manufacturers',
+  'sub_categories',
+  'product_attributes',
+  'product_attribute_values',
+  'product_variants',
+  'product_variant_attributes',
 ] as const) {
   adminRouter.get(`/${collection}`, requirePermission('masters.view'), asyncHandler(adminController.listMaster));
   adminRouter.post(`/${collection}`, requirePermission('masters.create'), asyncHandler(adminController.createMaster));

@@ -75,6 +75,12 @@ const MASTER_COLLECTIONS = [
   'wholesalers',
   'delivery_partners',
   'delivery_zones',
+  'manufacturers',
+  'sub_categories',
+  'product_attributes',
+  'product_attribute_values',
+  'product_variants',
+  'product_variant_attributes',
 ] as const;
 
 function toProfile(row: any) {

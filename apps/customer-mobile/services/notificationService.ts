@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/apiClient';
 import { AppNotification, NotificationType } from '../types';
 
 export interface CreateNotificationInput {
@@ -9,75 +9,70 @@ export interface CreateNotificationInput {
   route?: string;
 }
 
+function mapTypeToUi(type: string | undefined): NotificationType {
+  const t = String(type || 'general').toUpperCase();
+  if (t.includes('KYC')) return 'kyc';
+  if (t.includes('ORDER')) return 'order';
+  if (t.includes('EMI') || t.includes('LOAN') || t.includes('AUTOPAY')) return 'emi';
+  if (t.includes('PAYMENT') || t.includes('DOWN_PAYMENT')) return 'payment';
+  return 'general';
+}
+
 function mapNotification(data: any): AppNotification {
+  const meta = data.metadata || {};
   return {
     id: data.id,
-    userId: data.user_id,
+    userId: data.userId || data.user_id,
     title: data.title,
-    message: data.message || '',
-    type: data.type,
-    read: data.read,
-    route: data.route || '',
-    createdAt: data.created_at,
+    message: data.message || data.description || '',
+    type: mapTypeToUi(data.type),
+    read: Boolean(data.isRead ?? data.read),
+    route: meta.route || data.route || '',
+    createdAt: data.createdAt || data.created_at,
   };
 }
 
-/** Get all notifications for a user, newest first */
-export async function getNotifications(userId: string): Promise<AppNotification[]> {
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(100);
-
-  if (error) {
-    console.warn('[Notifications] get failed:', error.message);
+/** Notifications via Backend API → MongoDB. */
+export async function getNotifications(_userId: string): Promise<AppNotification[]> {
+  try {
+    const res = await api.get('/notifications');
+    const items = res.data?.items || res.data?.notifications || res.data || [];
+    return (Array.isArray(items) ? items : []).map(mapNotification);
+  } catch (err: any) {
+    console.warn('[Notifications] get failed:', err?.message || err);
     return [];
   }
-  return (data || []).map(mapNotification);
 }
 
-/** Count unread notifications for a user */
-export async function getUnreadCount(userId: string): Promise<number> {
-  const { count, error } = await supabase
-    .from('notifications')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('read', false);
-
-  if (error) return 0;
-  return count || 0;
-}
-
-/** Create a notification for a user (fires on real activity) */
-export async function createNotification(input: CreateNotificationInput): Promise<void> {
-  if (!input.userId || input.userId.startsWith('fallback-')) return;
-
-  const { error } = await supabase.from('notifications').insert({
-    user_id: input.userId,
-    title: input.title,
-    message: input.message || '',
-    type: input.type || 'general',
-    read: false,
-    route: input.route || '',
-  });
-
-  if (error) {
-    console.warn('[Notifications] create failed:', error.message);
+export async function getUnreadCount(_userId: string): Promise<number> {
+  try {
+    const res = await api.get('/notifications?filter=UNREAD');
+    if (typeof res.data?.unreadCount === 'number') return res.data.unreadCount;
+    const items = res.data?.items || res.data || [];
+    return Array.isArray(items) ? items.length : 0;
+  } catch {
+    return 0;
   }
 }
 
-/** Mark a single notification as read */
-export async function markAsRead(id: string): Promise<void> {
-  await supabase.from('notifications').update({ read: true }).eq('id', id);
+export async function createNotification(input: CreateNotificationInput): Promise<void> {
+  if (!input.userId || input.userId.startsWith('fallback-')) return;
+  try {
+    await api.post('/notifications', {
+      title: input.title,
+      message: input.message || '',
+      type: input.type || 'general',
+      route: input.route || '',
+    });
+  } catch (err: any) {
+    console.warn('[Notifications] create failed:', err?.message || err);
+  }
 }
 
-/** Mark all notifications for a user as read */
-export async function markAllAsRead(userId: string): Promise<void> {
-  await supabase
-    .from('notifications')
-    .update({ read: true })
-    .eq('user_id', userId)
-    .eq('read', false);
+export async function markAsRead(id: string): Promise<void> {
+  await api.patch(`/notifications/${id}/read`);
+}
+
+export async function markAllAsRead(_userId: string): Promise<void> {
+  await api.patch('/notifications/read-all');
 }

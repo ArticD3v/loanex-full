@@ -144,7 +144,7 @@ export class AadhaarVerificationComponent implements OnInit {
   }
 
   continueToPan(): void {
-    void this.router.navigateByUrl('/pan-verification');
+    void this.router.navigateByUrl('/verification');
   }
 
   startOver(): void {

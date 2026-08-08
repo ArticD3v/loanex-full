@@ -1,18 +1,18 @@
-import { SERVER_URL } from '../constants/config';
+import { api } from '../lib/apiClient';
 
-export async function matchFace(personBase64: string, cardBase64: string): Promise<any> {
-  const response = await fetch(`${SERVER_URL}/api/kyc/face-match`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ personBase64, cardBase64 }),
+/** Face match via Backend API (uses stored DigiLocker profile image). */
+export async function matchFace(personBase64: string, _cardBase64?: string): Promise<any> {
+  const res = await api.post('/verification/face-match', {
+    capturedImage: personBase64,
   });
-
-  const data = await response.json();
-  if (!response.ok || data.status?.code !== 200) {
-    throw new Error(data.message || data.status?.message || 'Face match failed');
-  }
-
-  return data;
+  // Normalize to shape expected by kyc-verification UI
+  const data = res.data || {};
+  return {
+    ...data,
+    status: { code: data.match_status || data.verified ? 200 : 400 },
+    data: {
+      match_status: Boolean(data.match_status ?? data.verified ?? data.same_face),
+      ...(data.data || data),
+    },
+  };
 }

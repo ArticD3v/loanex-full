@@ -25,6 +25,9 @@ emiApplicationRouter.get('/review', asyncHandler(emiApplicationController.getRev
 emiApplicationRouter.get('/current', asyncHandler(emiApplicationController.getCurrent));
 emiApplicationRouter.get('/status', asyncHandler(emiApplicationController.getStatus));
 emiApplicationRouter.get('/history', asyncHandler(emiApplicationController.getHistory));
+emiApplicationRouter.get('/plan-draft', asyncHandler(emiApplicationController.getPlanDraft));
+emiApplicationRouter.put('/plan-draft', asyncHandler(emiApplicationController.savePlanDraft));
+emiApplicationRouter.delete('/plan-draft', asyncHandler(emiApplicationController.clearPlanDraft));
 emiApplicationRouter.get(
   '/current-offer',
   asyncHandler(emiApplicationController.getCurrentOffer),
@@ -47,4 +50,9 @@ emiApplicationRouter.post(
   '/',
   validateRequest(createEmiApplicationBodySchema),
   asyncHandler(emiApplicationController.create),
+);
+// Must be after static routes so "current" / "history" are not captured as ids.
+emiApplicationRouter.get(
+  '/:applicationId',
+  asyncHandler(emiApplicationController.getById),
 );

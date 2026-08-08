@@ -149,19 +149,31 @@ export class LoanService {
   }
 
   private extractError(err: unknown): string {
-    const httpErr = err as { error?: { message?: string }; message?: string; status?: number };
+    const httpErr = err as {
+      error?: Blob | { message?: string };
+      message?: string;
+      status?: number;
+    };
     if (httpErr?.status === 401) {
       return 'Please sign in again to view your EMI dashboard.';
     }
     if (httpErr?.status === 403) {
       return (
-        httpErr?.error?.message ||
-        'EMI dashboard is available only when your loan status is ACTIVE.'
+        (typeof httpErr?.error === 'object' && httpErr.error && 'message' in httpErr.error
+          ? httpErr.error.message
+          : null) || 'EMI dashboard is available only when your loan status is ACTIVE.'
       );
     }
     if (httpErr?.status === 404) {
-      return httpErr?.error?.message || 'No active loan found for this account.';
+      return (
+        (typeof httpErr?.error === 'object' && httpErr.error && 'message' in httpErr.error
+          ? httpErr.error.message
+          : null) || 'No active loan found for this account.'
+      );
     }
-    return httpErr?.error?.message || httpErr?.message || 'Something went wrong. Please try again.';
+    if (typeof httpErr?.error === 'object' && httpErr.error && 'message' in httpErr.error) {
+      return httpErr.error.message || 'Something went wrong. Please try again.';
+    }
+    return httpErr?.message || 'Something went wrong. Please try again.';
   }
 }

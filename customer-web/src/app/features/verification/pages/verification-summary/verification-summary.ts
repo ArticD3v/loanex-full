@@ -31,10 +31,12 @@ export class VerificationSummaryComponent implements OnInit {
   readonly formatInr = formatInr;
   readonly loading = this.emiApi.loading;
   readonly error = signal<string | null>(null);
+  readonly planMissing = signal(false);
   readonly review = signal<EmiReviewContext | null>(null);
   readonly accepted = signal(false);
   readonly acceptedOneTimePayment = signal(false);
   readonly submitting = signal(false);
+  readonly feePaidContinue = signal(false);
 
   readonly product = signal<EmiPlanSelection | null>(null);
   readonly alreadySubmitted = computed(() => Boolean(this.review()?.activeApplication));
@@ -53,20 +55,51 @@ export class VerificationSummaryComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    const stored = this.emiPlan.get();
-    if (!stored?.productId) {
-      this.error.set(
-        'EMI plan selection is missing. Please choose a product and EMI plan before submitting.',
-      );
-      void this.router.navigateByUrl('/products');
-      return;
-    }
-    this.product.set(stored);
+    this.emiPlan.loadDurable().subscribe({
+      next: (plan) => {
+        if (!plan?.productId) {
+          this.planMissing.set(true);
+          this.error.set(
+            'EMI plan selection is missing. Go back to the product page, choose an EMI plan, then return here. You have not been redirected away.',
+          );
+          this.loadReviewOnly();
+          return;
+        }
+        this.planMissing.set(false);
+        this.product.set(plan);
+        this.loadReviewOnly();
+      },
+      error: () => {
+        this.planMissing.set(true);
+        this.error.set(
+          'EMI plan selection is missing. Please choose a product and EMI plan before submitting.',
+        );
+        this.loadReviewOnly();
+      },
+    });
+  }
 
+  private loadReviewOnly(): void {
     this.emiApi.getReview().subscribe({
       next: (data) => {
         this.review.set(data);
-        // Stay on Verification Summary — do not auto-skip to Application Submitted.
+        // If plan still missing, try recover from active application fields.
+        if (!this.product()?.productId && data.activeApplication?.productId) {
+          const app = data.activeApplication;
+          const recovered: EmiPlanSelection = {
+            productId: app.productId,
+            productName: app.productName ?? '',
+            sellingPrice: Number(app.sellingPrice ?? 0),
+            requestedAmount: Number(app.requestedAmount ?? 0),
+            requestedDownPayment: Number(app.requestedDownPayment ?? 0),
+            requestedTenure: Number(app.requestedTenure ?? 12),
+            estimatedMonthlyEmi: Number(app.estimatedMonthlyEmi ?? 0),
+          };
+          this.product.set(recovered);
+          this.emiPlan.save(recovered);
+          this.planMissing.set(false);
+          this.error.set(null);
+        }
       },
       error: () => {
         this.error.set(this.emiApi.error() ?? 'Unable to load verification summary.');
@@ -89,14 +122,15 @@ export class VerificationSummaryComponent implements OnInit {
 
     const plan = this.product();
     if (!plan) {
+      this.planMissing.set(true);
       this.error.set('Product EMI selection is missing. Please choose an EMI plan again.');
       return;
     }
 
     this.error.set(null);
+    this.feePaidContinue.set(false);
     this.submitting.set(true);
 
-    // Lifetime KYC fee check — database is source of truth (not localStorage).
     this.paymentApi.getKycFeeStatus().subscribe({
       next: (status) => {
         if (status.paid) {
@@ -114,6 +148,33 @@ export class VerificationSummaryComponent implements OnInit {
     });
   }
 
+  /** Continue after fee was paid (webhook) but EMI submit did not finish. */
+  continueAfterPaidFee(): void {
+    const plan = this.product();
+    if (!plan) {
+      this.planMissing.set(true);
+      this.error.set('EMI plan is missing. Select a plan from the product page, then continue.');
+      return;
+    }
+    this.submitting.set(true);
+    this.error.set(null);
+    this.paymentApi.getKycFeeStatus().subscribe({
+      next: (status) => {
+        if (!status.paid) {
+          this.submitting.set(false);
+          this.feePaidContinue.set(false);
+          this.error.set('KYC fee is not marked paid yet. Please complete payment.');
+          return;
+        }
+        this.continueEmiSubmission(plan);
+      },
+      error: () => {
+        this.submitting.set(false);
+        this.error.set(this.paymentApi.error() ?? 'Unable to re-check KYC fee status.');
+      },
+    });
+  }
+
   private startKycFeePayment(plan: EmiPlanSelection): void {
     this.paymentApi.createKycFeeOrder().subscribe({
       next: (order) => {
@@ -124,7 +185,6 @@ export class VerificationSummaryComponent implements OnInit {
         void this.openKycFeeCheckout(order, plan);
       },
       error: (err: unknown) => {
-        // Already paid on another instance — continue submit without charging again.
         const code = (err as { error?: { code?: string; details?: { code?: string } } })?.error
           ?.code;
         const detailCode = (err as { error?: { details?: { code?: string } } })?.error?.details
@@ -201,10 +261,29 @@ export class VerificationSummaryComponent implements OnInit {
     this.paymentApi.verifyKycFee(signed).subscribe({
       next: () => this.continueEmiSubmission(plan),
       error: () => {
-        this.submitting.set(false);
-        this.error.set(
-          this.paymentApi.error() ?? 'KYC payment verification failed. EMI was not submitted.',
-        );
+        // Client verify may fail while webhook marks SUCCESS — re-check Mongo SoT.
+        this.paymentApi.getKycFeeStatus().subscribe({
+          next: (status) => {
+            if (status.paid) {
+              this.continueEmiSubmission(plan);
+              return;
+            }
+            this.submitting.set(false);
+            this.feePaidContinue.set(true);
+            this.error.set(
+              this.paymentApi.error() ??
+                'KYC payment verification is still pending. If you were charged, wait a moment and tap Continue — you will not be charged again.',
+            );
+          },
+          error: () => {
+            this.submitting.set(false);
+            this.feePaidContinue.set(true);
+            this.error.set(
+              this.paymentApi.error() ??
+                'KYC payment verification failed. If payment succeeded, tap Continue after a moment.',
+            );
+          },
+        });
       },
     });
   }
@@ -223,10 +302,13 @@ export class VerificationSummaryComponent implements OnInit {
       .subscribe({
         next: () => {
           this.submitting.set(false);
+          this.emiPlan.clear();
           void this.router.navigateByUrl('/application/pending');
         },
         error: () => {
           this.submitting.set(false);
+          // Fee may already be paid — allow Continue without re-charging.
+          this.feePaidContinue.set(true);
           this.error.set(this.emiApi.error());
         },
       });

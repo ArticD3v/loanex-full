@@ -137,7 +137,7 @@ export class DirectPaymentComponent implements OnInit {
     this.checkoutApi.verifyPayment(this.sessionId, payload).subscribe({
       next: (result) => {
         this.processing.set(false);
-        this.goToOrders(payload.razorpayPaymentId, result.alreadyProcessed);
+        this.goToOrder(result, payload.razorpayPaymentId);
       },
       error: () => this.handlePaymentError('Payment verification failed.'),
     });
@@ -145,22 +145,53 @@ export class DirectPaymentComponent implements OnInit {
 
   private handlePaymentError(fallback: string): void {
     this.processing.set(false);
-    // The order may already be confirmed server-side (e.g. a retried verify or
-    // a replay of the checkout page) — treat that as success, not an error.
     if (this.checkoutApi.errorCode() === 'ALREADY_PAID') {
-      this.goToOrders(undefined, true);
+      // Prefer explicit order from error details when present; else My Orders.
+      const details = this.checkoutApi as unknown as {
+        errorDetails?: { orderNumber?: string; orderId?: string };
+      };
+      const orderRef =
+        details.errorDetails?.orderNumber || details.errorDetails?.orderId;
+      if (orderRef) {
+        void this.router.navigate(['/orders', orderRef], {
+          queryParams: { paymentSuccess: 'true', alreadyProcessed: 'true' },
+          replaceUrl: true,
+        });
+        return;
+      }
+      this.goToOrder({ alreadyProcessed: true }, undefined);
       return;
     }
     this.error.set(this.checkoutApi.error() ?? fallback);
   }
 
-  private goToOrders(paymentId?: string, alreadyProcessed?: boolean): void {
+  private goToOrder(
+    result: {
+      orderId?: string | null;
+      orderNumber?: string | null;
+      alreadyProcessed?: boolean;
+    },
+    paymentId?: string,
+  ): void {
+    const orderRef = result.orderNumber || result.orderId || undefined;
+    if (orderRef) {
+      void this.router.navigate(['/orders', orderRef], {
+        queryParams: {
+          paymentSuccess: 'true',
+          ...(paymentId ? { paymentId } : {}),
+          ...(result.alreadyProcessed ? { alreadyProcessed: 'true' } : {}),
+        },
+        replaceUrl: true,
+      });
+      return;
+    }
     void this.router.navigate(['/my-orders'], {
       queryParams: {
         paymentSuccess: 'true',
         ...(paymentId ? { paymentId } : {}),
-        ...(alreadyProcessed ? { alreadyProcessed: 'true' } : {}),
+        ...(result.alreadyProcessed ? { alreadyProcessed: 'true' } : {}),
       },
+      replaceUrl: true,
     });
   }
 }

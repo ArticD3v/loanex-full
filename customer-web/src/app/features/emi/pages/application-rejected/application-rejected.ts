@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { EmiApplicationService } from '../../services/emi-application.service';
 
 @Component({
@@ -18,8 +18,8 @@ import { EmiApplicationService } from '../../services/emi-application.service';
           <p class="lx-result__meta">Application Number: <strong>{{ applicationNumber() }}</strong></p>
         }
         <div class="lx-result__actions">
-          <a routerLink="/verification/summary" class="lx-btn lx-btn--outline">Back to Summary</a>
-          <a routerLink="/" class="lx-btn lx-btn--primary">Back to Home</a>
+          <a routerLink="/my-emis" class="lx-btn lx-btn--outline">Back to My EMIs</a>
+          <a routerLink="/products" class="lx-btn lx-btn--primary">Browse Products</a>
         </div>
       </section>
     </div>
@@ -94,11 +94,18 @@ import { EmiApplicationService } from '../../services/emi-application.service';
 })
 export class ApplicationRejectedComponent implements OnInit {
   private readonly emiApi = inject(EmiApplicationService);
+  private readonly route = inject(ActivatedRoute);
   readonly applicationNumber = signal<string | null>(null);
   readonly reason = signal<string | null>(null);
 
   ngOnInit(): void {
-    this.emiApi.getCurrent('viewed').subscribe({
+    const applicationId =
+      this.route.snapshot.queryParamMap.get('applicationId') ?? undefined;
+    const request$ = applicationId
+      ? this.emiApi.getById(applicationId, 'viewed')
+      : this.emiApi.getCurrent('viewed');
+
+    request$.subscribe({
       next: (data) => {
         this.applicationNumber.set(data.applicationNumber);
         this.reason.set(data.rejectionReason);

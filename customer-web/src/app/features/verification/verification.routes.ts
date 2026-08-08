@@ -12,6 +12,16 @@ export const VERIFICATION_ROUTES: Routes = [
     title: 'Identity Verification — LoanEx',
   },
   {
+    path: 'digilocker-callback',
+    // Public so DigiLocker return can always land here even mid-auth refresh;
+    // it immediately routes to /verification (authGuard) with client_id.
+    loadComponent: () =>
+      import('./pages/digilocker-callback/digilocker-callback').then(
+        (m) => m.DigilockerCallbackComponent,
+      ),
+    title: 'DigiLocker — LoanEx',
+  },
+  {
     path: 'pan',
     redirectTo: '',
     pathMatch: 'full',

@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { supabase } from './supabase';
 import { env } from './env';
+import { getMongoDb, isMongoConfigured } from './mongo';
 import { normalizeOrderRow, sanitizeMirrorPayload } from './mirror-sanitize';
 
 const { appendFileSync } = fs;
@@ -716,8 +717,16 @@ const CATALOG_REFRESH_TTL_MS = 15_000;
 
 class LocalDatabaseEngine {
   private data: LocalDatabaseSchema;
+  /** Prefer MongoDB after migration; PostgreSQL/Supabase remains intact as backup. */
+  private readonly mongoPrimary =
+    env.DATA_PRIMARY === 'mongodb' ||
+    (env.DATA_PRIMARY === 'auto' && isMongoConfigured());
   private readonly sourceMode =
-    env.NODE_ENV === 'production' ? true : env.SUPABASE_SYNC_MODE === 'source';
+    this.mongoPrimary
+      ? true
+      : env.NODE_ENV === 'production'
+        ? true
+        : env.SUPABASE_SYNC_MODE === 'source';
   private readonly warned = new Set<string>();
   private readonly lastRefreshAt = new Map<string, number>();
   public readonly ready: Promise<void>;
@@ -726,7 +735,20 @@ class LocalDatabaseEngine {
 
   constructor() {
     this.data = this.loadData();
-    this.ready = this.sourceMode ? this.hydrateFromSupabase() : Promise.resolve();
+    this.ready = this.sourceMode
+      ? this.mongoPrimary
+        ? this.hydrateFromMongo()
+        : this.hydrateFromSupabase()
+      : Promise.resolve();
+  }
+
+  private stripMongoId<T extends Record<string, any>>(row: T): T {
+    if (!row || typeof row !== 'object') return row;
+    const { _id, ...rest } = row as T & { _id?: unknown };
+    if (rest.id == null && _id != null) {
+      (rest as any).id = String(_id);
+    }
+    return rest as T;
   }
 
   private loadData(): LocalDatabaseSchema {
@@ -806,6 +828,57 @@ class LocalDatabaseEngine {
   }
 
   /**
+   * MongoDB primary: replace local collections from Atlas at boot.
+   * PostgreSQL/Supabase is not written or deleted — kept as backup source.
+   */
+  private async hydrateFromMongo(): Promise<void> {
+    const started = Date.now();
+    const names = HYDRATE_COLLECTIONS;
+    let loaded = 0;
+    let skipped = 0;
+    let failed = 0;
+    let rows = 0;
+
+    try {
+      const db = await getMongoDb();
+      const hydrateOne = async (name: string): Promise<void> => {
+        try {
+          const exists = await db.listCollections({ name }, { nameOnly: true }).hasNext();
+          if (!exists) {
+            skipped += 1;
+            return;
+          }
+          const data = await db.collection(name).find({}).limit(10000).toArray();
+          const normalized = data.map((row) => {
+            const clean = this.stripMongoId(row as Record<string, any>);
+            return name === 'orders' ? normalizeOrderRow(clean) : clean;
+          });
+          (this.data as any)[name] = normalized;
+          loaded += 1;
+          rows += normalized.length;
+        } catch (e) {
+          failed += 1;
+          console.error(`[MongoDB] hydrate "${name}" failed:`, e);
+        }
+      };
+
+      for (let i = 0; i < names.length; i += HYDRATE_CONCURRENCY) {
+        const batch = names.slice(i, i + HYDRATE_CONCURRENCY);
+        await Promise.all(batch.map((name) => hydrateOne(name)));
+      }
+    } catch (e) {
+      console.error('[MongoDB] hydrate boot failed:', e);
+      throw e;
+    }
+
+    this.lastHydrateMs = Date.now() - started;
+    console.info(
+      `[MongoDB] hydrated ${loaded}/${names.length} collections in ${this.lastHydrateMs}ms ` +
+        `(rows=${rows}, skipped=${skipped}, failed=${failed}, concurrency=${HYDRATE_CONCURRENCY})`,
+    );
+  }
+
+  /**
    * Re-fetch catalog collections from Supabase on a throttle so records added
    * directly in the Supabase dashboard (products, categories, banners, …) surface
    * in the API without a process restart. No-op outside source mode.
@@ -817,6 +890,26 @@ class LocalDatabaseEngine {
       (name) => (this.lastRefreshAt.get(name) ?? 0) + CATALOG_REFRESH_TTL_MS <= now,
     );
     if (due.length === 0) return;
+
+    if (this.mongoPrimary) {
+      try {
+        const db = await getMongoDb();
+        await Promise.all(
+          due.map(async (name) => {
+            try {
+              const data = await db.collection(name).find({}).limit(10000).toArray();
+              (this.data as any)[name] = data.map((row) => this.stripMongoId(row as any));
+              this.lastRefreshAt.set(name, now);
+            } catch (e) {
+              console.error(`[MongoDB] catalog refresh "${name}" failed:`, e);
+            }
+          }),
+        );
+      } catch (e) {
+        console.error('[MongoDB] catalog refresh failed:', e);
+      }
+      return;
+    }
 
     await Promise.all(
       due.map(async (name) => {
@@ -854,6 +947,34 @@ class LocalDatabaseEngine {
   }
 
   private async mirrorInsert(name: string, item: any): Promise<void> {
+    if (this.mongoPrimary) {
+      try {
+        const db = await getMongoDb();
+        const payload = { ...item };
+        const id = String(payload.id || randomUUID());
+        payload.id = id;
+        // Avoid null unique-index collisions (slug/orderNumber/etc.)
+        for (const f of [
+          'slug',
+          'sku',
+          'orderNumber',
+          'applicationNumber',
+          'loanAccountNumber',
+          'razorpayOrderId',
+          'email',
+          'phone',
+          'token',
+        ]) {
+          if (payload[f] == null) delete payload[f];
+        }
+        await db.collection(name).replaceOne({ _id: id as any }, { ...payload, _id: id }, { upsert: true });
+      } catch (e) {
+        this.logMirrorError(name, 'insert', String(e));
+        throw e;
+      }
+      return;
+    }
+
     const payload = sanitizeMirrorPayload(name, item, 'insert');
     const looksLikeMissingColumn = (message: string) =>
       /PGRST204|could not find the column|could not find the '[^']+' column|column .* does not exist/i.test(message);
@@ -909,6 +1030,25 @@ class LocalDatabaseEngine {
   }
 
   private async mirrorUpdate(name: string, where: Record<string, any>, data: any): Promise<void> {
+    if (this.mongoPrimary) {
+      try {
+        const db = await getMongoDb();
+        const filter: Record<string, any> = {};
+        for (const [key, value] of Object.entries(where || {})) {
+          if (value === undefined) continue;
+          if (key === 'id') filter._id = String(value);
+          else filter[key] = value;
+        }
+        const setDoc = { ...data, updatedAt: data?.updatedAt || new Date().toISOString() };
+        delete (setDoc as any)._id;
+        await db.collection(name).updateMany(filter, { $set: setDoc });
+      } catch (e) {
+        this.logMirrorError(name, 'update', String(e));
+        throw e;
+      }
+      return;
+    }
+
     const payload = sanitizeMirrorPayload(name, data, 'update');
     const looksLikeMissingColumn = (message: string) =>
       /PGRST204|could not find the column|could not find the '[^']+' column|column .* does not exist/i.test(message);
@@ -972,6 +1112,25 @@ class LocalDatabaseEngine {
   }
 
   private async mirrorDelete(name: string, where: Record<string, any>): Promise<void> {
+    if (this.mongoPrimary) {
+      try {
+        const db = await getMongoDb();
+        const filter: Record<string, any> = {};
+        const hasFilter = Object.keys(where || {}).some((key) => where[key] !== undefined);
+        if (hasFilter) {
+          for (const [key, value] of Object.entries(where)) {
+            if (value === undefined) continue;
+            if (key === 'id') filter._id = String(value);
+            else filter[key] = value;
+          }
+        }
+        await db.collection(name).deleteMany(hasFilter ? filter : {});
+      } catch (e) {
+        this.logMirrorError(name, 'delete', String(e));
+      }
+      return;
+    }
+
     try {
       const hasFilter = Object.keys(where).some((key) => where[key] !== undefined);
       // PostgREST refuses DELETE with no filter — use a match-all predicate for wipe-all.
@@ -994,11 +1153,25 @@ class LocalDatabaseEngine {
   }
 
   /**
-   * Re-read a collection from Supabase into memory (source-mode / serverless).
+   * Re-read a collection from MongoDB (or Supabase legacy) into memory.
    * Keeps list endpoints consistent after another instance wiped rows.
    */
   public async refreshCollection(name: string): Promise<void> {
     if (!this.sourceMode) return;
+    if (this.mongoPrimary) {
+      try {
+        const db = await getMongoDb();
+        const data = await db.collection(name).find({}).limit(10000).toArray();
+        const normalized = data.map((row) => {
+          const clean = this.stripMongoId(row as Record<string, any>);
+          return name === 'orders' ? normalizeOrderRow(clean) : clean;
+        });
+        (this.data as any)[name] = normalized;
+      } catch (e) {
+        this.logMirrorError(name, 'refresh', String(e));
+      }
+      return;
+    }
     try {
       const { data, error } = await supabase.from(name).select('*').limit(10000);
       if (error) {

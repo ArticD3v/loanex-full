@@ -47,7 +47,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           shareReplay({ bufferSize: 1, refCount: false }),
           catchError((refreshError) => {
             tokens.clear();
-            const returnUrl = router.url && router.url !== '/auth/login' ? router.url : undefined;
+            const returnUrl =
+              router.url && router.url !== '/auth/login' ? router.url : undefined;
+            if (returnUrl) {
+              auth.setReturnUrl(returnUrl);
+            }
             void router.navigate(['/auth/login'], {
               queryParams: returnUrl ? { returnUrl } : undefined,
             });

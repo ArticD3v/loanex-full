@@ -1,8 +1,12 @@
 import fs from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
 
-const URL = 'https://vbzulguxiyvpozpjfxpz.supabase.co';
-const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZienVsZ3V4aXl2cG96cGpmeHB6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTI1MTEyMCwiZXhwIjoyMTAwODI3MTIwfQ.Li8nsm8mUpDbvPj379oStUN_arZ8fr3YzMSX4FEziU8';
+const URL = process.env.SUPABASE_URL;
+const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!URL || !KEY) {
+  console.error('Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in the environment.');
+  process.exit(1);
+}
 
 function parseValue(raw) {
   const v = raw.trim();
