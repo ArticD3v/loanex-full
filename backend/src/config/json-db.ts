@@ -5,13 +5,6 @@ import { supabase } from './supabase';
 import { env } from './env';
 import { normalizeOrderRow, sanitizeMirrorPayload } from './mirror-sanitize';
 
-function unknownColumnFromError(message: string): string | null {
-  const match =
-    /Could not find the '([^']+)' column/i.exec(message) ||
-    /column "([^"]+)" of relation/i.exec(message);
-  return match?.[1] ?? null;
-}
-
 const { appendFileSync } = fs;
 
 const DB_FILE_PATH = path.join(process.cwd(), 'data', 'db.json');
@@ -30,6 +23,7 @@ try {
 export interface LocalDatabaseSchema {
   users: any[];
   profiles: any[];
+  roles: any[];
   categories: any[];
   sub_categories: any[];
   brands: any[];
@@ -51,32 +45,105 @@ export interface LocalDatabaseSchema {
   suppliers: any[];
   manufacturers: any[];
   warehouses: any[];
+  branches: any[];
+  pincodes: any[];
+  wholesalers: any[];
+  delivery_partners: any[];
+  delivery_zones: any[];
 }
 
 const DEFAULT_INITIAL_DATA: LocalDatabaseSchema = {
-  users: [
+  // No seeded demo customer — accounts are created through the real auth flow.
+  users: [],
+  roles: [
     {
-      id: 'd8f57913-2d25-4a65-8b36-4c28f645a271',
-      phone: '9462557060',
-      email: 'gourimusharraf@gmail.com',
-      role: 'customer',
+      id: '00000000-0000-4000-8000-000000000001',
+      name: 'Super Admin',
+      description: 'Full access to every module in the admin portal',
+      permissions: [
+        'products.view', 'products.create', 'products.edit', 'products.delete',
+        'orders.view', 'orders.edit', 'orders.delete',
+        'customers.view', 'customers.edit', 'customers.delete',
+        'emi.view', 'emi.edit', 'emi.delete',
+        'fi.view', 'fi.edit', 'fi.delete',
+        'users.view', 'users.create', 'users.edit', 'users.delete',
+        'roles.view', 'roles.create', 'roles.edit', 'roles.delete',
+        'reports.view',
+        'masters.view', 'masters.create', 'masters.edit', 'masters.delete',
+        'settings.view', 'settings.edit',
+        'notifications.view', 'notifications.create', 'notifications.delete',
+      ],
+      is_system: true,
+      isSystem: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     },
-  ],
-  profiles: [
     {
-      id: 'd8f57913-2d25-4a65-8b36-4c28f645a271',
-      mobile_number: '9462557060',
-      fullName: 'Mohd Musharraf Gouri',
-      email: 'gourimusharraf@gmail.com',
-      dob: '1998-05-15',
-      gender: 'Male',
-      kyc_status: 'Approved',
+      id: '00000000-0000-4000-8000-000000000002',
+      name: 'Branch Manager',
+      description: 'Run branch operations: orders, EMI approvals and field investigation',
+      permissions: [
+        'products.view',
+        'orders.view', 'orders.edit',
+        'customers.view',
+        'emi.view', 'emi.edit',
+        'fi.view', 'fi.edit',
+        'reports.view',
+      ],
+      is_system: false,
+      isSystem: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: '00000000-0000-4000-8000-000000000003',
+      name: 'Credit Officer',
+      description: 'Review and approve credit: EMI applications, loans and payment terms',
+      permissions: [
+        'products.view',
+        'orders.view',
+        'customers.view',
+        'emi.view', 'emi.edit',
+        'fi.view',
+        'reports.view',
+      ],
+      is_system: false,
+      isSystem: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: '00000000-0000-4000-8000-000000000004',
+      name: 'FI Executive',
+      description: 'Field investigation: view and update FI cases only',
+      permissions: ['customers.view', 'emi.view', 'fi.view', 'fi.edit'],
+      is_system: false,
+      isSystem: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: '00000000-0000-4000-8000-000000000005',
+      name: 'Sales Executive',
+      description: 'Product catalog: view, add and edit products',
+      permissions: ['products.view', 'products.create', 'products.edit', 'customers.view', 'orders.view'],
+      is_system: false,
+      isSystem: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
   ],
+  profiles: [],
   categories: [
     {
       id: 'a1111111-1111-4111-8111-111111111101',
@@ -160,25 +227,7 @@ const DEFAULT_INITIAL_DATA: LocalDatabaseSchema = {
   order_items: [],
   emi_details: [],
   addresses: [],
-  customer_kyc: [
-    {
-      id: 'kyc-demo',
-      profileId: 'd8f57913-2d25-4a65-8b36-4c28f645a271',
-      userId: 'd8f57913-2d25-4a65-8b36-4c28f645a271',
-      fullName: 'Mohd Musharraf Gouri',
-      dob: '1998-05-15',
-      gender: 'Male',
-      panNumber: 'ABCDE1234F',
-      pan_verified: true,
-      aadhar_number: '123456789012',
-      aadharVerified: true,
-      kycCompleted: true,
-      kycCompletedAt: new Date().toISOString(),
-      cibil_score: 750,
-      credit_eligibility_status: 'Eligible',
-      createdAt: new Date().toISOString(),
-    },
-  ],
+  customer_kyc: [],
   experian_reports: [],
   digilocker_reports: [],
   banners: [
@@ -241,10 +290,206 @@ const DEFAULT_INITIAL_DATA: LocalDatabaseSchema = {
   ],
   notifications: [],
   reviews: [],
-  dealers: [],
-  suppliers: [],
+  dealers: [
+    { id: 'dealer-001', name: 'Dealer X', code: 'DLR-X', status: 'active' },
+    { id: 'dealer-002', name: 'Dealer Y', code: 'DLR-Y', status: 'active' },
+  ],
+  suppliers: [
+    { id: 'supplier-001', name: 'Supplier A', status: 'active' },
+    { id: 'supplier-002', name: 'Supplier B', status: 'active' },
+  ],
   manufacturers: [],
-  warehouses: [],
+  warehouses: [
+    { id: 'warehouse-001', name: 'Main Hub', status: 'active' },
+    { id: 'warehouse-002', name: 'City Center', status: 'active' },
+    { id: 'warehouse-003', name: 'North Branch', status: 'active' },
+  ],
+  branches: [
+    {
+      id: 'branch-001',
+      name: 'Mumbai Andheri',
+      branchCode: 'MUM-AND',
+      city: 'Mumbai',
+      state: 'Maharashtra',
+      branchManager: 'Anil Sharma',
+      mobile: '+91 98000 11111',
+      status: 'active',
+    },
+    {
+      id: 'branch-002',
+      name: 'Mumbai Borivali',
+      branchCode: 'MUM-BOR',
+      city: 'Mumbai',
+      state: 'Maharashtra',
+      branchManager: 'Arun Mehta',
+      mobile: '+91 98000 33333',
+      status: 'active',
+    },
+    {
+      id: 'branch-003',
+      name: 'Pune Kothrud',
+      branchCode: 'PUN-KOT',
+      city: 'Pune',
+      state: 'Maharashtra',
+      branchManager: 'Rahul Mehta',
+      mobile: '+91 98000 77777',
+      status: 'active',
+    },
+    {
+      id: 'branch-004',
+      name: 'Bengaluru Koramangala',
+      branchCode: 'BLR-KOR',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      branchManager: 'Priya Nair',
+      mobile: '+91 98000 44444',
+      status: 'active',
+    },
+    {
+      id: 'branch-005',
+      name: 'Delhi Connaught Place',
+      branchCode: 'DEL-CP',
+      city: 'New Delhi',
+      state: 'Delhi',
+      branchManager: 'Vikram Singh',
+      mobile: '+91 98000 55555',
+      status: 'active',
+    },
+    {
+      id: 'branch-006',
+      name: 'Hyderabad Banjara Hills',
+      branchCode: 'HYD-BH',
+      city: 'Hyderabad',
+      state: 'Telangana',
+      branchManager: 'Neha Kapoor',
+      mobile: '+91 98000 22222',
+      status: 'active',
+    },
+    {
+      id: 'branch-007',
+      name: 'Chennai T Nagar',
+      branchCode: 'CHN-TN',
+      city: 'Chennai',
+      state: 'Tamil Nadu',
+      branchManager: 'Sneha Iyer',
+      mobile: '+91 98000 66666',
+      status: 'active',
+    },
+    {
+      id: 'branch-008',
+      name: 'Ahmedabad CG Road',
+      branchCode: 'AMD-CG',
+      city: 'Ahmedabad',
+      state: 'Gujarat',
+      branchManager: 'Kavita Desai',
+      mobile: '+91 98000 88888',
+      status: 'inactive',
+    },
+  ],
+  pincodes: [
+    {
+      id: 'pincode-400053',
+      name: '400053',
+      pincode: '400053',
+      city: 'Mumbai',
+      state: 'Maharashtra',
+      branchName: 'Mumbai Andheri',
+      status: 'active',
+    },
+    {
+      id: 'pincode-400069',
+      name: '400069',
+      pincode: '400069',
+      city: 'Mumbai',
+      state: 'Maharashtra',
+      branchName: 'Mumbai Andheri',
+      status: 'active',
+    },
+    {
+      id: 'pincode-400092',
+      name: '400092',
+      pincode: '400092',
+      city: 'Mumbai',
+      state: 'Maharashtra',
+      branchName: 'Mumbai Borivali',
+      status: 'active',
+    },
+    {
+      id: 'pincode-411038',
+      name: '411038',
+      pincode: '411038',
+      city: 'Pune',
+      state: 'Maharashtra',
+      branchName: 'Pune Kothrud',
+      status: 'active',
+    },
+    {
+      id: 'pincode-560034',
+      name: '560034',
+      pincode: '560034',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      branchName: 'Bengaluru Koramangala',
+      status: 'active',
+    },
+    {
+      id: 'pincode-560001',
+      name: '560001',
+      pincode: '560001',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      branchName: 'Bengaluru Koramangala',
+      status: 'active',
+    },
+    {
+      id: 'pincode-110001',
+      name: '110001',
+      pincode: '110001',
+      city: 'New Delhi',
+      state: 'Delhi',
+      branchName: 'Delhi Connaught Place',
+      status: 'active',
+    },
+    {
+      id: 'pincode-500034',
+      name: '500034',
+      pincode: '500034',
+      city: 'Hyderabad',
+      state: 'Telangana',
+      branchName: 'Hyderabad Banjara Hills',
+      status: 'active',
+    },
+    {
+      id: 'pincode-600017',
+      name: '600017',
+      pincode: '600017',
+      city: 'Chennai',
+      state: 'Tamil Nadu',
+      branchName: 'Chennai T Nagar',
+      status: 'active',
+    },
+    {
+      id: 'pincode-380009',
+      name: '380009',
+      pincode: '380009',
+      city: 'Ahmedabad',
+      state: 'Gujarat',
+      branchName: 'Ahmedabad CG Road',
+      status: 'inactive',
+    },
+  ],
+  wholesalers: [
+    { id: 'wholesaler-001', name: 'Wholesale 1', status: 'active' },
+    { id: 'wholesaler-002', name: 'Wholesale 2', status: 'active' },
+  ],
+  delivery_partners: [
+    { id: 'partner-001', name: 'BlueDart', status: 'active', serviceableZones: [] },
+    { id: 'partner-002', name: 'Delhivery', status: 'active', serviceableZones: [] },
+  ],
+  delivery_zones: [
+    { id: 'zone-001', name: 'Zone 1', status: 'active' },
+    { id: 'zone-002', name: 'Zone 2', status: 'active' },
+  ],
 };
 
 /**
@@ -281,6 +526,7 @@ const HYDRATE_COLLECTIONS = Array.from(
     'bankVerification',
     'customerVerification',
     'panVerification',
+    'roles',
   ]),
 );
 
@@ -295,11 +541,37 @@ function cloneRows<T>(rows: T[]): T[] {
   return JSON.parse(JSON.stringify(rows)) as T[];
 }
 
+/** Catalog collections re-fetched on a throttle so direct Supabase inserts
+ * (e.g. a product added via the Supabase dashboard) show up without a restart. */
+const CATALOG_REFRESH_COLLECTIONS = [
+  'products',
+  'product_emi_plans',
+  'roles',
+  // Users too — staff/customer accounts created or edited directly in the
+  // Supabase dashboard surface in the admin portal without a process restart.
+  'users',
+  'categories',
+  'sub_categories',
+  'brands',
+  'dealers',
+  'suppliers',
+  'manufacturers',
+  'warehouses',
+  'branches',
+  'pincodes',
+  'wholesalers',
+  'delivery_partners',
+  'delivery_zones',
+  'banners',
+];
+const CATALOG_REFRESH_TTL_MS = 15_000;
+
 class LocalDatabaseEngine {
   private data: LocalDatabaseSchema;
   private readonly sourceMode =
     env.NODE_ENV === 'production' ? true : env.SUPABASE_SYNC_MODE === 'source';
   private readonly warned = new Set<string>();
+  private readonly lastRefreshAt = new Map<string, number>();
   public readonly ready: Promise<void>;
   /** Last cold-start hydrate duration in ms (0 if not yet measured). */
   public lastHydrateMs = 0;
@@ -385,6 +657,41 @@ class LocalDatabaseEngine {
     );
   }
 
+  /**
+   * Re-fetch catalog collections from Supabase on a throttle so records added
+   * directly in the Supabase dashboard (products, categories, banners, …) surface
+   * in the API without a process restart. No-op outside source mode.
+   */
+  public async refreshCatalogThrottled(): Promise<void> {
+    if (!this.sourceMode) return;
+    const now = Date.now();
+    const due = CATALOG_REFRESH_COLLECTIONS.filter(
+      (name) => (this.lastRefreshAt.get(name) ?? 0) + CATALOG_REFRESH_TTL_MS <= now,
+    );
+    if (due.length === 0) return;
+
+    await Promise.all(
+      due.map(async (name) => {
+        try {
+          const { data, error } = await supabase.from(name).select('*').limit(10000);
+          if (error) return;
+          if (Array.isArray(data)) {
+            (this.data as any)[name] = data;
+            this.lastRefreshAt.set(name, now);
+          }
+        } catch (e) {
+          console.error(`[Supabase] catalog refresh "${name}" failed:`, e);
+        }
+      }),
+    );
+  }
+
+  /** Force one full refresh pass of the catalog collections (bypasses throttle). */
+  public async refreshCatalogNow(): Promise<void> {
+    this.lastRefreshAt.clear();
+    await this.refreshCatalogThrottled();
+  }
+
   private logMirrorError(name: string, operation: string, message: string): void {
     const line = `[${new Date().toISOString()}] ${operation} "${name}" failed: ${message}`;
     if (!this.warned.has(name)) {
@@ -399,90 +706,121 @@ class LocalDatabaseEngine {
   }
 
   private async mirrorInsert(name: string, item: any): Promise<void> {
-    let payload: Record<string, any> = sanitizeMirrorPayload(name, item, 'insert');
-    let lastError: any = null;
+    const payload = sanitizeMirrorPayload(name, item, 'insert');
+    const looksLikeMissingColumn = (message: string) =>
+      /PGRST204|could not find the column|could not find the '[^']+' column|column .* does not exist/i.test(message);
+    const extractMissingColumn = (message: string): string | null => {
+      const postgrest = /Could not find the '([^']+)' column/i.exec(message);
+      if (postgrest) return postgrest[1];
+      const pg = /column "?([^"]+)"? of relation/i.exec(message);
+      return pg ? pg[1] : null;
+    };
 
-    // PostgREST rejects unknown columns; strip and retry so orders survive cold starts.
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      try {
-        const { error } = await supabase.from(name).upsert([payload], { onConflict: 'id' });
-        if (!error) return;
+    try {
+      // PostgREST rejects the whole insert if ANY key is an unknown column.
+      // Self-heal: strip unknown keys one at a time and retry (e.g. users.role_id
+      // before the RBAC migration, or emi_schedules.paidAmount), so the row still
+      // persists and a cold start does not lose it.
+      let attemptPayload = payload;
+      let { error } = await supabase.from(name).upsert([attemptPayload], {
+        onConflict: 'id',
+      });
 
-        const { error: fallbackError } = await supabase.from(name).insert([payload]);
-        if (!fallbackError) return;
+      let iterations = 0;
+      while (error && looksLikeMissingColumn(error.message) && iterations < 8) {
+        const missing = extractMissingColumn(error.message);
+        if (!missing || attemptPayload[missing] === undefined) break;
+        console.error(
+          `[Supabase] insert "${name}" missing column "${missing}" — retrying without it. ` +
+            `Apply the matching migration (see backend/emi-payment-durability.sql) to persist this field.`,
+        );
+        attemptPayload = { ...attemptPayload };
+        delete attemptPayload[missing];
+        ({ error } = await supabase.from(name).upsert([attemptPayload], {
+          onConflict: 'id',
+        }));
+        iterations += 1;
+      }
 
-        lastError = fallbackError;
-        const unknown = unknownColumnFromError(String(fallbackError.message || error.message));
-        if (!unknown || !(unknown in payload)) {
+      if (error) {
+        // Table without a unique "id" constraint: fall back to a plain insert.
+        const { error: fallbackError } = await supabase.from(name).insert([attemptPayload]);
+        if (fallbackError) {
           this.logMirrorError(
             name,
             'insert',
-            `${fallbackError.message} | keys: ${Object.keys(payload).join(',')}`,
+            `${fallbackError.message} | keys: ${Object.keys(attemptPayload).join(',')}`,
           );
           throw fallbackError;
         }
-        const next = { ...payload };
-        delete next[unknown];
-        payload = next;
-      } catch (e) {
-        lastError = e;
-        const unknown = unknownColumnFromError(String(e));
-        if (!unknown || !(unknown in payload)) {
-          this.logMirrorError(name, 'insert', String(e));
-          throw e;
-        }
-        const next = { ...payload };
-        delete next[unknown];
-        payload = next;
       }
+    } catch (e) {
+      this.logMirrorError(name, 'insert', String(e));
+      throw e;
     }
-
-    this.logMirrorError(name, 'insert', `exhausted retries | ${String(lastError)}`);
-    throw lastError ?? new Error(`mirror insert failed for ${name}`);
   }
 
   private async mirrorUpdate(name: string, where: Record<string, any>, data: any): Promise<void> {
-    let payload: Record<string, any> = sanitizeMirrorPayload(name, data, 'update');
-    let lastError: any = null;
+    const payload = sanitizeMirrorPayload(name, data, 'update');
+    const looksLikeMissingColumn = (message: string) =>
+      /PGRST204|could not find the column|could not find the '[^']+' column|column .* does not exist/i.test(message);
 
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      try {
-        let query = supabase.from(name).update(payload);
-        for (const [key, value] of Object.entries(where)) {
-          if (value === undefined) continue;
-          query = query.eq(key, value);
-        }
-        const { error } = await query;
-        if (!error) return;
+    // PostgREST rejects an update if ANY key is an unknown column — dropping
+    // just the offending key keeps the rest of the write alive (e.g. an EMI
+    // payment still persists `paymentStatus = PAID` even when the schema lacks
+    // `paidAmount`/`lastPaymentDate`, so a cold start does not revert it).
+    const extractMissingColumn = (message: string): string | null => {
+      const postgrest = /Could not find the '([^']+)' column/i.exec(message);
+      if (postgrest) return postgrest[1];
+      const pg = /column "?([^"]+)"? of relation/i.exec(message);
+      return pg ? pg[1] : null;
+    };
 
-        lastError = error;
-        const unknown = unknownColumnFromError(String(error.message));
-        if (!unknown || !(unknown in payload)) {
-          this.logMirrorError(
-            name,
-            'update',
-            `${error.message} | payload keys: ${Object.keys(payload).join(',')} | payload: ${JSON.stringify(payload).slice(0, 2000)}`,
-          );
-          throw error;
-        }
-        const next = { ...payload };
-        delete next[unknown];
-        payload = next;
-      } catch (e) {
-        lastError = e;
-        const unknown = unknownColumnFromError(String(e));
-        if (!unknown || !(unknown in payload)) {
-          this.logMirrorError(name, 'update', String(e));
-          throw e;
-        }
-        const next = { ...payload };
-        delete next[unknown];
-        payload = next;
+    const run = (payloadToSend: Record<string, any>) => {
+      let query = supabase.from(name).update(payloadToSend);
+      for (const [key, value] of Object.entries(where)) {
+        if (value === undefined) continue;
+        query = query.eq(key, value);
       }
-    }
+      return query;
+    };
 
-    this.logMirrorError(name, 'update', `exhausted retries | ${String(lastError)}`);
-    throw lastError ?? new Error(`mirror update failed for ${name}`);
+    try {
+      let attemptPayload = payload;
+      let attempt = await run(attemptPayload);
+      let { error } = attempt;
+
+      // Self-heal: strip missing columns (users.role_id, emi_schedules
+      // paidAmount/transactionId, loanAccount.lastPaymentDate, …) one at a
+      // time and retry — a single unknown key makes PostgREST reject the whole
+      // update, silently reverting e.g. an EMI payment on the next cold start.
+      let iterations = 0;
+      while (error && looksLikeMissingColumn(error.message) && iterations < 8) {
+        const missing = extractMissingColumn(error.message);
+        if (!missing || attemptPayload[missing] === undefined) break;
+        console.error(
+          `[Supabase] update "${name}" missing column "${missing}" — retrying without it. ` +
+            `Apply the matching migration (see backend/emi-payment-durability.sql) to persist this field.`,
+        );
+        attemptPayload = { ...attemptPayload };
+        delete attemptPayload[missing];
+        attempt = await run(attemptPayload);
+        error = attempt.error;
+        iterations += 1;
+      }
+
+      if (error) {
+        this.logMirrorError(
+          name,
+          'update',
+          `${error.message} | payload keys: ${Object.keys(attemptPayload).join(',')} | payload: ${JSON.stringify(attemptPayload).slice(0, 2000)}`,
+        );
+        throw error;
+      }
+    } catch (e) {
+      this.logMirrorError(name, 'update', String(e));
+      throw e;
+    }
   }
 
   private async mirrorDelete(name: string, where: Record<string, any>): Promise<void> {
@@ -630,6 +968,35 @@ class LocalDatabaseEngine {
       ...updateData,
       updatedAt: updatedItem.updatedAt,
     });
+    return cloneValue(updatedItem);
+  }
+
+  /**
+   * Update a row in memory + local file WITHOUT mirroring to Supabase.
+   *
+   * Used by paths that own their own awaited Supabase write (e.g. the durable
+   * inventory decrement), so the change is persisted exactly once instead of
+   * being mirrored fire-and-forget (which can be lost on a serverless freeze
+   * and would double-write when the durable path already wrote it).
+   */
+  public updateLocal(collectionName: string, where: Record<string, any>, updateData: any): any {
+    const collection = this.getCollection(collectionName);
+    const index = collection.findIndex((item) => {
+      return Object.keys(where).every((key) => item[key] === where[key]);
+    });
+
+    if (index === -1) {
+      return null;
+    }
+
+    const updatedItem = {
+      ...collection[index],
+      ...updateData,
+      updatedAt: new Date().toISOString(),
+    };
+
+    collection[index] = updatedItem;
+    this.saveData();
     return cloneValue(updatedItem);
   }
 

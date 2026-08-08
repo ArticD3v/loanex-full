@@ -35,6 +35,28 @@ const envSchema = z.object({
   AUTHKEY_PE_ID: z.string().optional().default(''),
   AUTHKEY_SID: z.string().optional().default(''),
   AUTHKEY_COUNTRY_CODE: z.string().default('91'),
+  /** Notification SMS — separate DLT template from the OTP template. */
+  NOTIFY_SMS_TEMPLATE_ID: z.string().optional().default(''),
+  NOTIFY_SMS_SENDER_ID: z.string().optional().default(''),
+  /** Email notifications — SMTP (works with any provider: SES, Brevo, Gmail, …). */
+  SMTP_HOST: z.string().optional().default(''),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_SECURE: z
+    .string()
+    .optional()
+    .transform((value) => value === 'true'),
+  SMTP_USER: z.string().optional().default(''),
+  SMTP_PASS: z.string().optional().default(''),
+  SMTP_FROM: z
+    .string()
+    .optional()
+    .default('LoanEx Notifications <no-reply@loanex.in>'),
+  /** WhatsApp notifications — Meta Cloud API. */
+  WHATSAPP_ACCESS_TOKEN: z.string().optional().default(''),
+  WHATSAPP_PHONE_NUMBER_ID: z.string().optional().default(''),
+  WHATSAPP_TEMPLATE_NAME: z.string().optional().default('loanex_notification'),
+  WHATSAPP_LANGUAGE_CODE: z.string().optional().default('en'),
+  WHATSAPP_API_VERSION: z.string().optional().default('v21.0'),
   BCRYPT_SALT_ROUNDS: z.coerce.number().default(12),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900_000),
   /** Global /api budget per IP per window (production). */
@@ -56,7 +78,7 @@ const envSchema = z.object({
   RAZORPAY_CURRENCY: z.string().default('INR'),
   GST_PERCENT: z.coerce.number().default(18),
   EMI_LATE_FEE_PERCENT: z.coerce.number().default(2),
-  AUTOPAY_PROVIDER: z.string().default('STUB'),
+  AUTOPAY_PROVIDER: z.string().default('RAZORPAY'),
   PAYMENT_DEV_BYPASS: z
     .string()
     .optional()
@@ -68,6 +90,8 @@ const envSchema = z.object({
    * source  = Supabase is the boot source of truth (required in production).
    */
   SUPABASE_SYNC_MODE: z.enum(['mirror', 'source']).default('source'),
+  /** Secret for the internal cron endpoint (EMI reminders). Vercel Cron sends it as Bearer token when configured. */
+  CRON_SECRET: z.string().optional().default(''),
   /** IDSPay / DigiLocker — required for Aadhaar KYC (no hardcoded fallbacks). */
   DIGILOCKER_API_ID: z.string().optional().default(''),
   DIGILOCKER_API_KEY: z.string().optional().default(''),

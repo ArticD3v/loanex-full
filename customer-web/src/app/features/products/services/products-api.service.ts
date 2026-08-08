@@ -62,6 +62,8 @@ export interface CatalogProduct {
 
   stockQuantity: number;
 
+  stockStatus: import('../models/product-details.models').ProductStockStatus;
+
   inStock: boolean;
 
   sku: string;

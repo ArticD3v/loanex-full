@@ -22,6 +22,7 @@ function sanitizeUsersRow(item: Record<string, any>, mode: 'insert' | 'update'):
     phone: item.phone,
     email: item.email,
     role: item.role,
+    role_id: item.role_id ?? item.roleId ?? undefined,
     encryptedPassword:
       item.encryptedPassword !== undefined
         ? item.encryptedPassword
@@ -32,6 +33,21 @@ function sanitizeUsersRow(item: Record<string, any>, mode: 'insert' | 'update'):
     created_at: item.created_at ?? item.createdAt ?? (mode === 'insert' ? now : undefined),
     updated_at: item.updated_at ?? item.updatedAt ?? now,
     updatedAt: item.updatedAt ?? item.updated_at ?? now,
+  });
+}
+
+function sanitizeRolesRow(item: Record<string, any>, mode: 'insert' | 'update'): Record<string, any> {
+  const now = new Date().toISOString();
+  return pickDefined({
+    ...(mode === 'insert' && item.id != null && String(item.id).trim() !== ''
+      ? { id: String(item.id) }
+      : {}),
+    name: item.name,
+    description: item.description ?? '',
+    permissions: Array.isArray(item.permissions) ? item.permissions : [],
+    is_system: Boolean(item.is_system ?? item.isSystem ?? false),
+    created_at: item.created_at ?? item.createdAt ?? (mode === 'insert' ? now : undefined),
+    updated_at: item.updated_at ?? item.updatedAt ?? now,
   });
 }
 
@@ -115,6 +131,7 @@ function sanitizeProductsRow(item: Record<string, any>, mode: 'insert' | 'update
     cashPurchase: item.cashPurchase,
     childCategoryId,
     colourSizeVariant: item.colourSizeVariant,
+    variants: item.variants,
     countryOfOrigin: item.countryOfOrigin,
     defaultDownPaymentPercent: item.defaultDownPaymentPercent,
     deliveryChargeMethod: item.deliveryChargeMethod,
@@ -323,6 +340,8 @@ export function sanitizeMirrorPayload(
   switch (collectionName) {
     case 'users':
       return sanitizeUsersRow(item, mode);
+    case 'roles':
+      return sanitizeRolesRow(item, mode);
     case 'profiles':
       return sanitizeProfilesRow(item, mode);
     case 'refresh_tokens':

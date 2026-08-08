@@ -1,17 +1,20 @@
 import { jsonDb } from '../../../config/json-db';
 
 export const OrderStatus = {
+  PENDING: 'PENDING',
   ORDER_CONFIRMED: 'ORDER_CONFIRMED',
   PROCESSING: 'PROCESSING',
   PACKED: 'PACKED',
   SHIPPED: 'SHIPPED',
   OUT_FOR_DELIVERY: 'OUT_FOR_DELIVERY',
   DELIVERED: 'DELIVERED',
+  CANCELLED: 'CANCELLED',
 } as const;
 
 export type OrderStatusType = typeof OrderStatus[keyof typeof OrderStatus];
 
 const STATUS_FLOW: OrderStatusType[] = [
+  OrderStatus.PENDING,
   OrderStatus.ORDER_CONFIRMED,
   OrderStatus.PROCESSING,
   OrderStatus.PACKED,
@@ -44,7 +47,10 @@ function mapOrderRecord(order: any) {
   const rawStatus = String(
     order.orderStatus ?? order.status ?? order.payment_status ?? 'CONFIRMED',
   ).toUpperCase();
-  const orderStatus = (rawStatus === 'PENDING' && paymentMethod === 'FULL PAYMENT') ? 'CONFIRMED' : rawStatus;
+  // Keep PENDING visible as-is — it is a real state that awaits admin
+  // confirmation. Masking it as CONFIRMED made such orders un-editable
+  // because the stored status stayed PENDING (transition check fails).
+  const orderStatus = rawStatus;
 
   const productId = items[0]?.productId ?? order.productId ?? '';
   let productName = 'Product';
@@ -63,6 +69,22 @@ function mapOrderRecord(order: any) {
     ? jsonDb.findOne('addresses', { id: order.addressId ?? order.address_id })
     : null;
   const deliveryAddress = address?.fullAddress ?? order.deliveryAddress ?? null;
+
+  // Real payment transaction for the order (used by receipts/invoices).
+  const applicationId = order.applicationId ?? order.emi_applications?.id ?? null;
+  let paymentTransaction = order.paymentTransactionId
+    ? jsonDb.findOne('paymentTransaction', { id: order.paymentTransactionId })
+    : null;
+  if (!paymentTransaction && applicationId) {
+    paymentTransaction =
+      jsonDb
+        .findMany('paymentTransaction', { applicationId })
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime(),
+        )
+        .find((p: any) => p.paymentStatus === 'SUCCESS') ?? null;
+  }
 
   const populatedItems = items.map(item => {
     const p = jsonDb.findOne('products', { id: item.productId });
@@ -90,16 +112,29 @@ function mapOrderRecord(order: any) {
     paymentMethod,
     orderStatus,
     createdAt: order.createdAt ?? order.created_at ?? new Date(),
-    application: order.emi_applications ?? {
-      id: order.id,
-      sellingPrice: order.totalAmount ?? order.total_amount ?? order.total ?? 0,
-      productName: productName,
-      productImage: productImage,
-      emiAmount: 0,
-      tenure: 0,
-    },
+    // Join the REAL EMI application record (created by the verification flow)
+    // instead of a synthetic stub — the stub only knew the order's own
+    // totalAmount, so EMI orders (whose fulfillment row is created on
+    // approval without a totalAmount) showed ₹0 amounts and no loan/EMI
+    // data in My Orders, the admin list and the order detail page.
+    application: (() => {
+      const linked =
+        order.emi_applications ??
+        (order.applicationId
+          ? jsonDb.findOne('emi_applications', { id: order.applicationId })
+          : null);
+      if (linked) return linked;
+      return {
+        id: order.id,
+        sellingPrice: order.totalAmount ?? order.total_amount ?? order.total ?? 0,
+        productName: productName,
+        productImage: productImage,
+        emiAmount: 0,
+        tenure: 0,
+      };
+    })(),
     deliveryAddress,
-    paymentTransaction: null,
+    paymentTransaction,
     trackingEvents: [],
     user: profile
       ? {
@@ -201,7 +236,30 @@ export class OrderRepository {
     warehouse?: string | null;
     deliveryAddress?: string | null;
   }) {
-    const updated = jsonDb.update('orders', { id: input.orderId }, { status: input.status });
+    // Persist the real fulfillment data so receipts/tracking show what was
+    // actually entered (courier, tracking no., warehouse, delivery address)
+    // instead of hardcoded placeholders. Also write orderStatus — previously
+    // only `status` was saved, so admin status updates never surfaced.
+    const updateData: Record<string, any> = {
+      status: input.status,
+      orderStatus: input.status,
+    };
+    const fields: Array<keyof typeof input> = [
+      'remarks',
+      'updatedBy',
+      'location',
+      'courierPartner',
+      'trackingNumber',
+      'warehouse',
+      'deliveryAddress',
+    ];
+    for (const field of fields) {
+      const value = input[field];
+      if (value !== undefined && value !== null) {
+        updateData[field] = value;
+      }
+    }
+    const updated = jsonDb.update('orders', { id: input.orderId }, updateData);
     return mapOrderRecord(updated);
   }
 
@@ -212,6 +270,10 @@ export class OrderRepository {
   }
 
   isValidTransition(from: OrderStatusType, to: OrderStatusType): boolean {
+    // Cancellation is allowed from any non-terminal state. The service layer
+    // already rejects updates on CANCELLED and DELIVERED orders before this
+    // check runs, so returning true here is safe.
+    if (to === OrderStatus.CANCELLED) return true;
     return this.nextAllowedStatus(from) === to;
   }
 }

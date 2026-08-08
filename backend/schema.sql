@@ -189,6 +189,7 @@ CREATE TABLE public.products (
   "boxContents" JSONB,
   "specifications" JSONB,
   "features" JSONB,
+  "variants" JSONB,
   "createdAt" TIMESTAMPTZ DEFAULT NOW()
 );
 

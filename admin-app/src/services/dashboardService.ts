@@ -20,7 +20,7 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
   try {
     // Fetch all data in parallel
     const [products, orders, emiApplications] = await Promise.allSettled([
-      getProducts(),
+      getProducts({ limit: 1000, status: 'all' }),
       getAllOrders(),
       getAllEmiApplications(),
     ]);
@@ -31,20 +31,26 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
 
     // Calculate stats
     const pendingOrders = orderList.filter(
-      (o: any) => o.status === 'PENDING' || o.status === 'CONFIRMED' || o.status === 'PROCESSING'
+      (o: any) =>
+        o.status === 'pending' ||
+        o.status === 'confirmed' ||
+        o.status === 'processing' ||
+        o.status === 'packed' ||
+        o.status === 'shipped' ||
+        o.status === 'out_for_delivery'
     );
 
     const pendingEmi = emiList.filter(
-      (e: any) => e.status === 'PENDING' || e.status === 'pending'
+      (e: any) => e.status === 'pending' || e.status === 'under_review'
     );
 
     const totalRevenue = orderList
-      .filter((o: any) => o.payment_status === 'PAID')
-      .reduce((sum: number, o: any) => sum + (o.totalAmount || o.total || 0), 0);
+      .filter((o: any) => o.status === 'delivered')
+      .reduce((sum: number, o: any) => sum + (o.totalAmount || o.orderAmount || 0), 0);
 
     // Get recent orders (last 10, sorted by date)
     const recentOrders = [...orderList]
-      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .sort((a: any, b: any) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime())
       .slice(0, 10);
 
     return {

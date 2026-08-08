@@ -124,7 +124,7 @@ export class PanVerificationService {
     });
 
     return {
-      status: PanVerificationStatus.VERIFIED as const,
+      status: PanVerificationStatus.VERIFIED,
       panVerified: true as const,
       panNumberMasked,
       nextStep: 'BANK_VERIFICATION' as const,

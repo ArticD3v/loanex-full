@@ -16,8 +16,10 @@ import { Input } from '../../components/ui/Input';
 import { Dropdown } from '../../components/ui/Dropdown';
 import { Button } from '../../components/ui/Button';
 import { PasswordInput } from '../../authentication/components/PasswordInput';
-import { AppUser, USER_ROLE_OPTIONS, UserRole, UserStatus } from '../../types/user';
+import { AppUser, UserStatus } from '../../types/user';
+import { Role } from '../../types/role';
 import { createUser, getUserById, updateUser } from '../../services/userService';
+import { getRoles } from '../../services/roleService';
 import { useMasterData, activeNames } from '../../settings/context/MasterDataContext';
 import { colors } from '../../theme/colors';
 import { radius, shadow, spacing } from '../../theme/spacing';
@@ -98,13 +100,21 @@ export function AddUserScreen({ navigation, route }: Props) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
-  const [role, setRole] = useState<UserRole | ''>('');
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [roleId, setRoleId] = useState<string>('');
+  const [role, setRole] = useState<string>('');
   const [status, setStatus] = useState<UserStatus>('active');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [branches, setBranches] = useState<string[]>([]);
   const [pincodes, setPincodes] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    getRoles()
+      .then(setRoles)
+      .catch((error) => console.error('[AddUser] Error loading roles:', error));
+  }, []);
 
   useEffect(() => {
     if (isEditMode && route.params?.userId) {
@@ -114,6 +124,7 @@ export function AddUserScreen({ navigation, route }: Props) {
           setName(found.name);
           setEmail(found.email);
           setMobile(found.mobile);
+          setRoleId(found.roleId ?? '');
           setRole(found.role);
           setStatus(found.status);
           setBranches(found.branches);
@@ -122,6 +133,8 @@ export function AddUserScreen({ navigation, route }: Props) {
       });
     }
   }, [isEditMode, route.params?.userId]);
+
+  const roleOptions = roles.map((r) => r.name);
 
   const branchOptions = useMemo(() => {
     const active = activeNames(master.branches);
@@ -207,51 +220,62 @@ export function AddUserScreen({ navigation, route }: Props) {
       return;
     }
 
-    if (isEditMode && route.params?.userId) {
+    try {
+      if (isEditMode && route.params?.userId) {
+        const payload: Omit<AppUser, 'id'> = {
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          mobile: mobile.trim(),
+          role,
+          roleId: roleId || null,
+          status,
+          blocked: existing?.blocked ?? false,
+          branches,
+          pincodes,
+          password: existing?.password,
+        };
+
+        const updated = await updateUser(route.params.userId, payload);
+        if (!updated) {
+          Alert.alert('User not found', 'This user could not be updated.');
+          return;
+        }
+
+        Alert.alert('User Updated', 'User details saved successfully.', [
+          { text: 'OK', onPress: goToUserList },
+        ]);
+        return;
+      }
+
       const payload: Omit<AppUser, 'id'> = {
         name: name.trim(),
         email: email.trim().toLowerCase(),
         mobile: mobile.trim(),
         role,
+        roleId: roleId || null,
         status,
-        blocked: existing?.blocked ?? false,
+        blocked: false,
         branches,
         pincodes,
-        password: existing?.password,
+        password,
       };
 
-      const updated = await updateUser(route.params.userId, payload);
-      if (!updated) {
-        Alert.alert('User not found', 'This user could not be updated.');
-        return;
+      await createUser(payload);
+      if (Platform.OS === 'web') {
+        window.alert(`User Created Successfully! ${payload.name} has been added to the Users list.`);
+        goToUserList();
+      } else {
+        Alert.alert('User Created Successfully', `${payload.name} has been added to the Users list.`, [
+          { text: 'OK', onPress: goToUserList },
+        ]);
       }
-
-      Alert.alert('User Updated', 'User details saved successfully.', [
-        { text: 'OK', onPress: goToUserList },
-      ]);
-      return;
-    }
-
-    const payload: Omit<AppUser, 'id'> = {
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      mobile: mobile.trim(),
-      role,
-      status,
-      blocked: false,
-      branches,
-      pincodes,
-      password,
-    };
-
-    await createUser(payload);
-    if (Platform.OS === 'web') {
-      window.alert(`User Created Successfully! ${payload.name} has been added to the Users list.`);
-      goToUserList();
-    } else {
-      Alert.alert('User Created Successfully', `${payload.name} has been added to the Users list.`, [
-        { text: 'OK', onPress: goToUserList },
-      ]);
+    } catch (error: any) {
+      const message = error?.message || 'Something went wrong. Please try again.';
+      if (Platform.OS === 'web') {
+        window.alert(`Failed to save user: ${message}`);
+      } else {
+        Alert.alert('Save Failed', message);
+      }
     }
   };
 
@@ -322,11 +346,13 @@ export function AddUserScreen({ navigation, route }: Props) {
             />
             <Dropdown
               label="Role *"
-              placeholder="Select role"
+              placeholder={roles.length === 0 ? 'Loading roles…' : 'Select role'}
               value={role}
-              options={USER_ROLE_OPTIONS}
+              options={roleOptions}
               onSelect={(value) => {
-                setRole(value as UserRole);
+                const selected = roles.find((r) => r.name === value);
+                setRoleId(selected?.id ?? '');
+                setRole(value);
                 clearFieldError('role');
               }}
               error={errors.role}

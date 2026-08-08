@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Order } from '../../types/order';
+import { Order, PAYMENT_TYPE_LABEL } from '../../types/order';
 import { Card } from '../../components/ui/Card';
 import { colors } from '../../theme/colors';
 import { radius, spacing } from '../../theme/spacing';
@@ -85,7 +85,7 @@ export function OrderDetailView({ navigation, screenTitle, order }: OrderDetailV
           <DetailRow label="Mobile Number" value={order.customerMobile} />
           <DetailRow label="Order Date" value={formatDate(order.orderDate)} />
           <DetailRow label="Order Amount" value={formatAmount(order.orderAmount)} />
-          <DetailRow label="Payment Type" value={formatLabel(order.paymentType)} />
+          <DetailRow label="Payment Type" value={PAYMENT_TYPE_LABEL[order.paymentType]} />
           <DetailRow label="Order Status" value={formatLabel(order.status)} isLast />
         </Card>
       </ScrollView>

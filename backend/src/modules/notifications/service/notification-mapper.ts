@@ -2,7 +2,7 @@ import {
   NotificationCategory,
   NotificationPriority,
   NotificationType,
-} from '@prisma/client';
+} from '../repository/notification.repository';
 
 export function categoryForType(type: NotificationType): NotificationCategory {
   switch (type) {

@@ -882,6 +882,9 @@ enum LoanStatus {
 
 enum AutopayPaymentMethod {
   UPI_AUTOPAY
+  EMANDATE
+  NACH
+  DEBIT_CARD
   @@schema("public")
 }
 

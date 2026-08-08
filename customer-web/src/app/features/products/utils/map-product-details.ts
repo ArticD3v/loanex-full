@@ -1,4 +1,9 @@
-import { ProductDetails, ProductEmiPlan, ProductVariantSku } from '../models/product-details.models';
+import {
+  ProductDetails,
+  ProductEmiPlan,
+  ProductStockStatus,
+  ProductVariantSku,
+} from '../models/product-details.models';
 import { ProductDetail } from '../services/products-api.service';
 
 function toMoneyNumber(value: unknown): number {
@@ -133,6 +138,13 @@ function specsFromDetail(detail: ProductDetail): {
   }
 
   return { rows, keySpecs, highlights, boxContents, returnsPolicy };
+}
+
+/** Frontend fallback when the API hasn't shipped a stockStatus yet. */
+function deriveStockStatus(stock: number): ProductStockStatus {
+  if (stock <= 0) return 'OUT_OF_STOCK';
+  if (stock <= 5) return 'LOW_STOCK';
+  return 'IN_STOCK';
 }
 
 function galleryFromUrls(urls: string[], name: string, prefix = 'img') {
@@ -342,8 +354,14 @@ export function mapProductDetails(detail: ProductDetail): ProductDetails {
     rating: detail.averageRating,
     reviewCount: detail.reviewCount,
     answeredQuestions: detail.questions?.length ?? 0,
-    inStock: selected ? selected.inStock && isActive : detail.inStock,
+    // detail.inStock is already computed server-side (status === 'active' and
+    // stock > 0) — the API doesn't send isActive, so gating on it made every
+    // variant product read as out of stock.
+    inStock: selected ? selected.inStock && detail.inStock : detail.inStock,
     stockQuantity: selected?.stock ?? detail.stock,
+    stockStatus: selected
+      ? selected.stockStatus ?? deriveStockStatus(selected.stock)
+      : detail.stockStatus ?? deriveStockStatus(detail.stock),
     sku: selected?.sku ?? detail.sku,
     deliveryPincode: '',
     warrantyLabel: warrantyFromDetail(detail),
@@ -407,6 +425,7 @@ export function applyVariantToDetails(
     mrp: variant.discount > 0 ? variant.mrp : undefined,
     inStock: isActive && variant.inStock,
     stockQuantity: variant.stock,
+    stockStatus: variant.stockStatus ?? deriveStockStatus(variant.stock),
     sku: variant.sku,
     images,
     selectedVariantId: variant.id,

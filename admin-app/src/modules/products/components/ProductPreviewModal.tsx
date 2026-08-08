@@ -77,7 +77,11 @@ export function ProductPreviewModal({ visible, product, onClose, onEdit }: Produ
             <DetailRow label="Selling Price" value={formatPrice(product.sellingPrice)} />
             <DetailRow
               label="Discount"
-              value={`${Math.round(((product.mrp - product.sellingPrice) / product.mrp) * 100)}%`}
+              value={`${
+                product.mrp > product.sellingPrice
+                  ? Math.round(((product.mrp - product.sellingPrice) / product.mrp) * 100)
+                  : 0
+              }%`}
             />
           </Card>
         </ScrollView>

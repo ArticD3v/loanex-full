@@ -1,12 +1,10 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useEffect } from 'react';
+import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../theme/useTheme';
+import { onSessionExpired } from '../services/api';
 import { SplashScreen } from '../authentication/screens/SplashScreen';
 import { LoginScreen } from '../authentication/screens/LoginScreen';
-import { ForgotPasswordScreen } from '../authentication/screens/ForgotPasswordScreen';
-import { OtpVerificationScreen } from '../authentication/screens/OtpVerificationScreen';
-import { ResetPasswordScreen } from '../authentication/screens/ResetPasswordScreen';
 import { DashboardScreen } from '../dashboard/screens/DashboardScreen';
 import { ModulePlaceholderScreen } from '../dashboard/screens/ModulePlaceholderScreen';
 import { NotificationsScreen } from '../dashboard/screens/NotificationsScreen';
@@ -22,19 +20,16 @@ import { OrderDetailsScreen } from '../orders/screens/OrderDetailsScreen';
 import { EmiApplicationListScreen } from '../emi/screens/EmiApplicationListScreen';
 import { EmiApplicationDetailsScreen } from '../emi/screens/EmiApplicationDetailsScreen';
 import { CreditReviewDetailsScreen } from '../emi/screens/CreditReviewDetailsScreen';
-import { DownPaymentDetailsScreen } from '../emi/screens/DownPaymentDetailsScreen';
-import { ESignDetailsScreen } from '../emi/screens/ESignDetailsScreen';
-import { EkycDetailsScreen } from '../emi/screens/EkycDetailsScreen';
-import { MandateDetailsScreen } from '../emi/screens/MandateDetailsScreen';
-import { DisbursementDetailsScreen } from '../emi/screens/DisbursementDetailsScreen';
-import { EmiOrderDetailsScreen } from '../emi/screens/EmiOrderDetailsScreen';
-import { DispatchDetailsScreen } from '../emi/screens/DispatchDetailsScreen';
+import { LoanListScreen } from '../loans/screens/LoanListScreen';
+import { LoanDetailsScreen } from '../loans/screens/LoanDetailsScreen';
 import { FiCaseListScreen } from '../fi/screens/FiCaseListScreen';
 import { FiCaseDetailsScreen } from '../fi/screens/FiCaseDetailsScreen';
 import { ReportsHomeScreen } from '../reports/screens/ReportsHomeScreen';
 import { UserListScreen } from '../users/screens/UserListScreen';
 import { UserDetailsScreen } from '../users/screens/UserDetailsScreen';
 import { AddUserScreen } from '../users/screens/AddUserScreen';
+import { RoleListScreen } from '../roles/screens/RoleListScreen';
+import { RoleFormScreen } from '../roles/screens/RoleFormScreen';
 import { SettingsHomeScreen } from '../settings/screens/SettingsHomeScreen';
 import { MastersHomeScreen } from '../settings/screens/MastersHomeScreen';
 import { MasterListScreen } from '../settings/screens/MasterListScreen';
@@ -45,11 +40,22 @@ import { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
+
 export function AppNavigator() {
   const colors = useTheme();
 
+  useEffect(() => {
+    const unsubscribe = onSessionExpired(() => {
+      if (navigationRef.isReady()) {
+        navigationRef.reset({ index: 0, routes: [{ name: 'Login' }] });
+      }
+    });
+    return unsubscribe;
+  }, []);
+
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         initialRouteName="Splash"
         screenOptions={{
@@ -60,9 +66,6 @@ export function AppNavigator() {
       >
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-        <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
-        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
         <Stack.Screen name="MyProfile" component={MyProfileScreen} />
@@ -82,14 +85,8 @@ export function AppNavigator() {
         <Stack.Screen name="EmiApplicationList" component={EmiApplicationListScreen} />
         <Stack.Screen name="EmiApplicationDetails" component={EmiApplicationDetailsScreen} />
         <Stack.Screen name="CreditReviewDetails" component={CreditReviewDetailsScreen} />
-        <Stack.Screen name="DownPaymentDetails" component={DownPaymentDetailsScreen} />
-        <Stack.Screen name="ESignDetails" component={ESignDetailsScreen} />
-        <Stack.Screen name="EkycDetails" component={EkycDetailsScreen} />
-        <Stack.Screen name="MandateDetails" component={MandateDetailsScreen} />
-        <Stack.Screen name="DisbursementDetails" component={DisbursementDetailsScreen} />
-        <Stack.Screen name="EmiOrderDetails" component={EmiOrderDetailsScreen} />
-        <Stack.Screen name="DispatchDetails" component={DispatchDetailsScreen} />
-        <Stack.Screen name="FiCaseList" component={FiCaseListScreen} />
+        <Stack.Screen name="LoanList" component={LoanListScreen} />
+        <Stack.Screen name="LoanDetails" component={LoanDetailsScreen} />
         <Stack.Screen name="FiCaseDetails" component={FiCaseDetailsScreen} />
         <Stack.Screen name="ReportsHome" component={ReportsHomeScreen} />
         <Stack.Screen name="UserList" component={UserListScreen} />
@@ -97,6 +94,12 @@ export function AppNavigator() {
         <Stack.Screen
           name="AddUser"
           component={AddUserScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen name="RoleList" component={RoleListScreen} />
+        <Stack.Screen
+          name="RoleForm"
+          component={RoleFormScreen}
           options={{ animation: 'slide_from_bottom' }}
         />
         <Stack.Screen name="SettingsHome" component={SettingsHomeScreen} />

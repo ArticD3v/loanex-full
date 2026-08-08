@@ -2,7 +2,7 @@ import { orderRepository } from './src/modules/order/repository/order.repository
 
 async function run() {
   try {
-    const res = await orderRepository.listForUser('d8f57913-2d25-4a65-8b36-4c28f645a271');
+    const res = await orderRepository.listForUser('00000000-0000-4000-8000-000000000000');
     console.log('LENGTH:', res.length);
     console.log(JSON.stringify(res, null, 2));
   } catch (err) {

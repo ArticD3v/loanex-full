@@ -1,21 +1,10 @@
 export type UserStatus = 'active' | 'inactive';
 
-/** Roles defined for LoanEx Super Admin user & role management */
-export type UserRole =
-  | 'Super Admin'
-  | 'Branch Manager'
-  | 'Credit Officer'
-  | 'FI Executive'
-  | 'Sales Executive';
-
-/** Single source of truth for Role dropdown options */
-export const USER_ROLE_OPTIONS: UserRole[] = [
-  'Super Admin',
-  'Branch Manager',
-  'Credit Officer',
-  'FI Executive',
-  'Sales Executive',
-];
+/**
+ * Role display name. Real role names come from the /admin/roles API
+ * (dynamic and editable) rather than a fixed union.
+ */
+export type UserRole = string;
 
 export interface UserLoginEntry {
   id: string;
@@ -32,12 +21,17 @@ export interface UserActivityEntry {
   action: string;
   module: string;
   details: string;
+  ipAddress?: string;
+  location?: string;
+  status?: string;
 }
 
 export interface AppUser {
   id: string;
   name: string;
   role: UserRole;
+  /** RBAC role id from the backend (used when creating/updating a user). */
+  roleId?: string | null;
   status: UserStatus;
   blocked: boolean;
   email: string;

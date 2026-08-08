@@ -2,10 +2,80 @@ import { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { jsonDb } from '../../config/json-db';
 import { sendSuccess } from '../../common/utils/api-response';
-import { NotFoundError, BadRequestError } from '../../common/errors/app-error';
+import { NotFoundError, BadRequestError, ForbiddenError } from '../../common/errors/app-error';
 import { hashPassword } from '../../common/utils/password';
+import { rolePermissions, SUPER_ADMIN_PERMISSIONS } from '../rbac/permissions';
 
-const MASTER_COLLECTIONS = ['suppliers', 'dealers', 'warehouses'] as const;
+/** Resolve role + effective permissions for a user row (sync, in-memory). */
+function resolveRbacForUser(user: any) {
+  const roleId = user?.role_id ?? user?.roleId ?? null;
+  const role = roleId ? jsonDb.findOne('roles', { id: roleId }) : null;
+  let permissions: string[] = [];
+  if (role) {
+    permissions = rolePermissions(role);
+  } else if (String(user?.role ?? '') === 'admin') {
+    permissions = [...SUPER_ADMIN_PERMISSIONS];
+  }
+  return {
+    roleId: roleId ?? null,
+    roleName: role?.name ?? (permissions.length > 0 ? 'Super Admin' : null),
+    permissions,
+  };
+}
+
+/**
+ * Normalize the role assignment from an admin-app payload:
+ *  - roleId → that role (must exist)
+ *  - role = 'customer' (case-insensitive) → customer (no role)
+ *  - role = any other string → match a role by name (seeded or custom)
+ *  - role = 'admin' with no roleId → Super Admin (legacy behaviour)
+ *  - unknown role string → BadRequestError (fail closed, never escalate)
+ */
+function resolveRoleAssignment(body: any): { role: string; roleId: string | null } {
+  if (body.roleId) {
+    const role = jsonDb.findOne('roles', { id: String(body.roleId) });
+    if (!role) {
+      throw new BadRequestError('The selected role does not exist');
+    }
+    return { role: 'admin', roleId: role.id };
+  }
+
+  if (
+    body.role === undefined ||
+    body.role === null ||
+    String(body.role).trim().toLowerCase() === 'customer'
+  ) {
+    return { role: 'customer', roleId: null };
+  }
+
+  if (body.role === 'admin') {
+    return { role: 'admin', roleId: null }; // legacy → Super Admin via fallback
+  }
+
+  // Display-name roles (e.g. "Sales Executive"): match against the roles
+  // collection by name — covers the seeded roles AND custom roles created via
+  // the Roles UI.
+  const roleByName = jsonDb.findOne('roles', { name: body.role });
+  if (roleByName) {
+    return { role: 'admin', roleId: roleByName.id };
+  }
+
+  // Unknown role string — never silently escalate to Super Admin (the legacy
+  // fallback would grant full permissions). Fail closed instead.
+  throw new BadRequestError(`Unknown role: ${String(body.role)}`);
+}
+
+const MASTER_COLLECTIONS = [
+  'suppliers',
+  'dealers',
+  'warehouses',
+  'brands',
+  'branches',
+  'pincodes',
+  'wholesalers',
+  'delivery_partners',
+  'delivery_zones',
+] as const;
 
 function toProfile(row: any) {
   if (!row) return null;
@@ -26,11 +96,17 @@ function toProfile(row: any) {
 
 function serializeUser(user: any) {
   const profile = toProfile(jsonDb.findOne('profiles', { id: user.id }));
+  const rbac = resolveRbacForUser(user);
   return {
     id: user.id,
     phone: user.phone ?? '',
     email: user.email ?? '',
     role: user.role ?? 'customer',
+    roleId: rbac.roleId,
+    roleName: rbac.roleName,
+    permissions: rbac.permissions,
+    status: user.status ?? (user.blocked ? 'blocked' : 'active'),
+    blocked: Boolean(user.blocked),
     created_at: user.created_at ?? user.createdAt,
     updated_at: user.updated_at ?? user.updatedAt,
     profile,
@@ -40,6 +116,9 @@ function serializeUser(user: any) {
 export class AdminController {
   /** GET /admin/users — every user with profile (customer + staff). */
   listUsers = async (_req: Request, res: Response) => {
+    // In source mode, refresh the users collection from Supabase (throttled)
+    // so dashboard-side edits surface here without a restart.
+    await jsonDb.refreshCatalogThrottled();
     const users = jsonDb
       .findMany('users', {})
       .sort((a: any, b: any) =>
@@ -55,7 +134,7 @@ export class AdminController {
     const name = String(body.name ?? '').trim();
     const email = String(body.email ?? '').trim().toLowerCase();
     const mobile = String(body.mobile ?? '').trim();
-    const role = body.role === 'admin' || (body.role && body.role !== 'customer') ? 'admin' : 'customer';
+    const { role, roleId } = resolveRoleAssignment(body);
 
     if (!name && !email && !mobile) {
       throw new BadRequestError('At least a name, email or mobile is required');
@@ -72,17 +151,21 @@ export class AdminController {
 
     const encryptedPassword = body.password ? await hashPassword(String(body.password)) : undefined;
 
-    const user = jsonDb.insert('users', {
+    // Await the Supabase mirror so the password hash and account survive cold
+    // starts on other serverless instances (mirrorInsertAwaited is used by the
+    // auth flow for the same reason).
+    const user = await jsonDb.insertAwaited('users', {
       id,
       phone: mobile || null,
       email: email || null,
       role,
+      role_id: roleId,
       encryptedPassword: encryptedPassword ?? '',
       created_at: now,
       updated_at: now,
     });
 
-    jsonDb.insert('profiles', {
+    await jsonDb.insertAwaited('profiles', {
       id,
       mobile_number: mobile,
       fullName: name || (email ? email.split('@')[0] : `User ${id.slice(0, 6)}`),
@@ -109,14 +192,34 @@ export class AdminController {
     const updates: Record<string, any> = {};
     if (body.email !== undefined) updates.email = String(body.email).trim().toLowerCase() || null;
     if (body.mobile !== undefined) updates.phone = String(body.mobile).trim() || null;
-    if (body.role !== undefined) {
-      updates.role = body.role === 'admin' || (body.role && body.role !== 'customer') ? 'admin' : 'customer';
+    if (body.role !== undefined || body.roleId !== undefined) {
+      const assignment = resolveRoleAssignment(body);
+      updates.role = assignment.role;
+      updates.role_id = assignment.roleId;
+      // Prevent an admin from demoting their own account (avoids lockout).
+      if (
+        id === (req as any).user?.sub &&
+        assignment.role === 'customer'
+      ) {
+        throw new ForbiddenError('You cannot change your own account role');
+      }
     }
     if (body.password) {
       updates.encryptedPassword = await hashPassword(String(body.password));
     }
+    if (body.blocked === true) {
+      updates.status = 'BLOCKED';
+    } else if (body.blocked === false && String(existing.status ?? '').toUpperCase() === 'BLOCKED') {
+      updates.status = 'ACTIVE';
+    }
 
-    const updatedUser = jsonDb.update('users', { id }, updates) ?? existing;
+    // Await the Supabase mirror for users (role, password hash, blocked status)
+    // and profiles — like createUser/insertAwaited, so these writes survive
+    // serverless cold starts on other instances.
+    const updatedUser =
+      Object.keys(updates).length > 0
+        ? (await jsonDb.updateAwaited('users', { id }, updates)) ?? existing
+        : existing;
 
     const profile = jsonDb.findOne('profiles', { id });
     const profileUpdates: Record<string, any> = {};
@@ -127,20 +230,25 @@ export class AdminController {
     if (Array.isArray(body.branches)) profileUpdates.branches = body.branches;
     if (Array.isArray(body.pincodes)) profileUpdates.pincodes = body.pincodes;
 
-    if (profile) {
-      jsonDb.update('profiles', { id }, profileUpdates);
-    } else {
-      jsonDb.insert('profiles', {
-        id,
-        mobile_number: profileUpdates.mobile_number ?? '',
-        fullName: profileUpdates.fullName ?? '',
-        email: profileUpdates.email ?? null,
-        kyc_status: profileUpdates.kyc_status ?? 'Pending',
-        branches: profileUpdates.branches ?? [],
-        pincodes: profileUpdates.pincodes ?? [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+    if (Object.keys(profileUpdates).length > 0) {
+      if (profile) {
+        await jsonDb.updateAwaited('profiles', { id }, profileUpdates);
+      } else {
+        await jsonDb.insertAwaited('profiles', {
+          id,
+          // Fall back to the user row's phone rather than an empty string so a
+          // profile-only write never produces a mobile_number:'' row.
+          mobile_number:
+            profileUpdates.mobile_number ?? updates.phone ?? existing.phone ?? '',
+          fullName: profileUpdates.fullName ?? '',
+          email: profileUpdates.email ?? null,
+          kyc_status: profileUpdates.kyc_status ?? 'Pending',
+          branches: profileUpdates.branches ?? [],
+          pincodes: profileUpdates.pincodes ?? [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      }
     }
 
     return sendSuccess(res, serializeUser(updatedUser), 'User updated');
@@ -223,6 +331,34 @@ export class AdminController {
     }
     jsonDb.delete(collection, { id });
     return sendSuccess(res, { deleted: true }, 'Master record deleted');
+  };
+
+  /** GET /admin/users/:id/activity — audit log entries for a user. */
+  listUserActivity = async (req: Request, res: Response) => {
+    const userId = String(req.params.id ?? '');
+    const existing = jsonDb.findOne('users', { id: userId });
+    if (!existing) {
+      throw new NotFoundError('User not found');
+    }
+
+    const entries = jsonDb
+      .findMany('audit_log', { userId })
+      .sort((a: any, b: any) =>
+        String(b.createdAt || '').localeCompare(String(a.createdAt || '')),
+      );
+
+    return sendSuccess(res, entries, 'User activity fetched');
+  };
+
+  /** GET /admin/users/:id/kyc — KYC records for a specific user. */
+  listUserKyc = async (req: Request, res: Response) => {
+    const userId = String(req.params.id ?? '');
+    const records = jsonDb
+      .findMany('customer_kyc', { userId })
+      .sort((a: any, b: any) =>
+        String(b.createdAt || '').localeCompare(String(a.createdAt || '')),
+      );
+    return sendSuccess(res, records, 'User KYC fetched');
   };
 
   private resolveMasterCollection(path: string): string {

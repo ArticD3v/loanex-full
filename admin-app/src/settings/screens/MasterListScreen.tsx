@@ -246,7 +246,7 @@ export function MasterListScreen({ navigation, route }: Props) {
 
   const handleSave = () => {
     if (!form) return;
-    if (!form.data.name.trim()) {
+    if (!form.data.name?.trim()) {
       setError(`${entityName} name is required`);
       return;
     }

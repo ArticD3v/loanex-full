@@ -30,19 +30,20 @@ export class ProductRepository {
       discountPrice:
         row.discountPrice ??
         (row.mrp && row.price && row.mrp > row.price ? row.price : null),
-      variants: [],
+      variants: row.variants ?? [],
     };
   }
 
   async list(reqQuery: ListProductsQuery) {
     const cacheKey = JSON.stringify(reqQuery ?? {});
+    await jsonDb.refreshCatalogThrottled();
     const cached = listCache.get(cacheKey);
     if (cached && cached.expires > Date.now()) {
       return cached.value;
     }
 
     const page = Number(reqQuery.page) || 1;
-    const limit = Math.min(Number(reqQuery.limit) || 12, 48);
+    const limit = Math.min(Number(reqQuery.limit) || 12, 500);
     const offset = (page - 1) * limit;
 
     let rows = jsonDb.getCollection('products').slice();
@@ -133,6 +134,7 @@ export class ProductRepository {
   }
 
   async findById(productId: string) {
+    await jsonDb.refreshCatalogThrottled();
     const row = jsonDb.findOne('products', { id: productId });
     return row ? this.enrichProduct(row) : null;
   }
@@ -146,6 +148,7 @@ export class ProductRepository {
   }
 
   async findByIdWithVariants(productId: string) {
+    await jsonDb.refreshCatalogThrottled();
     const row = jsonDb.findOne('products', { id: productId });
     if (!row) return null;
     const product = this.enrichProduct(row);
@@ -156,11 +159,13 @@ export class ProductRepository {
   }
 
   async findBySlug(slug: string) {
+    await jsonDb.refreshCatalogThrottled();
     const row = jsonDb.findOne('products', { slug });
     return row ? this.enrichProduct(row) : null;
   }
 
   async findBySlugWithVariants(slug: string) {
+    await jsonDb.refreshCatalogThrottled();
     const row = jsonDb.findOne('products', { slug });
     if (!row) return null;
     const product = this.enrichProduct(row);
@@ -216,6 +221,7 @@ export class ProductRepository {
   }
 
   async getDistinctFilters() {
+    await jsonDb.refreshCatalogThrottled();
     if (filtersCache.expires > Date.now() && filtersCache.value) {
       return filtersCache.value;
     }

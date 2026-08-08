@@ -78,7 +78,7 @@ export function Step2Category() {
           value={formData.brand}
           options={formData.subCategory ? options.brands : []}
           disabled={!formData.subCategory}
-          onSelect={(v) => updateForm({ brand: v, childCategory: v })}
+          onSelect={(v) => updateForm({ brand: v })}
           onAdd={(name) => options.addBrand(name)}
           onRename={(from, to) => options.renameBrand(from, to)}
           onDelete={(name) => options.deleteBrand(name)}

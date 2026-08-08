@@ -2,11 +2,21 @@ import { CheckoutSessionStatus, PurchaseType } from '../repository/checkout.repo
 type Product = any;
 type ProductVariant = any;
 import {
+  AppError,
   BadRequestError,
   ForbiddenError,
   NotFoundError,
 } from '../../../common/errors/app-error';
+import { env } from '../../../config/env';
 import { auditLogService } from '../../verification/service/audit-log.service';
+import {
+  createRazorpayOrder,
+  fetchRazorpayPayment,
+  getRazorpayKeyId,
+  isPaymentDevBypass,
+  signDevPayment,
+  verifyRazorpaySignature,
+} from '../../payment/service/razorpay.service';
 import type { CreateCheckoutBody } from '../dto/checkout.dto';
 import { checkoutRepository } from '../repository/checkout.repository';
 
@@ -114,7 +124,7 @@ function buildSummary(
         id: product.id,
         name: product.name,
         brand: product.brand,
-        variant: variant?.name ?? null,
+        variant: variant?.variantName ?? variant?.name ?? null,
         sku: variant?.sku ?? product.sku,
         imageUrl: images[0] ?? product.image,
         inStock,
@@ -273,7 +283,7 @@ export class CheckoutService {
     } else {
       const product = await checkoutRepository.findProductById(input.productId!);
       if (!product) throw new NotFoundError('Product not found.');
-      const variant = resolveVariant(product, (input as any)?.id);
+      const variant = resolveVariant(product, input.variantId);
       checkoutItems = [{ product, quantity: input.quantity, variant }];
     }
 
@@ -283,7 +293,7 @@ export class CheckoutService {
       throw new BadRequestError('One or more items are out of stock or have insufficient quantity.', { code: 'OUT_OF_STOCK' });
     }
 
-    const purchaseType = input.purchaseType as PurchaseType;
+    const purchaseType = input.purchaseType as keyof typeof PurchaseType;
     
     if (purchaseType === 'EMI' && checkoutItems.length > 1) {
       throw new BadRequestError('EMI is available for single products only. Multiple items require Full Payment.');
@@ -292,6 +302,10 @@ export class CheckoutService {
     const sessionItems = summary.items.map(i => ({
       productId: i.product.id,
       quantity: i.quantity,
+      variantId: i.variantId ?? null,
+      // Persist the variant-adjusted unit price so the order line item (and
+      // any downstream receipt/admin view) reflects the selected variant.
+      unitPrice: i.pricing.unitPrice,
     }));
 
     const session = await checkoutRepository.createSession({
@@ -305,10 +319,10 @@ export class CheckoutService {
           ? CheckoutSessionStatus.PENDING_PAYMENT
           : CheckoutSessionStatus.CREATED,
     });
-    
-    if (input.mode === 'CART') {
-      await cartRepository.clear(userId);
-    }
+
+    // The cart is intentionally NOT cleared here — it stays intact until the
+    // payment actually succeeds, so an abandoned checkout doesn't empty the
+    // customer's cart. Purchased lines are removed at payment success.
 
     const redirectPath =
       purchaseType === PurchaseType.EMI ? '/verification' : '/checkout/payment';
@@ -342,6 +356,257 @@ export class CheckoutService {
       redirectPath,
       nextStep: purchaseType === PurchaseType.EMI ? 'EMI_VERIFICATION' : 'DIRECT_PAYMENT',
     };
+  }
+
+  /**
+   * Create a Razorpay payment order for a DIRECT (full-payment) checkout
+   * session. Idempotent: reuses an existing pending transaction's order id.
+   */
+  async createPaymentOrder(userId: string, sessionId: string) {
+    const session = await checkoutRepository.findSessionForUser(sessionId, userId);
+    if (!session) throw new NotFoundError('Checkout session not found.');
+    if (session.purchaseType !== PurchaseType.DIRECT) {
+      throw new BadRequestError(
+        'Payment orders are only available for DIRECT (full payment) purchases.',
+      );
+    }
+
+    const existing = await checkoutRepository.findDirectPaymentForOrder(session.id, userId);
+    if (existing?.paymentStatus === 'SUCCESS') {
+      // AppError (not ConflictError) so the top-level `code` is ALREADY_PAID
+      // in the HTTP body — the frontend redirects on that code.
+      throw new AppError(
+        'This order has already been paid.',
+        409,
+        'ALREADY_PAID',
+        { nextStep: 'ORDER_CONFIRMATION' },
+      );
+    }
+    // Reuse a live pending order (idempotent retry after a closed modal). A
+    // FAILED transaction is wedged — issue a fresh Razorpay order instead.
+    if (existing?.razorpayOrderId && existing?.paymentStatus !== 'FAILED') {
+      return this.buildPaymentOrderResponse(session, existing.razorpayOrderId);
+    }
+
+    const amount = toNumber(session.totalAmount);
+    if (amount <= 0) {
+      throw new BadRequestError('Invalid order amount.', { code: 'INVALID_AMOUNT' });
+    }
+
+    const razorpayOrder = await createRazorpayOrder({
+      amountInr: amount,
+      receipt: `DIRECT-${session.id.slice(0, 16)}`,
+      notes: { orderId: session.id, userId, paymentType: 'FULL_PAYMENT' },
+    });
+
+    await checkoutRepository.createDirectPaymentTransaction({
+      orderId: session.id,
+      userId,
+      razorpayOrderId: razorpayOrder.id,
+      amount,
+      currency: razorpayOrder.currency,
+    });
+
+    await auditLogService.log({
+      userId,
+      action: 'PAYMENT_ORDER_CREATED',
+      entity: 'payment_transactions',
+      metadata: {
+        orderId: session.id,
+        razorpayOrderId: razorpayOrder.id,
+        amount,
+        paymentType: 'FULL_PAYMENT',
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    return this.buildPaymentOrderResponse(session, razorpayOrder.id);
+  }
+
+  /**
+   * Verify a Razorpay payment for a DIRECT checkout and complete the order
+   * (marks the transaction SUCCESS, links it to the order, confirms it).
+   */
+  async verifyPayment(
+    userId: string,
+    sessionId: string,
+    input: {
+      razorpayOrderId: string;
+      razorpayPaymentId: string;
+      razorpaySignature: string;
+    },
+  ) {
+    const session = await checkoutRepository.findSessionForUser(sessionId, userId);
+    if (!session) throw new NotFoundError('Checkout session not found.');
+    if (session.purchaseType !== PurchaseType.DIRECT) {
+      throw new BadRequestError(
+        'Verification is only available for DIRECT (full payment) purchases.',
+      );
+    }
+
+    const transaction = await checkoutRepository.findDirectPaymentByRazorpayOrderId(
+      input.razorpayOrderId,
+      userId,
+    );
+    if (!transaction || transaction.orderId !== sessionId) {
+      throw new NotFoundError('Payment order not found for this checkout session.');
+    }
+
+    if (transaction.paymentStatus === 'SUCCESS') {
+      return {
+        paymentStatus: 'SUCCESS' as const,
+        alreadyProcessed: true,
+        orderId: session.id,
+        orderNumber: session.orderNumber ?? session.id,
+        nextStep: 'ORDER_CONFIRMATION' as const,
+      };
+    }
+
+    const valid = verifyRazorpaySignature({
+      orderId: input.razorpayOrderId,
+      paymentId: input.razorpayPaymentId,
+      signature: input.razorpaySignature,
+    });
+    if (!valid) {
+      await checkoutRepository.markDirectPaymentFailed(transaction.id);
+      throw new BadRequestError('Payment signature verification failed.', {
+        code: 'SIGNATURE_FAILED',
+      });
+    }
+
+    // Server-side confirmation — never trust the frontend callback alone.
+    if (!isPaymentDevBypass()) {
+      const remote = await fetchRazorpayPayment(input.razorpayPaymentId);
+      const okStatus = ['captured', 'authorized'].includes(
+        String(remote.status).toLowerCase(),
+      );
+      if (!okStatus) {
+        await checkoutRepository.markDirectPaymentFailed(transaction.id);
+        throw new BadRequestError('Payment not captured at Razorpay.', {
+          code: 'PAYMENT_NOT_CAPTURED',
+          status: remote.status,
+        });
+      }
+      if (remote.orderId && remote.orderId !== input.razorpayOrderId) {
+        await checkoutRepository.markDirectPaymentFailed(transaction.id);
+        throw new BadRequestError('Payment order mismatch.', { code: 'ORDER_MISMATCH' });
+      }
+      // Defense-in-depth: the captured amount (paise) must match what we
+      // charged — catches tampering or a stale checkout quote.
+      const remoteAmountPaise = Number(remote.amount);
+      const expectedPaise = Math.round(toNumber(transaction.amount) * 100);
+      if (Number.isFinite(remoteAmountPaise) && remoteAmountPaise !== expectedPaise) {
+        await checkoutRepository.markDirectPaymentFailed(transaction.id);
+        throw new BadRequestError('Payment amount mismatch.', {
+          code: 'AMOUNT_MISMATCH',
+        });
+      }
+    }
+
+    const orderNumber = await this.generateOrderNumber();
+    const result = await checkoutRepository.completeDirectPayment({
+      orderId: session.id,
+      transactionId: transaction.id,
+      razorpayPaymentId: input.razorpayPaymentId,
+      razorpaySignature: input.razorpaySignature,
+      orderNumber,
+    });
+
+    await auditLogService.log({
+      userId,
+      action: 'PAYMENT_SUCCESS',
+      entity: 'payment_transactions',
+      metadata: {
+        orderId: session.id,
+        razorpayOrderId: input.razorpayOrderId,
+        razorpayPaymentId: input.razorpayPaymentId,
+        amount: toNumber(transaction.amount),
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    // The audit bridge dispatches the ORDER_CONFIRMED notification.
+    await auditLogService.log({
+      userId,
+      action: 'ORDER_CONFIRMED',
+      entity: 'orders',
+      metadata: {
+        orderId: session.id,
+        orderNumber: result.order?.orderNumber ?? orderNumber,
+        paymentTransactionId: transaction.id,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    // Payment succeeded — remove the purchased lines from the cart so the
+    // checkout session's items are not re-bought from a stale cart.
+    await cartRepository.removeProducts(
+      userId,
+      session.items?.map((i: any) => i.productId) ?? [],
+    );
+
+    return {
+      paymentStatus: 'SUCCESS' as const,
+      alreadyProcessed: false,
+      transactionId: transaction.id,
+      orderId: session.id,
+      orderNumber: result.order?.orderNumber ?? orderNumber,
+      nextStep: 'ORDER_CONFIRMATION' as const,
+    };
+  }
+
+  /**
+   * Dev-only helper to complete a DIRECT checkout without the Razorpay UI.
+   * Fabricates a payment id and HMAC signature exactly like the EMI flow's
+   * payment.service.createDevBypassSignature.
+   */
+  async createDevBypassSignature(userId: string, sessionId: string) {
+    if (!isPaymentDevBypass()) {
+      throw new ForbiddenError('Dev payment bypass is disabled.');
+    }
+
+    const session = await checkoutRepository.findSessionForUser(sessionId, userId);
+    if (!session) throw new NotFoundError('Checkout session not found.');
+    if (session.purchaseType !== PurchaseType.DIRECT) {
+      throw new BadRequestError(
+        'Dev bypass is only available for DIRECT (full payment) purchases.',
+      );
+    }
+
+    const transaction = await checkoutRepository.findDirectPaymentForOrder(session.id, userId);
+    if (!transaction?.razorpayOrderId) {
+      throw new NotFoundError('Payment order not found for this checkout session.');
+    }
+
+    const paymentId = `pay_dev_${Date.now()}`;
+    return {
+      razorpayOrderId: transaction.razorpayOrderId,
+      razorpayPaymentId: paymentId,
+      razorpaySignature: signDevPayment(transaction.razorpayOrderId, paymentId),
+    };
+  }
+
+  private buildPaymentOrderResponse(session: any, razorpayOrderId: string) {
+    const amount = toNumber(session.totalAmount);
+    return {
+      orderId: session.id,
+      razorpayOrderId,
+      keyId: getRazorpayKeyId(),
+      amount,
+      amountPaise: Math.round(amount * 100),
+      currency: env.RAZORPAY_CURRENCY,
+      paymentDevBypass: isPaymentDevBypass(),
+    };
+  }
+
+  private async generateOrderNumber(): Promise<string> {
+    const now = new Date();
+    const yyyy = now.getUTCFullYear();
+    const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(now.getUTCDate()).padStart(2, '0');
+    const prefix = `LX-ORD-${yyyy}${mm}${dd}-`;
+    const count = checkoutRepository.countOrdersToday(prefix);
+    return `${prefix}${String(count + 1).padStart(4, '0')}`;
   }
 
   async getSession(userId: string, sessionId: string) {

@@ -244,60 +244,33 @@ export class DownPaymentComponent implements OnInit {
 
     }
 
-  }
-
-
-
-  private verifyAndNavigate(payload: {
-
+  }  private verifyAndNavigate(payload: {
     razorpayOrderId: string;
-
     razorpayPaymentId: string;
-
     razorpaySignature: string;
-
   }): void {
-
     this.paymentApi.verify(payload).subscribe({
-
       next: (result) => {
-
         this.paying.set(false);
-
-        if (result.orderId) {
-
-          void this.router.navigate(['/orders', result.orderId], {
-
-            queryParams: { autopay: 1 },
-
-          });
-
-          return;
-
-        }
-
+        // Land on the order-confirmation page with the payment params so its
+        // success banner shows the payment id and a "View your order" CTA
+        // (same pattern as the DIRECT flow's my-orders banner).
         void this.router.navigate(['/order/confirmation'], {
-
-          queryParams: result.orderNumber
-
-            ? { orderNumber: result.orderNumber }
-
-            : undefined,
-
+          queryParams: {
+            ...(result.orderId ? { orderId: result.orderId } : {}),
+            paymentSuccess: 'true',
+            ...(payload.razorpayPaymentId
+              ? { paymentId: payload.razorpayPaymentId }
+              : {}),
+            ...(result.alreadyProcessed ? { alreadyProcessed: 'true' } : {}),
+          },
         });
-
       },
-
       error: () => {
-
         this.paying.set(false);
-
         this.error.set(this.paymentApi.error() ?? 'Payment verification failed.');
-
       },
-
     });
-
   }
 
 
@@ -314,16 +287,13 @@ export class DownPaymentComponent implements OnInit {
 
     const code = body?.error?.details?.code ?? body?.error?.code;
 
-    const next = body?.error?.details?.nextStep;
-
-
-
-    if (code === 'PAYMENT_ALREADY_COMPLETED' || next === 'ORDER_CONFIRMATION') {
-
-      void this.router.navigateByUrl('/order/confirmation');
-
+    const next = body?.error?.details?.nextStep;    if (code === 'PAYMENT_ALREADY_COMPLETED' || next === 'ORDER_CONFIRMATION') {
+      // Replay after an earlier successful down payment — flag it so the
+      // confirmation page shows the "already received" banner variant.
+      void this.router.navigate(['/order/confirmation'], {
+        queryParams: { paymentSuccess: 'true', alreadyProcessed: 'true' },
+      });
       return;
-
     }
 
 

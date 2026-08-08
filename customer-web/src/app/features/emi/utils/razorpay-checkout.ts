@@ -11,7 +11,7 @@ export interface RazorpayCheckoutOptions {
   name: string;
   description: string;
   order_id: string;
-  prefill: { name: string; email: string; contact: string };
+  prefill?: { name: string; email: string; contact: string };
   notes?: Record<string, string>;
   theme?: { color: string };
   handler: (response: RazorpaySuccessResponse) => void;

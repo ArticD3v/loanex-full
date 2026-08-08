@@ -17,14 +17,18 @@ import {
 import { ProfileMenu } from '../components/ProfileMenu';
 import { quickActions } from '../data/quickActions';
 import { getDashboardStats, DashboardStats } from '../../services/dashboardService';
+import { loadNotifications } from '../data/notificationStore';
 import { useTheme } from '../../theme/useTheme';
 import { authCardStyle, spacing } from '../../theme/spacing';
+import { useRbac, can, clearRbac } from '../../auth/rbacStore';
+import { logout as apiLogout } from '../../services/authService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
 
 export function DashboardScreen({ navigation }: Props) {
   const colors = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  useRbac();
   const [searchQuery, setSearchQuery] = useState('');
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -43,6 +47,7 @@ export function DashboardScreen({ navigation }: Props) {
       }
     };
     fetchStats();
+    loadNotifications();
   }, []);
 
   const isSearching = searchQuery.trim().length > 0;
@@ -66,32 +71,25 @@ export function DashboardScreen({ navigation }: Props) {
     navigation.navigate('EmiApplicationDetails', { applicationId: item.id });
   };
 
+  const doLogout = () => {
+    apiLogout().catch(() => undefined);
+    clearRbac();
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      }),
+    );
+  };
+
   const handleLogout = () => {
     if (Platform.OS === 'web') {
       const confirm = window.confirm('Are you sure you want to logout?');
-      if (confirm) {
-        navigation.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [{ name: 'Login' }],
-          })
-        );
-      }
+      if (confirm) doLogout();
     } else {
       Alert.alert('Logout', 'Are you sure you want to logout?', [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: () => {
-            navigation.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'Login' }],
-              }),
-            );
-          },
-        },
+        { text: 'Logout', style: 'destructive', onPress: doLogout },
       ]);
     }
   };
@@ -129,48 +127,58 @@ export function DashboardScreen({ navigation }: Props) {
             <View style={styles.section}>
               <SectionHeader title="Quick Actions" />
               <View style={styles.actionsGrid}>
-                {quickActions.map((action) => (
-                  <QuickActionButton
-                    key={action.id}
-                    title={action.title}
-                    icon={action.icon}
-                    onPress={() => {
-                      if (action.title === 'Products') {
-                        navigation.navigate('ProductList');
-                        return;
-                      }
-                      if (action.title === 'Customers') {
-                        navigation.navigate('CustomerList');
-                        return;
-                      }
-                      if (action.title === 'Orders') {
-                        navigation.navigate('OrderList');
-                        return;
-                      }
-                      if (action.title === 'EMI') {
-                        navigation.navigate('EmiApplicationList');
-                        return;
-                      }
-                      if (action.title === 'Reports') {
-                        navigation.navigate('ReportsHome');
-                        return;
-                      }
-                      if (action.title === 'Users') {
-                        navigation.navigate('UserList');
-                        return;
-                      }
-                      if (action.title === 'Settings') {
-                        navigation.navigate('SettingsHome');
-                        return;
-                      }
-                      if (action.title === 'Masters') {
-                        navigation.navigate('MastersHome');
-                        return;
-                      }
-                      navigation.navigate('ModulePlaceholder', { title: action.title });
-                    }}
-                  />
-                ))}
+                {quickActions
+                  .filter((action) => can(action.permission))
+                  .map((action) => (
+                    <QuickActionButton
+                      key={action.id}
+                      title={action.title}
+                      icon={action.icon}
+                      onPress={() => {
+                        if (action.title === 'Products') {
+                          navigation.navigate('ProductList');
+                          return;
+                        }
+                        if (action.title === 'Customers') {
+                          navigation.navigate('CustomerList');
+                          return;
+                        }
+                        if (action.title === 'Orders') {
+                          navigation.navigate('OrderList');
+                          return;
+                        }
+                        if (action.title === 'EMI') {
+                          navigation.navigate('EmiApplicationList');
+                          return;
+                        }
+                        if (action.title === 'Loans') {
+                          navigation.navigate('LoanList');
+                          return;
+                        }
+                        if (action.title === 'Reports') {
+                          navigation.navigate('ReportsHome');
+                          return;
+                        }
+                        if (action.title === 'Users') {
+                          navigation.navigate('UserList');
+                          return;
+                        }
+                        if (action.title === 'Roles') {
+                          navigation.navigate('RoleList');
+                          return;
+                        }
+                        if (action.title === 'Settings') {
+                          navigation.navigate('SettingsHome');
+                          return;
+                        }
+                        if (action.title === 'Masters') {
+                          navigation.navigate('MastersHome');
+                          return;
+                        }
+                        navigation.navigate('ModulePlaceholder', { title: action.title });
+                      }}
+                    />
+                  ))}
               </View>
             </View>
 
@@ -180,9 +188,9 @@ export function DashboardScreen({ navigation }: Props) {
                 stats.recentOrders.slice(0, 5).map((order, index) => (
                   <ActivityItem
                     key={order.id}
-                    title={`New Order: ${order.id}`}
-                    description={`Order placed by ${order.customer_name || 'Customer'}`}
-                    time={new Date(order.created_at || new Date()).toLocaleDateString()}
+                    title={`New Order: ${order.productName || order.id}`}
+                    description={`Order placed by ${order.customerName || 'Customer'}`}
+                    time={new Date(order.orderDate || new Date()).toLocaleDateString()}
                     icon="cart-outline"
                     isLast={index === Math.min(stats.recentOrders.length, 5) - 1}
                   />

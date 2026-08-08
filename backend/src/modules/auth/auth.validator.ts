@@ -6,6 +6,7 @@ export {
   verifyOtpBodySchema,
   forgotPasswordBodySchema,
   resetPasswordBodySchema,
+  changePasswordBodySchema,
   completeRegistrationBodySchema,
   refreshTokenBodySchema,
   logoutBodySchema,

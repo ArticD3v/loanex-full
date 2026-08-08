@@ -23,6 +23,10 @@ export interface SupplierMaster {
   name: string;
   contact?: string;
   email?: string;
+  paymentTerms?: string;
+  settlementCycle?: string;
+  gstin?: string;
+  phone?: string;
   status: MasterStatus;
 }
 
@@ -33,7 +37,9 @@ export interface DealerMaster {
   mobile?: string;
   email?: string;
   status: MasterStatus;
-  name?: string; // Keep this optional so generic components using .name don't break immediately
+  name: string;
+  dealerBranch?: string;
+  paymentSettlementTerms?: string;
 }
 
 export interface WholesalerMaster {
@@ -101,7 +107,13 @@ export interface PincodeMaster {
 export type CategoryTree = Record<string, Record<string, string[]>>;
 
 export function createMasterId(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  // v4-style UUID so the backend keeps the id as-is (mirror sync / cold-start
+  // hydration only accepts UUIDs) and local edits/deletes keep working without a reload.
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 export function isActiveStatus(status: MasterStatus): boolean {

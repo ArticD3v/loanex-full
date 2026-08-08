@@ -2,13 +2,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
-import { EmiPaymentStatus, PaymentStatus, type PaymentTransaction } from '@prisma/client';
+import { EmiPaymentStatus, PaymentStatus } from '@prisma/client';
 import { NotFoundError } from '../../../common/errors/app-error';
 import { auditLogService } from '../../verification/service/audit-log.service';
-import { productImagePath } from '../../loan/service/loan-payload.service';
+import { resolveProductImage } from '../../../common/utils/product-assets';
 import {
   emiHistoryRepository,
   type HistoryPayment,
+  type PaymentTransaction,
 } from '../repository/emi-history.repository';
 
 function toNumber(value: { toString(): string } | number | null | undefined): number {
@@ -176,7 +177,7 @@ export class EmiHistoryService {
         applicationNumber: loan.application.id,
         productId: loan.productId,
         productName: loan.application.productName,
-        productImage: productImagePath(loan.productId),
+        productImage: resolveProductImage(loan.productId),
         loanAmount: toNumber(loan.loanAmount),
         interestRate: toNumber(loan.monthlyEmi),
         processingFee: toNumber(loan.monthlyEmi),
@@ -348,7 +349,7 @@ export class EmiHistoryService {
       doc.text(`Application: ${statement.loan.id}`);
       doc.text(`Product: ${statement.loan.productName ?? statement.loan.productId}`);
       doc.text(`Loan Amount: INR ${statement.loan.loanAmount.toFixed(2)}`);
-      doc.text(`Interest Rate: ${statement.loan.monthlyEmi}%`);
+      doc.text(`Interest Rate: ${statement.loan.interestRate}%`);
       doc.text(`Tenure: ${statement.loan.loanTenure} months`);
       doc.moveDown();
       doc.text(`Principal Paid: INR ${statement.principalSummary.principalPaid.toFixed(2)}`);
@@ -452,7 +453,7 @@ export class EmiHistoryService {
   }
 
   private async writePaymentReceipt(payment: PaymentTransaction & {
-    emiSchedule?: { emiNumber: number; loanAccount?: { loanAccountNumber: string; application?: { applicationNumber: string; productName: string | null } } } | null;
+    emiSchedule?: { emiNumber: number; loanAccount?: { loanAccountNumber: string; application?: { id: string; applicationNumber: string; productName: string | null } } } | null;
   }): Promise<string> {
     const dir = path.resolve(process.cwd(), 'storage', 'emi-receipts');
     fs.mkdirSync(dir, { recursive: true });

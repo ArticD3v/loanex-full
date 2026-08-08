@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { createRateLimiter } from '../../../common/middleware/rate-limiter';
 import { authenticate } from '../../../common/middleware/authenticate';
+import { requirePermission } from '../../../common/middleware/require-permission';
 import { asyncHandler } from '../../../common/utils/async-handler';
 import { env } from '../../../config/env';
 import { orderController } from '../controller/order.controller';
@@ -16,12 +17,12 @@ const orderRateLimiter = createRateLimiter({
 
 export const orderRouter = Router();
 
-orderRouter.get('/admin/list', asyncHandler(orderController.adminList));
-orderRouter.get('/admin/:orderId', asyncHandler(orderController.adminGetById));
-orderRouter.put('/admin/:orderId/status', asyncHandler(orderController.adminUpdateStatus));
-
 orderRouter.use(authenticate);
 orderRouter.use(orderRateLimiter);
+
+orderRouter.get('/admin/list', requirePermission('orders.view'), asyncHandler(orderController.adminList));
+orderRouter.get('/admin/:orderId', requirePermission('orders.view'), asyncHandler(orderController.adminGetById));
+orderRouter.put('/admin/:orderId/status', requirePermission('orders.edit'), asyncHandler(orderController.adminUpdateStatus));
 
 orderRouter.get('/', asyncHandler(orderController.list));
 orderRouter.get('/current', asyncHandler(orderController.getCurrent));

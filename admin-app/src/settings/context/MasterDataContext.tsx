@@ -190,7 +190,7 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
           (cat: any, index: number) => ({
             id: cat.id,
             name: cat.name,
-            parentId: null,
+            parentId: cat.parentId ?? null,
             displayOrder: cat.sortOrder ?? index,
             status: cat.status || 'active',
           }),
@@ -203,27 +203,44 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
       api.get('/admin/suppliers'),
       api.get('/admin/dealers'),
       api.get('/admin/warehouses'),
+      api.get('/admin/brands'),
+      api.get('/admin/wholesalers'),
+      api.get('/admin/delivery_partners'),
+      api.get('/admin/delivery_zones'),
+      api.get('/admin/branches'),
+      api.get('/admin/pincodes'),
     ]).then((results) => {
       if (cancelled) return;
-      const [suppliersRes, dealersRes, warehousesRes] = results;
-      if (suppliersRes.status === 'fulfilled') {
-        const list = unwrapList(suppliersRes.value.data);
-        if (list.length > 0) setSuppliers(list);
-      } else {
-        console.warn('Unable to load suppliers from API:', suppliersRes.reason);
-      }
-      if (dealersRes.status === 'fulfilled') {
-        const list = unwrapList(dealersRes.value.data);
-        if (list.length > 0) setDealers(list);
-      } else {
-        console.warn('Unable to load dealers from API:', dealersRes.reason);
-      }
-      if (warehousesRes.status === 'fulfilled') {
-        const list = unwrapList(warehousesRes.value.data);
-        if (list.length > 0) setWarehouses(list);
-      } else {
-        console.warn('Unable to load warehouses from API:', warehousesRes.reason);
-      }
+      const [
+        suppliersRes,
+        dealersRes,
+        warehousesRes,
+        brandsRes,
+        wholesalersRes,
+        deliveryPartnersRes,
+        deliveryZonesRes,
+        branchesRes,
+        pincodesRes,
+      ] = results;
+
+      const apply = (result: PromiseSettledResult<any>, setter: (list: any[]) => void) => {
+        if (result.status === 'fulfilled') {
+          const list = unwrapList(result.value.data);
+          if (list.length > 0) setter(list);
+        } else {
+          console.warn('Unable to load master data from API:', result.reason);
+        }
+      };
+
+      apply(suppliersRes, setSuppliers);
+      apply(dealersRes, setDealers);
+      apply(warehousesRes, setWarehouses);
+      apply(brandsRes, setBrands);
+      apply(wholesalersRes, setWholesalers);
+      apply(deliveryPartnersRes, setDeliveryPartners);
+      apply(deliveryZonesRes, setDeliveryZones);
+      apply(branchesRes, setBranches);
+      apply(pincodesRes, setPincodes);
     });
 
     return () => {
@@ -306,6 +323,92 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
       setList((prev) => prev.filter((item) => item.name !== name));
     };
 
+    const syncUpsert = (path: string, item: { id: string }) => {
+      const isEdit = !!item.id;
+      const url = isEdit ? `${path}/${item.id}` : path;
+      api[isEdit ? 'put' : 'post'](url, item).catch((err) =>
+        console.warn(`Failed to sync ${path}:`, err),
+      );
+    };
+
+    const syncDelete = (path: string, id?: string) => {
+      if (!id) return;
+      api.delete(`${path}/${id}`).catch((err) =>
+        console.warn(`Failed to delete ${path}:`, err),
+      );
+    };
+
+    /** saveNamed that also persists to the backend. */
+    const saveNamedSynced = <T extends { id: string; name: string }>(
+      list: T[],
+      setList: React.Dispatch<React.SetStateAction<T[]>>,
+      data: Omit<T, 'id'> & { id?: string },
+      idPrefix: string,
+      path: string,
+    ): boolean => {
+      const name = normalizeName(data.name);
+      if (!name) return false;
+      if (nameTaken(list, name, data.id)) return false;
+      const item = { ...data, id: data.id ?? createMasterId(idPrefix), name } as T;
+      setList((prev) =>
+        data.id
+          ? prev.map((it) => (it.id === data.id ? item : it))
+          : [...prev, item],
+      );
+      syncUpsert(path, item);
+      return true;
+    };
+
+    const addByNameSynced = <T extends { id: string; name: string; status: string }>(
+      list: T[],
+      setList: React.Dispatch<React.SetStateAction<T[]>>,
+      name: string,
+      idPrefix: string,
+      path: string,
+      extra: Partial<T> = {},
+    ): boolean => {
+      const trimmed = normalizeName(name);
+      if (!trimmed || nameTaken(list, trimmed)) return false;
+      const item = {
+        id: createMasterId(idPrefix),
+        name: trimmed,
+        status: 'active',
+        ...extra,
+      } as T;
+      setList((prev) => [...prev, item]);
+      syncUpsert(path, item);
+      return true;
+    };
+
+    const renameByNameSynced = <T extends { id: string; name: string }>(
+      list: T[],
+      setList: React.Dispatch<React.SetStateAction<T[]>>,
+      from: string,
+      to: string,
+      path: string,
+    ): boolean => {
+      const trimmed = normalizeName(to);
+      if (!trimmed) return false;
+      const target = list.find((item) => item.name === from);
+      if (!target) return false;
+      if (nameTaken(list, trimmed, target.id)) return false;
+      const updated = { ...target, name: trimmed } as T;
+      setList((prev) => prev.map((item) => (item.id === target.id ? updated : item)));
+      syncUpsert(path, updated);
+      return true;
+    };
+
+    const deleteByNameSynced = <T extends { id: string; name: string }>(
+      list: T[],
+      setList: React.Dispatch<React.SetStateAction<T[]>>,
+      name: string,
+      path: string,
+    ) => {
+      const target = list.find((item) => item.name === name);
+      setList((prev) => prev.filter((item) => item.name !== name));
+      syncDelete(path, target?.id);
+    };
+
     return {
       brands,
       suppliers,
@@ -319,11 +422,14 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
       branches,
       pincodes,
 
-      saveBrand: (data) => saveNamed(brands, setBrands, data, 'brand'),
-      deleteBrand: (id) => setBrands((prev) => prev.filter((b) => b.id !== id)),
-      addBrand: (name) => addByName(brands, setBrands, name, 'brand'),
-      renameBrand: (from, to) => renameByName(brands, setBrands, from, to),
-      deleteBrandByName: (name) => deleteByName(setBrands, name),
+      saveBrand: (data) => saveNamedSynced(brands, setBrands, data, 'brand', '/admin/brands'),
+      deleteBrand: (id) => {
+        setBrands((prev) => prev.filter((b) => b.id !== id));
+        syncDelete('/admin/brands', id);
+      },
+      addBrand: (name) => addByNameSynced(brands, setBrands, name, 'brand', '/admin/brands'),
+      renameBrand: (from, to) => renameByNameSynced(brands, setBrands, from, to, '/admin/brands'),
+      deleteBrandByName: (name) => deleteByNameSynced(brands, setBrands, name, '/admin/brands'),
 
       saveCategory: (data) => {
         const name = normalizeName(data.name);
@@ -335,6 +441,7 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
 
         api[method](url, {
           name,
+          parentId: data.parentId ?? null,
           status: data.status || 'active',
           sortOrder: data.displayOrder || 0,
         })
@@ -342,6 +449,27 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
             const saved = response.data?.data;
             if (saved?.id) {
               setCategories((prev) => {
+                // Replace the optimistic row (create path) so the category
+                // isn't duplicated in the list after the server responds.
+                const optimistic = prev.find(
+                  (c) =>
+                    c.id !== saved.id &&
+                    c.name === saved.name &&
+                    c.parentId === (saved.parentId ?? data.parentId ?? null),
+                );
+                if (optimistic) {
+                  return prev.map((c) =>
+                    c.id === optimistic.id
+                      ? {
+                          id: saved.id,
+                          name: saved.name,
+                          parentId: saved.parentId ?? null,
+                          displayOrder: saved.sortOrder ?? c.displayOrder ?? 0,
+                          status: saved.status || 'active',
+                        }
+                      : c,
+                  );
+                }
                 const exists = prev.some((c) => c.id === saved.id);
                 if (exists) {
                   return prev.map((c) =>
@@ -377,6 +505,18 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
         return true;
       },
       deleteCategory: (id) => {
+        // Backend rejects deleting a category that still has subcategories.
+        // Mirror that check locally so the UI doesn't pretend it worked.
+        const hasChildren = categories.some((c) => c.parentId === id);
+        if (hasChildren) {
+          const message = 'This category has subcategories. Delete them first.';
+          if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+            window.alert(message);
+          } else {
+            console.warn(message);
+          }
+          return;
+        }
         api
           .delete(`/categories/${id}`)
           .catch((err) => console.warn('Failed to delete category from API:', err));
@@ -494,13 +634,17 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
       findDealerByName: (name) => dealers.find((d) => d.name === name),
 
       saveWholesaler: (data) =>
-        saveNamed(wholesalers, setWholesalers, data, 'wholesaler'),
-      deleteWholesaler: (id) =>
-        setWholesalers((prev) => prev.filter((w) => w.id !== id)),
-      addWholesaler: (name) => addByName(wholesalers, setWholesalers, name, 'wholesaler'),
+        saveNamedSynced(wholesalers, setWholesalers, data, 'wholesaler', '/admin/wholesalers'),
+      deleteWholesaler: (id) => {
+        setWholesalers((prev) => prev.filter((w) => w.id !== id));
+        syncDelete('/admin/wholesalers', id);
+      },
+      addWholesaler: (name) =>
+        addByNameSynced(wholesalers, setWholesalers, name, 'wholesaler', '/admin/wholesalers'),
       renameWholesaler: (from, to) =>
-        renameByName(wholesalers, setWholesalers, from, to),
-      deleteWholesalerByName: (name) => deleteByName(setWholesalers, name),
+        renameByNameSynced(wholesalers, setWholesalers, from, to, '/admin/wholesalers'),
+      deleteWholesalerByName: (name) =>
+        deleteByNameSynced(wholesalers, setWholesalers, name, '/admin/wholesalers'),
 
       saveWarehouse: (data) => {
         const isEdit = !!data.id;
@@ -520,21 +664,52 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
       deleteWarehouseByName: (name) => deleteByName(setWarehouses, name),
 
       saveDeliveryPartner: (data) =>
-        saveNamed(deliveryPartners, setDeliveryPartners, data, 'partner'),
-      deleteDeliveryPartner: (id) =>
-        setDeliveryPartners((prev) => prev.filter((p) => p.id !== id)),
+        saveNamedSynced(
+          deliveryPartners,
+          setDeliveryPartners,
+          data,
+          'partner',
+          '/admin/delivery_partners',
+        ),
+      deleteDeliveryPartner: (id) => {
+        setDeliveryPartners((prev) => prev.filter((p) => p.id !== id));
+        syncDelete('/admin/delivery_partners', id);
+      },
       addDeliveryPartner: (name) =>
-        addByName(deliveryPartners, setDeliveryPartners, name, 'partner', {
-          serviceableZones: [],
-        } as Partial<DeliveryPartnerMaster>),
+        addByNameSynced(
+          deliveryPartners,
+          setDeliveryPartners,
+          name,
+          'partner',
+          '/admin/delivery_partners',
+          { serviceableZones: [] } as Partial<DeliveryPartnerMaster>,
+        ),
       renameDeliveryPartner: (from, to) => {
-        const ok = renameByName(deliveryPartners, setDeliveryPartners, from, to);
+        const ok = renameByNameSynced(
+          deliveryPartners,
+          setDeliveryPartners,
+          from,
+          to,
+          '/admin/delivery_partners',
+        );
         return ok;
       },
-      deleteDeliveryPartnerByName: (name) => deleteByName(setDeliveryPartners, name),
+      deleteDeliveryPartnerByName: (name) =>
+        deleteByNameSynced(
+          deliveryPartners,
+          setDeliveryPartners,
+          name,
+          '/admin/delivery_partners',
+        ),
 
       saveDeliveryZone: (data) => {
-        const ok = saveNamed(deliveryZones, setDeliveryZones, data, 'zone');
+        const ok = saveNamedSynced(
+          deliveryZones,
+          setDeliveryZones,
+          data,
+          'zone',
+          '/admin/delivery_zones',
+        );
         if (ok && data.id) {
           const old = deliveryZones.find((z) => z.id === data.id);
           if (old && old.name !== data.name.trim()) {
@@ -554,6 +729,7 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
       deleteDeliveryZone: (id) => {
         const zone = deliveryZones.find((z) => z.id === id);
         setDeliveryZones((prev) => prev.filter((z) => z.id !== id));
+        syncDelete('/admin/delivery_zones', id);
         if (zone) {
           setDeliveryPartners((prev) =>
             prev.map((p) => ({
@@ -563,11 +739,18 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
           );
         }
       },
-      addDeliveryZone: (name) => addByName(deliveryZones, setDeliveryZones, name, 'zone'),
+      addDeliveryZone: (name) =>
+        addByNameSynced(deliveryZones, setDeliveryZones, name, 'zone', '/admin/delivery_zones'),
       renameDeliveryZone: (from, to) => {
         const trimmed = normalizeName(to);
         if (!trimmed) return false;
-        const ok = renameByName(deliveryZones, setDeliveryZones, from, to);
+        const ok = renameByNameSynced(
+          deliveryZones,
+          setDeliveryZones,
+          from,
+          to,
+          '/admin/delivery_zones',
+        );
         if (ok) {
           setDeliveryPartners((prev) =>
             prev.map((p) => ({
@@ -581,7 +764,7 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
         return ok;
       },
       deleteDeliveryZoneByName: (name) => {
-        deleteByName(setDeliveryZones, name);
+        deleteByNameSynced(deliveryZones, setDeliveryZones, name, '/admin/delivery_zones');
         setDeliveryPartners((prev) =>
           prev.map((p) => ({
             ...p,
@@ -627,11 +810,11 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
               ),
             );
           }
+          syncUpsert('/admin/branches', { ...payload, id: data.id });
         } else {
-          setBranches((prev) => [
-            ...prev,
-            { ...payload, id: createMasterId('branch') } as BranchMaster,
-          ]);
+          const item = { ...payload, id: createMasterId('branch') } as BranchMaster;
+          setBranches((prev) => [...prev, item]);
+          syncUpsert('/admin/branches', item);
         }
         return true;
       },
@@ -658,8 +841,10 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
           setPincodes((prev) =>
             prev.map((item) => (item.id === data.id ? payload : item)),
           );
+          syncUpsert('/admin/pincodes', payload);
         } else {
           setPincodes((prev) => [...prev, payload]);
+          syncUpsert('/admin/pincodes', payload);
         }
         return true;
       },

@@ -6,7 +6,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  TouchableOpacity,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,30 +14,11 @@ import { LogoHeader } from '../components/LogoHeader';
 import { AuthInput } from '../components/AuthInput';
 import { PasswordInput } from '../components/PasswordInput';
 import { PrimaryButton } from '../components/PrimaryButton';
-import { STATIC_CREDENTIALS } from '../constants';
-import { getUsers } from '../../users/data/userStore';
 import { authColors } from '../../theme/colors';
 import { authCardStyle, radius, spacing } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
-
-function matchesUserLogin(identifier: string, password: string) {
-  const normalized = identifier.trim().toLowerCase();
-  const digits = identifier.replace(/\D/g, '');
-
-  return getUsers().find((user) => {
-    if (!user.password || user.password !== password) return false;
-    if (user.status !== 'active' || user.blocked) return false;
-
-    const emailMatch = user.email.toLowerCase() === normalized;
-    const mobileDigits = user.mobile.replace(/\D/g, '');
-    const mobileMatch =
-      digits.length >= 10 && mobileDigits.endsWith(digits.slice(-10));
-
-    return emailMatch || mobileMatch;
-  });
-}
 
 export function LoginScreen({ navigation }: Props) {
   const styles = useMemo(() => createStyles(), []);
@@ -55,11 +35,11 @@ export function LoginScreen({ navigation }: Props) {
     }
 
     try {
-      // In development, the backend uses OTP for admin login.
-      // We pass the "Password" field value as the "OTP".
       const { loginAsAdmin } = require('../../services/authService');
-      await loginAsAdmin(trimmedEmail, password);
-      
+      const user = await loginAsAdmin(trimmedEmail, password);
+      const { setRbacUser } = require('../../auth/rbacStore');
+      setRbacUser(user);
+
       setError('');
       navigation.replace('Dashboard');
     } catch (err: any) {
@@ -111,13 +91,6 @@ export function LoginScreen({ navigation }: Props) {
                 }}
                 placeholder="Enter your password"
               />
-
-              <TouchableOpacity
-                style={styles.forgotLink}
-                onPress={() => navigation.navigate('ForgotPassword')}
-              >
-                <Text style={styles.forgotText}>Forgot Password</Text>
-              </TouchableOpacity>
 
               {error ? <Text style={styles.errorBanner}>{error}</Text> : null}
 
@@ -171,16 +144,6 @@ function createStyles() {
       color: authColors.textSecondary,
       marginBottom: spacing.xl,
       lineHeight: 20,
-    },
-    forgotLink: {
-      alignSelf: 'flex-end',
-      marginBottom: spacing.md,
-      marginTop: -spacing.sm,
-    },
-    forgotText: {
-      ...typography.bodySmall,
-      color: authColors.primary,
-      fontWeight: '600',
     },
     errorBanner: {
       ...typography.bodySmall,

@@ -23,6 +23,7 @@ import { colors } from '../../../theme/colors';
 import { radius, shadow, spacing } from '../../../theme/spacing';
 import { RootStackParamList } from '../../../navigation/types';
 import { getProducts, deleteProduct } from '../../../services/productService';
+import { useRbac, can } from '../../../auth/rbacStore';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProductList'>;
 
@@ -41,6 +42,7 @@ export function ProductListScreen({ navigation }: Props) {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [showFilter, setShowFilter] = useState(false);
   const [showSort, setShowSort] = useState(false);
+  const rbac = useRbac();
 
   const fetchProducts = async () => {
     try {
@@ -51,7 +53,7 @@ export function ProductListScreen({ navigation }: Props) {
         id: p.id,
         name: p.name,
         sku: p.sku || '',
-        category: p.categoryId || 'Uncategorized',
+        category: p.category || p.categoryId || 'Uncategorized',
         brand: p.brand || 'No Brand',
         sellingPrice: Number(p.price) || 0,
         mrp: Number(p.mrp) || Number(p.price) || 0,
@@ -166,14 +168,16 @@ export function ProductListScreen({ navigation }: Props) {
               <Text style={styles.title}>Products</Text>
               <Text style={styles.subtitle}>{filteredProducts.length} products in catalog</Text>
             </View>
-            <TouchableOpacity
-              style={[styles.addBtn, shadow.sm]}
-              onPress={() => navigation.navigate('AddProduct')}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="add" size={18} color="#FFF" />
-              <Text style={styles.addBtnText}>Add Product</Text>
-            </TouchableOpacity>
+            {can('products.create') ? (
+              <TouchableOpacity
+                style={[styles.addBtn, shadow.sm]}
+                onPress={() => navigation.navigate('AddProduct')}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="add" size={18} color="#FFF" />
+                <Text style={styles.addBtnText}>Add Product</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         </View>
 
@@ -256,10 +260,18 @@ export function ProductListScreen({ navigation }: Props) {
               <ProductCard
                 product={item}
                 onView={() => navigation.navigate('ProductDetails', { productId: item.id })}
-                onEdit={() =>
-                  navigation.navigate('AddProduct', { mode: 'edit', productId: item.id })
+                onEdit={
+                  can('products.edit')
+                    ? () =>
+                        navigation.navigate('AddProduct', {
+                          mode: 'edit',
+                          productId: item.id,
+                        })
+                    : undefined
                 }
-                onDelete={() => handleDelete(item.id)}
+                onDelete={
+                  can('products.delete') ? () => handleDelete(item.id) : undefined
+                }
               />
             </View>
           )}

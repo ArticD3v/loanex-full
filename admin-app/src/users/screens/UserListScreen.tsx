@@ -17,6 +17,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppUser } from '../../types/user';
 import { getUsers } from '../../services/userService';
 import { UserCard } from '../../components/user/UserCard';
+import { useRbac, can } from '../../auth/rbacStore';
 import { colors } from '../../theme/colors';
 import { radius, shadow, spacing } from '../../theme/spacing';
 import { RootStackParamList } from '../../navigation/types';
@@ -27,6 +28,7 @@ export function UserListScreen({ navigation }: Props) {
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
   const numColumns = isTablet ? 2 : 1;
+  const rbac = useRbac();
 
   const [search, setSearch] = useState('');
   const [users, setUsers] = useState<AppUser[]>([]);
@@ -84,7 +86,11 @@ export function UserListScreen({ navigation }: Props) {
     <UserCard
       user={item}
       onView={() => navigation.navigate('UserDetails', { userId: item.id })}
-      onEdit={() => navigation.navigate('AddUser', { mode: 'edit', userId: item.id })}
+      onEdit={
+        can('users.edit')
+          ? () => navigation.navigate('AddUser', { mode: 'edit', userId: item.id })
+          : undefined
+      }
     />
   );
 
@@ -98,14 +104,18 @@ export function UserListScreen({ navigation }: Props) {
           <Text style={styles.headerTitle}>Users</Text>
           <Text style={styles.headerCount}>{users.length} Users</Text>
         </View>
-        <TouchableOpacity
-          style={[styles.addBtn, shadow.sm]}
-          onPress={() => navigation.navigate('AddUser')}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="add" size={18} color="#FFF" />
-          <Text style={styles.addBtnText}>Add User</Text>
-        </TouchableOpacity>
+        {can('users.create') ? (
+          <TouchableOpacity
+            style={[styles.addBtn, shadow.sm]}
+            onPress={() => navigation.navigate('AddUser')}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="add" size={18} color="#FFF" />
+            <Text style={styles.addBtnText}>Add User</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.backBtn} />
+        )}
       </View>
 
       <View style={styles.searchWrap}>

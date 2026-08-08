@@ -22,6 +22,7 @@ import { comparePassword, hashPassword } from '../../common/utils/password';
 import { generateOtp, getOtpExpiryDate } from '../../common/utils/otp';
 import {
   AdminLoginBody,
+  ChangePasswordBody,
   CompleteRegistrationBody,
   ForgotPasswordBody,
   LoginBody,
@@ -34,6 +35,63 @@ import {
 } from './auth.dto';
 import { authkeySmsService } from '../../common/services/authkey-sms.service';
 import { authRepository } from './auth.repository';
+import { jsonDb } from '../../config/json-db';
+import { auditLogService } from '../verification/service/audit-log.service';
+import { supabase } from '../../config/supabase';
+import { rolePermissions, SUPER_ADMIN_PERMISSIONS } from '../rbac/permissions';
+
+/**
+ * Enrich a user row with RBAC role info (roleId / roleName / permissions).
+ * Legacy admins WITHOUT a role_id fall back to full Super Admin access so
+ * existing admin accounts are never locked out.
+ * Security: if role_id is set but the role cannot be found, we DENY ([]) —
+ * never escalate to Super Admin.
+ */
+function resolveRbacInfo(user: any) {
+  const roleId = user?.role_id ?? user?.roleId ?? null;
+  if (roleId) {
+    const role = jsonDb.findOne('roles', { id: roleId });
+    if (role) {
+      return { roleId, roleName: role.name, permissions: rolePermissions(role) };
+    }
+    return { roleId, roleName: null, permissions: [] };
+  }
+  if (String(user?.role ?? '') === 'admin') {
+    return { roleId: null, roleName: 'Super Admin', permissions: [...SUPER_ADMIN_PERMISSIONS] };
+  }
+  return { roleId: null, roleName: null, permissions: [] };
+}
+
+/**
+ * Same as resolveRbacInfo but async — also probes Supabase for a role that is
+ * not yet cached locally (role created on another serverless instance).
+ */
+async function resolveLoginRbacInfo(user: any) {
+  const roleId = user?.role_id ?? user?.roleId ?? null;
+  if (roleId) {
+    let role = jsonDb.findOne('roles', { id: roleId });
+    if (!role) {
+      try {
+        const { data, error } = await supabase
+          .from('roles')
+          .select('*')
+          .eq('id', roleId)
+          .limit(1);
+        if (!error && data && data.length > 0) role = data[0];
+      } catch {
+        /* keep local state */
+      }
+    }
+    if (role) {
+      return { roleId, roleName: role.name, permissions: rolePermissions(role) };
+    }
+    return { roleId, roleName: null, permissions: [] };
+  }
+  if (String(user?.role ?? '') === 'admin') {
+    return { roleId: null, roleName: 'Super Admin', permissions: [...SUPER_ADMIN_PERMISSIONS] };
+  }
+  return { roleId: null, roleName: null, permissions: [] };
+}
 
 function resolveStatus(user: any): string {
   const raw = String(user?.status ?? '').toUpperCase();
@@ -77,6 +135,7 @@ function toPublicUser(user: any) {
 
   const status = resolveStatus(user);
   const mobileVerified = isMobileVerified(user);
+  const rbac = resolveRbacInfo(user);
 
   return {
     id: user.id,
@@ -87,6 +146,9 @@ function toPublicUser(user: any) {
     isMobileVerified: mobileVerified,
     isEmailVerified: Boolean(email),
     status,
+    roleId: rbac.roleId,
+    roleName: rbac.roleName,
+    permissions: rbac.permissions,
     createdAt: user.createdAt ?? user.created_at ?? new Date(),
     updatedAt: user.updatedAt ?? user.updated_at ?? new Date(),
   };
@@ -186,14 +248,21 @@ export class AuthService {
     };
   }
 
-  async adminLogin(input: AdminLoginBody) {
+  async adminLogin(
+    input: AdminLoginBody,
+    context: { ipAddress?: string; userAgent?: string } = {},
+  ) {
     const user = await authRepository.findByIdentifier(input.email);
 
     if (!user) {
       throw new UnauthorizedError('Invalid credentials');
     }
 
-    if (String(user.role ?? '') !== 'admin') {
+    // Staff = legacy `admin` role OR explicitly assigned a role_id.
+    const rbac = await resolveLoginRbacInfo(user);
+    const isStaff =
+      String(user.role ?? '') === 'admin' || Boolean(user.role_id ?? user.roleId ?? rbac.roleId);
+    if (!isStaff) {
       throw new ForbiddenError('Access denied: only admin users can log in to the admin portal');
     }
 
@@ -207,11 +276,41 @@ export class AuthService {
       throw new UnauthorizedError('Invalid credentials');
     }
 
+    // Blocked staff accounts must not be able to sign in to the admin portal
+    // (checked after credential validation to avoid leaking account state).
+    if (resolveStatus(user) === UserStatus.BLOCKED) {
+      // Security trail: log the rejected attempt so repeated blocked-account
+      // sign-ins are visible in the user's activity feed.
+      void auditLogService.log({
+        userId: user.id,
+        action: 'ADMIN_LOGIN_BLOCKED',
+        entity: 'auth',
+        metadata: {
+          email: user.email ?? '',
+          ipAddress: context.ipAddress ?? '',
+          userAgent: context.userAgent ?? '',
+          timestamp: new Date().toISOString(),
+        },
+      });
+      throw new ForbiddenError('Your account has been blocked. Contact support.');
+    }
+
     const token = signAccessToken({
       sub: user.id,
       uuid: user.id,
       email: user.email ?? `${user.phone ?? ''}@loanex.in`,
       mobile: user.phone ?? '',
+    });
+
+    void auditLogService.log({
+      userId: user.id,
+      action: 'LOGIN',
+      entity: 'auth',
+      metadata: {
+        ipAddress: context.ipAddress ?? '',
+        userAgent: context.userAgent ?? '',
+        timestamp: new Date().toISOString(),
+      },
     });
 
     return {
@@ -221,6 +320,9 @@ export class AuthService {
         phone: user.phone ?? '',
         email: user.email ?? '',
         role: 'admin',
+        roleId: rbac.roleId,
+        roleName: rbac.roleName,
+        permissions: rbac.permissions,
         created_at: user.created_at,
         updated_at: user.updated_at,
       },
@@ -313,7 +415,16 @@ export class AuthService {
     }
 
     if (purpose === OtpPurpose.FORGOT_PASSWORD || purpose === OtpPurpose.RESET_PASSWORD) {
-      await this.verifyAuthkeyOtp(mobile, input.otp, OtpPurpose.FORGOT_PASSWORD);
+      // Do NOT consume the OTP here: the subsequent reset-password step still
+      // needs to validate the same code. It is marked used only when the new
+      // password is actually set (see resetPassword).
+      await this.verifyAuthkeyOtp(
+        mobile,
+        input.otp,
+        OtpPurpose.FORGOT_PASSWORD,
+        undefined,
+        false,
+      );
       return {
         verified: true,
         activated: false,
@@ -400,6 +511,7 @@ export class AuthService {
     otp: string,
     purpose: OtpPurpose,
     otpChallenge?: string,
+    consume = true,
   ) {
     if (!/^\d{6}$/.test(otp)) {
       throw new BadRequestError('OTP must be a 6-digit code.');
@@ -462,8 +574,10 @@ export class AuthService {
       );
     }
 
-    if (record) await authRepository.markOtpUsed(record.id);
-    await authRepository.invalidateOtps(mobile, purpose);
+    if (consume) {
+      if (record) await authRepository.markOtpUsed(record.id);
+      await authRepository.invalidateOtps(mobile, purpose);
+    }
   }
 
   async completeRegistration(input: CompleteRegistrationBody) {
@@ -559,6 +673,44 @@ export class AuthService {
     return {
       reset: true,
       message: 'Password reset successful. Please log in with your new password.',
+    };
+  }
+
+  async changePassword(userId: string, input: ChangePasswordBody) {
+    const user = await authRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundError('User not found.');
+    }
+
+    const passwordHash = user.encryptedPassword ?? user.password ?? '';
+    if (!passwordHash) {
+      throw new BadRequestError(
+        'No password set for this account. Please reset your password.',
+        { code: 'PASSWORD_NOT_SET' as const, requiresOtp: true, resetFlow: true },
+      );
+    }
+
+    let valid = false;
+    try {
+      valid = await comparePassword(input.currentPassword, passwordHash);
+    } catch {
+      throw new BadRequestError('Current password is incorrect');
+    }
+    if (!valid) {
+      throw new BadRequestError('Current password is incorrect');
+    }
+
+    if (input.currentPassword === input.newPassword) {
+      throw new BadRequestError('New password must be different from the current password');
+    }
+
+    const newPasswordHash = await hashPassword(input.newPassword);
+    await authRepository.updateUser(user.id, { encryptedPassword: newPasswordHash });
+    await authRepository.deleteUserRefreshTokens(user.id);
+
+    return {
+      changed: true,
+      message: 'Password changed successfully. Please log in again with your new password.',
     };
   }
 

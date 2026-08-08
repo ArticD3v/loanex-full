@@ -98,6 +98,14 @@
   &.is-out {
     color: #dc2626;
   }
+
+  &.is-low {
+    color: #b45309;
+
+    small {
+      color: #b45309;
+    }
+  }
 }
 
 .lx-info__sku {

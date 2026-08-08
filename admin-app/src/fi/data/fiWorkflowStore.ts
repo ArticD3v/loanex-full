@@ -1,4 +1,5 @@
 import { FiCase, FiCaseStatus } from '../../types/fiCase';
+import { updateFiCase } from '../../services/emiService';
 
 export type FiPhotoKey =
   | 'houseFront'
@@ -144,6 +145,15 @@ export function saveFiDraft(fiCaseId: string, draft: FiWorkflowDraft): void {
     const count = Object.values(draft.photos).filter(Boolean).length;
     fiCase.photoCount = count;
   }
+  // Persist status + evidence to the backend so the changes survive a reload.
+  updateFiCase(fiCaseId, {
+    status: fiCase?.status ?? 'in_progress',
+    remarks: draft.remarks,
+    gpsLocation: draft.gpsCaptured ? `${draft.latitude}, ${draft.longitude}` : undefined,
+    photoCount: Object.values(draft.photos).filter(Boolean).length,
+  }).catch((error) =>
+    console.warn('[fiWorkflowStore] Failed to persist FI draft:', error),
+  );
 }
 
 export function submitFiCase(fiCaseId: string, draft: FiWorkflowDraft): void {
@@ -157,6 +167,14 @@ export function submitFiCase(fiCaseId: string, draft: FiWorkflowDraft): void {
       : fiCase.gpsLocation;
     fiCase.photoCount = Object.values(draft.photos).filter(Boolean).length;
   }
+  updateFiCase(fiCaseId, {
+    status: 'completed',
+    remarks: draft.remarks,
+    gpsLocation: draft.gpsCaptured ? `${draft.latitude}, ${draft.longitude}` : undefined,
+    photoCount: Object.values(draft.photos).filter(Boolean).length,
+  }).catch((error) =>
+    console.warn('[fiWorkflowStore] Failed to submit FI case:', error),
+  );
 }
 
 export function getFiStatusLabel(status: FiCaseStatus): string {

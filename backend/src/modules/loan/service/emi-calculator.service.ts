@@ -171,3 +171,17 @@ export function addMonths(date: Date, months: number): Date {
   next.setMonth(next.getMonth() + months);
   return next;
 }
+
+/** Asia/Kolkata offset in minutes — EMI due dates are anchored to IST midnight. */
+export const IST_OFFSET_MIN = 5 * 60 + 30;
+
+/**
+ * Truncate a date to IST midnight, returning the UTC instant of that IST
+ * midnight. Timezone-agnostic — identical on IST dev machines and UTC Vercel
+ * functions, so schedules and reminder windows never drift by 5:30h.
+ */
+export function istMidnight(date: Date): Date {
+  const istWall = new Date(date.getTime() + IST_OFFSET_MIN * 60_000);
+  istWall.setUTCHours(0, 0, 0, 0);
+  return new Date(istWall.getTime() - IST_OFFSET_MIN * 60_000);
+}

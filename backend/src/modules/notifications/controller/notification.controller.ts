@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import type { AuthenticatedRequest } from '../../../common/middleware/authenticate';
 import { sendSuccess } from '../../../common/utils/api-response';
-import { NotificationPriority, NotificationType } from '@prisma/client';
+import { NotificationPriority, NotificationType } from '../repository/notification.repository';
 import { notificationService } from '../service/notification.service';
 
 function requireUserId(req: AuthenticatedRequest): string {
@@ -77,6 +77,16 @@ export class NotificationController {
   adminDelete = async (req: Request, res: Response) => {
     const data = await notificationService.adminDelete(String(req.params.id ?? ''));
     return sendSuccess(res, data, 'Notification deleted');
+  };
+
+  adminMarkRead = async (req: Request, res: Response) => {
+    const data = await notificationService.adminMarkRead(String(req.params.id ?? ''));
+    return sendSuccess(res, data, 'Notification marked as read');
+  };
+
+  adminMarkAllRead = async (_req: Request, res: Response) => {
+    const data = await notificationService.adminMarkAllRead();
+    return sendSuccess(res, data, 'All notifications marked as read');
   };
 }
 

@@ -2,10 +2,11 @@ import {
   AutopayMandateStatus,
   AutopayPaymentMethod,
   LoanStatus,
-  type AutopayMandate,
-  type LoanAccount,
 } from '@prisma/client';
 import { jsonDb } from '../../../config/json-db';
+
+type AutopayMandate = Record<string, any>;
+type LoanAccount = Record<string, any>;
 
 export type MandateWithLoan = AutopayMandate & {
   loanAccount: LoanAccount & {
@@ -32,14 +33,55 @@ export class AutopayRepository {
     const loan = jsonDb.findOne('loanAccount', { id: loanId });
     if (!loan) return null;
     const application = jsonDb.findOne('emi_applications', { id: loan.applicationId });
+    const schedule = jsonDb.findMany('emi_schedules', { loanAccountId: loan.id })
+      .sort((a: any, b: any) => a.emiNumber - b.emiNumber);
     const autopayMandates = jsonDb.findMany('autopayMandate', { loanAccountId: loan.id })
       .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     
     return {
       ...loan,
       application,
+      schedule,
       autopayMandates
     };
+  }
+
+  /** Find the open mandate for a loan by its provider mandate id (Razorpay subscription id). */
+  findByMandateId(mandateId: string) {
+    const mandate = jsonDb.findOne('autopayMandate', { mandateId });
+    if (!mandate) return null;
+    const loanAccount = jsonDb.findOne('loanAccount', { id: mandate.loanAccountId });
+    return {
+      ...mandate,
+      loanAccount: loanAccount ? { ...loanAccount } : null,
+    };
+  }
+
+  /** Find a payment transaction by the gateway payment id (dedup for webhook retries). */
+  findTransactionByPaymentId(razorpayPaymentId: string) {
+    return jsonDb.findOne('paymentTransaction', { razorpayPaymentId });
+  }
+
+  /** Record a Razorpay auto-collected EMI charge as a payment transaction. */
+  createAutoCollectTransaction(input: {
+    applicationId: string;
+    userId: string;
+    emiScheduleId: string;
+    razorpayPaymentId: string;
+    amount: number;
+  }) {
+    return jsonDb.insert('paymentTransaction', {
+      applicationId: input.applicationId,
+      userId: input.userId,
+      emiScheduleId: input.emiScheduleId,
+      razorpayOrderId: `autopay_${input.razorpayPaymentId}`,
+      razorpayPaymentId: input.razorpayPaymentId,
+      amount: input.amount,
+      currency: 'INR',
+      paymentStatus: 'PENDING',
+      paymentType: 'EMI',
+      source: 'AUTOPAY',
+    });
   }
 
   findCurrentMandate(loanAccountId: string) {

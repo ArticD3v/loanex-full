@@ -8,7 +8,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Order, OrderStatus, PaymentType } from '../../types/order';
+import { Order, OrderStatus, PAYMENT_TYPE_LABEL } from '../../types/order';
 import { colors } from '../../theme/colors';
 import { radius, shadow, spacing } from '../../theme/spacing';
 
@@ -23,15 +23,12 @@ const ORDER_STATUS_STYLE: Record<OrderStatus, { label: string; bg: string; text:
   pending: { label: 'Pending', bg: colors.warningLight, text: colors.warning },
   confirmed: { label: 'Confirmed', bg: colors.primaryLight, text: colors.primary },
   approved: { label: 'Approved', bg: colors.secondaryLight, text: colors.secondary },
+  processing: { label: 'Processing', bg: colors.primaryLight, text: colors.primaryDark },
   packed: { label: 'Packed', bg: colors.accentLight, text: colors.accentDark },
   shipped: { label: 'Shipped', bg: colors.primaryLight, text: colors.primaryDark },
+  out_for_delivery: { label: 'Out for Delivery', bg: colors.accentLight, text: colors.accentDark },
   delivered: { label: 'Delivered', bg: colors.successLight, text: colors.success },
   cancelled: { label: 'Cancelled', bg: colors.dangerLight, text: colors.danger },
-};
-
-const PAYMENT_TYPE_LABEL: Record<PaymentType, string> = {
-  cash: 'Cash',
-  emi: 'EMI',
 };
 
 function formatAmount(amount: number) {
@@ -226,8 +223,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: colors.textSecondary,
-    textTransform: 'uppercase',
     letterSpacing: 0.3,
+    textAlign: 'right',
+    flexShrink: 1,
   },
   actions: {
     flexDirection: 'row',

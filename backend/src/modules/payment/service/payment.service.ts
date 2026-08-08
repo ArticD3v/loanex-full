@@ -7,8 +7,12 @@ import {
   UnauthorizedError,
 } from '../../../common/errors/app-error';
 import { env } from '../../../config/env';
+import { resolveProductImage } from '../../../common/utils/product-assets';
 import { auditLogService } from '../../verification/service/audit-log.service';
 import { loanService } from '../../loan/service/loan.service';
+import { cartRepository } from '../../cart/repository/cart.repository';
+import { emiPaymentService } from '../../emi-payment/service/emi-payment.service';
+import { autopayService } from '../../autopay/service/autopay.service';
 import { paymentRepository } from '../repository/payment.repository';
 import {
   createRazorpayOrder,
@@ -28,20 +32,6 @@ function toNumber(value: { toString(): string } | number | null | undefined): nu
 
 function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
-}
-
-function productImagePath(productId: string): string {
-  const map: Record<string, string> = {
-    'smartphone-iphone-15': 'https://images.unsplash.com/photo-1695048133142-1a204986d903?w=800&q=80',
-    'laptop-hp-pavilion-15': 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&q=80',
-    'smart-tv-samsung-55': 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=800&q=80',
-    'refrigerator-lg-260': 'https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?w=800&q=80',
-    'washing-machine-bosch-7kg': 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=800&q=80',
-    'ac-voltas-1-5ton': 'https://images.unsplash.com/photo-1631545806606-867b4070886a?w=800&q=80',
-    'tablet-samsung-s9': 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=800&q=80',
-    'smartwatch-apple-series-9': 'https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?w=800&q=80',
-  };
-  return map[productId] ?? 'assets/images/products/laptop.png';
 }
 
 function buildSummary(app: any) {
@@ -116,7 +106,7 @@ export class PaymentService {
       status: app.status,
       productId: app.productId,
       productName: app.productName,
-      productImage: productImagePath(app.productId),
+      productImage: resolveProductImage(app.productId, app.productImage),
       productPrice: summary.productPrice,
       approvedLoanAmount: summary.loanAmount,
       approvedDownPayment: summary.downPayment,
@@ -317,6 +307,10 @@ export class PaymentService {
 
     const loan = await loanService.ensureLoanAfterDownPayment(app.id);
 
+    // Down payment succeeded — the purchased product leaves the cart. The cart
+    // is kept until this point so abandoned EMI flows don't empty it.
+    await cartRepository.removeProducts(userId, [app.productId]);
+
     await auditLogService.log({
       userId,
       action: 'PAYMENT_SUCCESS',
@@ -435,8 +429,8 @@ export class PaymentService {
     const order = orderNumber
       ? await paymentRepository.findOrderByNumber(orderNumber, userId)
       : await (async () => {
-          const app = paymentRepository.findLatestApplicationForUser(userId);
-          if (!app?.order) return null;
+    const app = await paymentRepository.findLatestApplicationForUser(userId);
+    if (!app?.order) return null;
           return paymentRepository.findOrderByApplication(app.id, userId);
         })();
 
@@ -455,7 +449,7 @@ export class PaymentService {
         latestOrder.application.applicationNumber ?? latestOrder.application.id,
       productId: latestOrder.productId,
       productName: latestOrder.application.productName,
-      productImage: productImagePath(latestOrder.productId),
+      productImage: resolveProductImage(latestOrder.productId),
       productPrice: summary.productPrice,
       approvedLoanAmount: summary.loanAmount,
       approvedDownPayment: summary.downPayment,
@@ -594,6 +588,15 @@ export class PaymentService {
       typeof rawBody === 'string' ? rawBody : rawBody.toString('utf8'),
     );
     const eventName = String(event?.event ?? '');
+
+    // AutoDebit events (subscription lifecycle + recurring invoice collection)
+    // carry no order id — route them to AutopayService before the order lookup.
+    // Razorpay collects the recurring EMI automatically; these events mark the
+    // EMI paid (invoice.paid) or record the failure (invoice.payment_failed).
+    if (eventName.startsWith('subscription.') || eventName.startsWith('invoice.')) {
+      return autopayService.handleRazorpayWebhook(eventName, event);
+    }
+
     const paymentEntity =
       event?.payload?.payment?.entity ?? event?.payload?.payment ?? null;
     const orderEntity = event?.payload?.order?.entity ?? null;
@@ -612,6 +615,24 @@ export class PaymentService {
       return { handled: false, reason: 'UNKNOWN_ORDER', event: eventName, orderId };
     }
 
+    // This webhook completes EMI down-payments AND monthly EMI instalments.
+    // DIRECT (FULL_PAYMENT) transactions live in the same collection but are
+    // completed by the checkout module's verify flow — without this guard a
+    // DIRECT payment would fall through to the user's latest EMI application
+    // and complete (and now decrement stock for) the wrong order.
+    const isEmiInstalment = transaction.paymentType === 'EMI';
+    if (
+      !isEmiInstalment &&
+      (!transaction.applicationId || transaction.paymentType !== 'DOWN_PAYMENT')
+    ) {
+      return {
+        handled: false,
+        reason: 'UNSUPPORTED_PAYMENT_TYPE',
+        event: eventName,
+        orderId,
+      };
+    }
+
     if (
       eventName === 'payment.captured' ||
       eventName === 'order.paid' ||
@@ -619,6 +640,24 @@ export class PaymentService {
     ) {
       if (transaction.paymentStatus === PaymentStatus.SUCCESS) {
         return { handled: true, alreadyProcessed: true, event: eventName };
+      }
+
+      // Monthly EMI instalment captured — complete it server-side so the
+      // schedule updates even if the customer's tab closed before /verify.
+      if (isEmiInstalment) {
+        const completed = await emiPaymentService.completeEmiFromWebhook(
+          transaction,
+          paymentId ?? `wh_${Date.now()}`,
+          eventName,
+        );
+        return {
+          handled: completed.handled,
+          alreadyProcessed: completed.alreadyProcessed,
+          reason: completed.reason,
+          event: eventName,
+          emiId: completed.emiId,
+          orderId,
+        };
       }
 
       const app = paymentRepository.findLatestApplicationForUser(transaction.userId);
@@ -646,6 +685,7 @@ export class PaymentService {
       });
 
       await loanService.ensureLoanAfterDownPayment(application.id);
+      await cartRepository.removeProducts(transaction.userId, [application.productId]);
 
       await auditLogService.log({
         userId: transaction.userId,

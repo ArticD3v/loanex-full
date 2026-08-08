@@ -33,6 +33,25 @@ export function seedBrands(): BrandMaster[] {
 export function seedCategories(): CategoryMaster[] {
   const result: CategoryMaster[] = [];
   let order = 0;
+
+  const pushCategory = (name: string, parentId: string | null) => {
+    result.push({
+      id: createMasterId('cat'),
+      name,
+      parentId,
+      displayOrder: order++,
+      status: 'active',
+    });
+  };
+
+  if (Array.isArray(CATEGORIES)) {
+    // Flat string list, e.g. ['Smartphone', 'Tablet', 'Laptop'] — each is a top-level category.
+    for (const catName of CATEGORIES) {
+      pushCategory(catName, null);
+    }
+    return result;
+  }
+
   for (const [catName, subs] of Object.entries(CATEGORIES)) {
     const parentId = createMasterId('cat');
     result.push({
@@ -42,14 +61,9 @@ export function seedCategories(): CategoryMaster[] {
       displayOrder: order++,
       status: 'active',
     });
-    for (const subName of Object.keys(subs)) {
-      result.push({
-        id: createMasterId('cat'),
-        name: subName,
-        parentId,
-        displayOrder: order++,
-        status: 'active',
-      });
+    const subNames = typeof subs === 'object' && subs !== null ? Object.keys(subs) : [];
+    for (const subName of subNames) {
+      pushCategory(subName, parentId);
     }
   }
   return result;

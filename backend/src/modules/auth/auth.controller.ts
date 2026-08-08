@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { sendSuccess } from '../../common/utils/api-response';
 import {
   AdminLoginBody,
+  ChangePasswordBody,
   CompleteRegistrationBody,
   ForgotPasswordBody,
   LoginBody,
@@ -33,7 +34,10 @@ export class AuthController {
   };
 
   adminLogin = async (req: Request, res: Response): Promise<void> => {
-    const data = await authService.adminLogin(req.body as AdminLoginBody);
+    const data = await authService.adminLogin(req.body as AdminLoginBody, {
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
     sendSuccess(res, data, data.message);
   };
 
@@ -61,6 +65,15 @@ export class AuthController {
 
   resetPassword = async (req: Request, res: Response): Promise<void> => {
     const data = await authService.resetPassword(req.body as ResetPasswordBody);
+    sendSuccess(res, data, data.message);
+  };
+
+  changePassword = async (req: Request, res: Response): Promise<void> => {
+    const userId = (req as AuthenticatedRequest).user!.sub;
+    const data = await authService.changePassword(
+      userId,
+      req.body as ChangePasswordBody,
+    );
     sendSuccess(res, data, data.message);
   };
 

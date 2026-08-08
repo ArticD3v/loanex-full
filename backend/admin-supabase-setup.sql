@@ -586,6 +586,7 @@ ALTER TABLE public.products ADD COLUMN IF NOT EXISTS "countryOfOrigin" VARCHAR(1
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS "boxContents" JSONB;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS "specifications" JSONB;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS "features" JSONB;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS "variants" JSONB;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS "subCategoryId" VARCHAR(255);
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS "childCategoryId" VARCHAR(255);
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS "colourSizeVariant" JSONB;
@@ -679,10 +680,6 @@ INSERT INTO public.profiles ("id", "mobile_number", "fullName", "email", "kyc_st
 SELECT '9f6a9c3e-1111-4000-8000-0000000000ad', '9999999999', 'Super Admin', 'admin@loanex.com', 'Approved', '["Mumbai Andheri","Delhi NCR","Bengaluru"]'::jsonb, '["400053","110001","560001"]'::jsonb, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM public.profiles WHERE "id" = '9f6a9c3e-1111-4000-8000-0000000000ad');
 
--- Demo customer (already present in dump; kept for fresh DBs)
-INSERT INTO public.users ("id", "phone", "email", "role", "encryptedPassword", "created_at", "updated_at")
-SELECT 'beabd43e-1a0a-47f3-983b-455918906e89', '9462557060', 'gourimusharraf@gmail.com', 'customer', NULL, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM public.users WHERE "id" = 'beabd43e-1a0a-47f3-983b-455918906e89');
 
 -- Catalog seeds (idempotent — no-op if already present)
 INSERT INTO public."categories" ("id", "name", "description", "icon", "color", "bgColor", "status", "sortOrder", "createdAt")

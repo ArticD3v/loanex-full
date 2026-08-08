@@ -14,10 +14,10 @@ async function bootstrap() {
 
   try {
     const res = await pool.query('SELECT NOW()');
-    console.info('[Native PG DB] Connected to PostgreSQL at', res.rows[0].now);
+    const now = res.rows?.[0]?.now;
+    console.info('[Native PG DB] Connected to PostgreSQL at', now ?? 'n/a');
   } catch (error) {
-    console.error('[DB] Failed to connect to PostgreSQL', error);
-    process.exit(1);
+    console.warn('[DB] Native PostgreSQL unavailable (using Supabase/jsonDb), continuing:', error?.message);
   }
 
   const server = app.listen(env.PORT, () => {

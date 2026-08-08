@@ -9,6 +9,8 @@ export interface Product {
   description: string;
   shortDescription: string;
   categoryId: string;
+  /** Resolved category name (backend enriches this) */
+  category?: string;
   image: string;
   galleryImages: string[];
   price: number;
@@ -17,7 +19,7 @@ export interface Product {
   stock: number;
   availableStock: number;
   reservedStock: number;
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'draft' | 'out_of_stock' | 'archived';
   emiAvailable: boolean;
   featured: boolean;
   trending: boolean;
@@ -54,6 +56,7 @@ export interface ProductQueryParams {
   trending?: boolean;
   recommended?: boolean;
   search?: string;
+  status?: 'all' | 'active' | 'inactive' | 'draft';
 }
 
 /**

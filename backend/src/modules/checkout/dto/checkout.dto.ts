@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const createCheckoutBodySchema = z.object({
   mode: z.enum(['BUY_NOW', 'CART']).optional().default('BUY_NOW'),
   productId: z.string().trim().optional(),
+  variantId: z.string().trim().optional(),
   quantity: z.coerce.number().int().min(1, 'Quantity must be at least 1').max(20).default(1),
   purchaseType: z.enum(['EMI', 'DIRECT']),
   addressId: z.string().trim().min(1).optional(),

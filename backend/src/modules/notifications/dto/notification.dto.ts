@@ -1,4 +1,4 @@
-import { NotificationPriority, NotificationType } from '@prisma/client';
+import { NotificationPriority, NotificationType } from '../repository/notification.repository';
 
 export type CreateNotificationDto = {
   userId: string;

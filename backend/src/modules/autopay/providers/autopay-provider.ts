@@ -14,6 +14,25 @@ export type CreateMandateProviderInput = {
   nextDebitDate: Date | null;
   bankName?: string | null;
   upiId?: string | null;
+  /** Customer contact used by real gateways (Razorpay payment-link customer). */
+  customerName?: string | null;
+  customerPhone?: string | null;
+  /**
+   * Billing cycles for a recurring mandate (remaining EMIs). Defaults to 12.
+   */
+  totalCount?: number;
+  /**
+   * Exact amount charged per cycle. MUST be the real EMI amount — do NOT pass
+   * the mandate cap (maximumDebitAmount may be EMI x 1.2 as a debit ceiling;
+   * pricing the plan at the cap overcharges the customer every cycle).
+   * Defaults to maximumDebitAmount when omitted.
+   */
+  amountPerCycle?: number;
+  /**
+   * First debit date for a recurring mandate. Providers must respect the
+   * gateway's minimum lead time (Razorpay UPI requires >= 24h from creation).
+   */
+  startAt?: Date | null;
 };
 
 export type CreateMandateProviderResult = {
@@ -21,6 +40,8 @@ export type CreateMandateProviderResult = {
   mandateId: string;
   mandateReference: string;
   status: AutopayMandateStatus;
+  /** Customer-facing URL where the customer approves the mandate (UPI/eMandate). */
+  approvalUrl?: string | null;
   raw: Record<string, unknown>;
 };
 

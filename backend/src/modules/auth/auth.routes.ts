@@ -6,6 +6,7 @@ import { env } from '../../config/env';
 import { authController } from './auth.controller';
 import {
   adminLoginBodySchema,
+  changePasswordBodySchema,
   completeRegistrationBodySchema,
   forgotPasswordBodySchema,
   loginBodySchema,
@@ -84,6 +85,13 @@ authRouter.post(
   '/reset-password',
   validateRequest(resetPasswordBodySchema),
   asyncHandler(authController.resetPassword),
+);
+
+authRouter.post(
+  '/change-password',
+  authenticate,
+  validateRequest(changePasswordBodySchema),
+  asyncHandler(authController.changePassword),
 );
 
 authRouter.post(

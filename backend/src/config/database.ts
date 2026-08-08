@@ -60,8 +60,18 @@ export async function query<T = any>(text: string, params?: any[]): Promise<{ ro
 
   // Handle SELECT queries
   if (lower.startsWith('select')) {
-    const match = trimmed.match(/from\s+["']?([a-zA-Z0-9_]+)["']?/i);
-    const tableName = match ? resolveCollectionName(match[1]) : 'products';
+    // Unqualified scalar selects (SELECT NOW(), SELECT 1, SELECT CURRENT_TIMESTAMP)
+    // have no FROM clause — emulate a Postgres row instead of querying a table.
+    const fromMatch = trimmed.match(/from\s+["']?([a-zA-Z0-9_]+)["']?/i);
+    if (!fromMatch) {
+      const scalarMatch = trimmed.match(/select\s+([\w()]+)/i);
+      const key = scalarMatch ? scalarMatch[1].toLowerCase() : 'value';
+      const value = /now|current_timestamp|timezone/.test(lower)
+        ? new Date().toISOString()
+        : 1;
+      return { rows: [{ [key]: value }] as any[], rowCount: 1 };
+    }
+    const tableName = resolveCollectionName(fromMatch[1]);
     const where: Record<string, any> = {};
 
     if (params && params.length > 0) {

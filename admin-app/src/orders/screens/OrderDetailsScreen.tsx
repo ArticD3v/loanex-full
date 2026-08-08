@@ -20,7 +20,7 @@ import { radius, spacing } from '../../theme/spacing';
 import { RootStackParamList } from '../../navigation/types';
 
 import { getOrderById, updateOrderStatus } from '../../services/orderService';
-import { Order, OrderStatus } from '../../types/order';
+import { Order, OrderStatus, PAYMENT_TYPE_LABEL } from '../../types/order';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OrderDetails'>;
 
@@ -28,13 +28,25 @@ const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   pending: 'Pending',
   confirmed: 'Confirmed',
   approved: 'Approved',
+  processing: 'Processing',
   packed: 'Packed',
   shipped: 'Shipped',
+  out_for_delivery: 'Out for Delivery',
   delivered: 'Delivered',
   cancelled: 'Cancelled',
 };
 
-const STATUS_OPTIONS = ['pending', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'];
+const STATUS_OPTIONS: Record<OrderStatus, string[]> = {
+  pending: ['confirmed', 'cancelled'],
+  confirmed: ['processing', 'cancelled'],
+  approved: [],
+  processing: ['packed', 'cancelled'],
+  packed: ['shipped'],
+  shipped: ['out_for_delivery'],
+  out_for_delivery: ['delivered'],
+  delivered: [],
+  cancelled: [],
+};
 
 function formatLabel(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -137,16 +149,22 @@ export function OrderDetailsScreen({ navigation, route }: Props) {
           <SectionTitle title="Order Information" />
           <DetailRow label="Order ID" value={order.id} />
           <DetailRow label="Order Date" value={formatDate(order.orderDate)} />
-          <DetailRow label="Payment Type" value={formatLabel(order.paymentType)} isLast />
+          <DetailRow label="Payment Type" value={PAYMENT_TYPE_LABEL[order.paymentType]} isLast />
           
           <View style={{ marginTop: 16 }}>
-             <Dropdown 
-               label="Update Order Status" 
-               options={STATUS_OPTIONS} 
-               value={order.status} 
-               onSelect={handleUpdateStatus} 
-             />
-             {updatingStatus && <Text style={{ color: colors.primary, marginTop: 4, fontSize: 12 }}>Updating...</Text>}
+            {STATUS_OPTIONS[order.status]?.length ? (
+              <Dropdown
+                label="Update Order Status"
+                options={STATUS_OPTIONS[order.status]}
+                value={order.status}
+                onSelect={handleUpdateStatus}
+              />
+            ) : (
+              <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+                Order status can't be changed from {formatLabel(order.status)}.
+              </Text>
+            )}
+            {updatingStatus && <Text style={{ color: colors.primary, marginTop: 4, fontSize: 12 }}>Updating...</Text>}
           </View>
         </Card>
 
@@ -178,7 +196,7 @@ export function OrderDetailsScreen({ navigation, route }: Props) {
           <SectionTitle title="EMI Information" />
           <DetailRow
             label="Payment Type"
-            value={formatLabel(order.paymentType)}
+            value={PAYMENT_TYPE_LABEL[order.paymentType]}
             isLast={order.paymentType !== 'emi'}
           />
           {order.paymentType === 'emi' && (

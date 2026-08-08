@@ -6,6 +6,10 @@ export enum NotificationCategory {
   KYC = 'KYC',
   PROMOTION = 'PROMOTION',
   SYSTEM = 'SYSTEM',
+  LOAN = 'LOAN',
+  OFFERS = 'OFFERS',
+  ORDERS = 'ORDERS',
+  PAYMENTS = 'PAYMENTS',
 }
 
 export enum NotificationPriority {
@@ -25,6 +29,18 @@ export enum NotificationType {
   KYC_APPROVED = 'KYC_APPROVED',
   KYC_REJECTED = 'KYC_REJECTED',
   SYSTEM_ALERT = 'SYSTEM_ALERT',
+  APPLICATION_APPROVED = 'APPLICATION_APPROVED',
+  APPLICATION_REJECTED = 'APPLICATION_REJECTED',
+  APPLICATION_SUBMITTED = 'APPLICATION_SUBMITTED',
+  AUTOPAY_FAILED = 'AUTOPAY_FAILED',
+  AUTOPAY_SUCCESS = 'AUTOPAY_SUCCESS',
+  DOWN_PAYMENT_SUCCESS = 'DOWN_PAYMENT_SUCCESS',
+  EMI_FAILED = 'EMI_FAILED',
+  LOAN_CLOSED = 'LOAN_CLOSED',
+  OFFER_ACCEPTED = 'OFFER_ACCEPTED',
+  OFFER_RECEIVED = 'OFFER_RECEIVED',
+  ORDER_CONFIRMED = 'ORDER_CONFIRMED',
+  SYSTEM = 'SYSTEM',
 }
 
 export type NotificationListFilters = {
@@ -111,6 +127,14 @@ export class NotificationRepository {
     const items = jsonDb.findMany('notification', {})
       .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return items.slice(0, limit);
+  }
+
+  adminMarkAllRead() {
+    const toUpdate = jsonDb.findMany('notification', { isRead: false });
+    for (const notif of toUpdate) {
+      jsonDb.update('notification', { id: notif.id }, { isRead: true, readAt: new Date() });
+    }
+    return { count: toUpdate.length };
   }
 
   findReminderDuplicate(userId: string, reminderKey: string) {

@@ -14,7 +14,8 @@ import { radius, shadow, spacing } from '../../theme/spacing';
 interface UserCardProps {
   user: AppUser;
   onView: () => void;
-  onEdit: () => void;
+  /** Hidden when the logged-in user lacks users.edit. */
+  onEdit?: () => void;
 }
 
 const STATUS_STYLE: Record<UserStatus, { label: string; bg: string; text: string }> = {
@@ -63,11 +64,15 @@ export function UserCard({ user, onView, onEdit }: UserCardProps) {
           <Ionicons name="eye-outline" size={18} color={colors.primary} />
           <Text style={styles.actionLabel}>View</Text>
         </TouchableOpacity>
-        <View style={styles.actionDivider} />
-        <TouchableOpacity style={styles.actionBtn} onPress={onEdit} activeOpacity={0.7}>
-          <Ionicons name="create-outline" size={18} color={colors.accentDark} />
-          <Text style={[styles.actionLabel, styles.actionLabelPrimary]}>Edit</Text>
-        </TouchableOpacity>
+        {onEdit ? (
+          <>
+            <View style={styles.actionDivider} />
+            <TouchableOpacity style={styles.actionBtn} onPress={onEdit} activeOpacity={0.7}>
+              <Ionicons name="create-outline" size={18} color={colors.accentDark} />
+              <Text style={[styles.actionLabel, styles.actionLabelPrimary]}>Edit</Text>
+            </TouchableOpacity>
+          </>
+        ) : null}
       </View>
     </View>
   );

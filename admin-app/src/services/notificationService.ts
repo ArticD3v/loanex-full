@@ -42,15 +42,15 @@ export const deleteNotification = async (notificationId: string): Promise<void> 
 };
 
 /**
- * Mark a notification as read
+ * Mark a notification as read (admin endpoint)
  */
 export const markNotificationRead = async (notificationId: string): Promise<void> => {
-  await api.patch(`/notifications/${notificationId}/read`);
+  await api.patch(`/admin/notifications/${notificationId}/read`);
 };
 
 /**
- * Mark all notifications as read
+ * Mark all notifications as read (admin endpoint)
  */
 export const markAllNotificationsRead = async (): Promise<void> => {
-  await api.patch('/notifications/read-all');
+  await api.patch('/admin/notifications/read-all');
 };

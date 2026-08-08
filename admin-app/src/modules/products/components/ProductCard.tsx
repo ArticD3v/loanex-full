@@ -14,8 +14,10 @@ import { radius, shadow, spacing } from '../../../theme/spacing';
 
 interface ProductCardProps {
   product: Product;
-  onEdit: () => void;
-  onDelete: () => void;
+  /** Hidden when the logged-in user lacks products.edit. */
+  onEdit?: () => void;
+  /** Hidden when the logged-in user lacks products.delete. */
+  onDelete?: () => void;
   onView: () => void;
 }
 
@@ -33,7 +35,12 @@ export function ProductCard({ product, onEdit, onDelete, onView }: ProductCardPr
   const isTablet = width >= 768;
 
   const formatPrice = (price: number) => `₹${price.toLocaleString('en-IN')}`;
-  const status = STATUS_STYLE[product.status] || { label: product.status || 'Unknown', bg: colors.borderLight, text: colors.textSecondary };
+  // Sold out reads clearly even when an admin hasn't flipped the status field.
+  const status =
+    product.stock === 0
+      ? STATUS_STYLE.out_of_stock
+      : STATUS_STYLE[product.status] || { label: product.status || 'Unknown', bg: colors.borderLight, text: colors.textSecondary };
+  const lowStock = product.stock > 0 && product.stock <= 5;
 
   return (
     <View style={[styles.card, shadow.sm, isTablet && styles.cardTablet]}>
@@ -68,8 +75,15 @@ export function ProductCard({ product, onEdit, onDelete, onView }: ProductCardPr
 
           <View style={styles.priceRow}>
             <Text style={styles.price}>{formatPrice(product.sellingPrice)}</Text>
-            <Text style={[styles.stock, product.stock === 0 && styles.stockOut]}>
+            <Text
+              style={[
+                styles.stock,
+                product.stock === 0 && styles.stockOut,
+                lowStock && styles.stockLow,
+              ]}
+            >
               Stock: {product.stock}
+              {lowStock ? ' · Low' : ''}
             </Text>
           </View>
         </View>
@@ -77,10 +91,18 @@ export function ProductCard({ product, onEdit, onDelete, onView }: ProductCardPr
 
       <View style={styles.actions}>
         <ActionBtn icon="eye-outline" label="View" onPress={onView} />
-        <View style={styles.actionDivider} />
-        <ActionBtn icon="create-outline" label="Edit" onPress={onEdit} primary />
-        <View style={styles.actionDivider} />
-        <ActionBtn icon="trash-outline" label="Delete" onPress={onDelete} danger />
+        {onEdit ? (
+          <>
+            <View style={styles.actionDivider} />
+            <ActionBtn icon="create-outline" label="Edit" onPress={onEdit} primary />
+          </>
+        ) : null}
+        {onDelete ? (
+          <>
+            <View style={styles.actionDivider} />
+            <ActionBtn icon="trash-outline" label="Delete" onPress={onDelete} danger />
+          </>
+        ) : null}
       </View>
     </View>
   );
@@ -218,6 +240,9 @@ const styles = StyleSheet.create({
   },
   stockOut: {
     color: colors.danger,
+  },
+  stockLow: {
+    color: colors.warning,
   },
   actions: {
     flexDirection: 'row',

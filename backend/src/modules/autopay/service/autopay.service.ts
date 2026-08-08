@@ -2,13 +2,16 @@ import {
   AutopayMandateStatus,
   AutopayPaymentMethod,
   LoanStatus,
+  PaymentStatus,
 } from '@prisma/client';
+import { emiPaymentService } from '../../emi-payment/service/emi-payment.service';
 import {
   BadRequestError,
   ConflictError,
   ForbiddenError,
   NotFoundError,
 } from '../../../common/errors/app-error';
+import { jsonDb } from '../../../config/json-db';
 import { auditLogService } from '../../verification/service/audit-log.service';
 import { getAutopayProvider } from '../providers/provider.factory';
 import {
@@ -36,6 +39,7 @@ function mapMandate(mandate: {
   failureReason: string | null;
   createdAt: Date;
   updatedAt: Date;
+  providerPayload?: Record<string, any> | null;
 }) {
   return {
     id: mandate.id,
@@ -50,6 +54,7 @@ function mapMandate(mandate: {
     nextDebitDate: mandate.nextDebitDate,
     status: mandate.status,
     failureReason: mandate.failureReason,
+    approvalUrl: mandate.providerPayload?.shortUrl ?? null,
     createdAt: mandate.createdAt,
     updatedAt: mandate.updatedAt,
   };
@@ -92,12 +97,12 @@ export class AutopayService {
         !loan.autopayEnabled &&
         (!mandate ||
           ![AutopayMandateStatus.PENDING, AutopayMandateStatus.ACTIVE].includes(
-            mandate.status as AutopayMandateStatus,
+            mandate.status,
           )),
       canDisable: Boolean(
         mandate &&
           [AutopayMandateStatus.PENDING, AutopayMandateStatus.ACTIVE, AutopayMandateStatus.PAUSED].includes(
-            mandate.status as AutopayMandateStatus,
+            mandate.status,
           ),
       ),
     };
@@ -137,6 +142,19 @@ export class AutopayService {
         : toNumber(loan.emiAmount) * 1.2,
     );
 
+    // Real gateways (Razorpay) need the customer's actual mobile + name on the
+    // mandate link — fall back gracefully when the profile is incomplete.
+    const customer = jsonDb.findOne('users', { id: userId });
+    const customerName =
+      customer?.fullName || customer?.name || customer?.email?.split('@')[0] || null;
+    const customerPhone = customer?.phone || customer?.mobile || null;
+
+    // One billing cycle per remaining EMI so the subscription naturally ends
+    // when the loan is paid off.
+    const remainingEmis = (Array.isArray(loan.schedule) ? loan.schedule : []).filter(
+      (row: any) => row.paymentStatus !== 'PAID',
+    ).length;
+
     const provider = getAutopayProvider();
     const created = await provider.createMandate({
       loanAccountId: loan.id,
@@ -148,6 +166,13 @@ export class AutopayService {
       nextDebitDate: loan.nextEmiDueDate,
       bankName: input.bankName ?? null,
       upiId: input.upiId ?? null,
+      customerName,
+      customerPhone,
+      totalCount: remainingEmis > 0 ? remainingEmis : 12,
+      startAt: loan.nextEmiDueDate ? new Date(loan.nextEmiDueDate) : null,
+      // Price each cycle at the exact EMI — maxDebit (EMI x 1.2) is only the
+      // mandate ceiling and must never be the per-cycle charge.
+      amountPerCycle: toNumber(loan.emiAmount) > 0 ? toNumber(loan.emiAmount) : maxDebit,
     });
 
     const mandate = await autopayRepository.createMandate({
@@ -185,9 +210,11 @@ export class AutopayService {
 
     return {
       ...mapMandate(mandate),
+      approvalUrl:
+        (mandate.providerPayload?.shortUrl as string | undefined) ?? null,
       message:
         mandate.status === AutopayMandateStatus.PENDING
-          ? 'Mandate created and pending approval.'
+          ? 'Mandate created. Approve it from the payment link to activate AutoPay.'
           : 'AutoPay enabled successfully.',
     };
   }
@@ -360,6 +387,301 @@ export class AutopayService {
     });
 
     return mapMandate(updated);
+  }
+
+  /**
+   * Razorpay webhook entry point for AutoDebit (called by the payment webhook
+   * after signature validation). Handles subscription lifecycle events and
+   * recurring invoice collection — the actual "collect EMI automatically on
+   * the due date" path.
+   */
+  async handleRazorpayWebhook(eventName: string, event: any) {
+    const subscriptionId = String(
+      event?.payload?.subscription?.entity?.id ??
+        event?.payload?.invoice?.entity?.subscription_id ??
+        '',
+    );
+
+    if (eventName.startsWith('subscription.')) {
+      return this.handleSubscriptionEvent(eventName, subscriptionId, event);
+    }
+    if (eventName === 'invoice.paid') {
+      return this.handleInvoicePaid(subscriptionId, event);
+    }
+    if (eventName === 'invoice.payment_failed') {
+      return this.handleInvoicePaymentFailed(subscriptionId, event);
+    }
+    return { handled: false, reason: 'UNHANDLED_AUTOPAY_EVENT', event: eventName };
+  }
+
+  private async handleSubscriptionEvent(
+    eventName: string,
+    subscriptionId: string,
+    event: any,
+  ) {
+    const mandate = await autopayRepository.findByMandateId(subscriptionId);
+    if (!mandate) {
+      return { handled: false, reason: 'UNKNOWN_SUBSCRIPTION', event: eventName };
+    }
+
+    const entity = event?.payload?.subscription?.entity ?? {};
+    const rawStatus = String(entity?.status ?? '').toLowerCase();
+
+    if (
+      eventName === 'subscription.authenticated' ||
+      eventName === 'subscription.activated' ||
+      rawStatus === 'active' ||
+      rawStatus === 'authenticated'
+    ) {
+      if (mandate.status === AutopayMandateStatus.ACTIVE) {
+        return { handled: true, alreadyProcessed: true, event: eventName };
+      }
+      await autopayRepository.updateMandateStatus(mandate.id, {
+        status: AutopayMandateStatus.ACTIVE,
+        providerPayload: {
+          ...(mandate.providerPayload ?? {}),
+          lastWebhook: eventName,
+          subscriptionStatus: rawStatus,
+        },
+      });
+      await autopayRepository.setLoanAutopayEnabled(mandate.loanAccountId, true);
+      await this.activateMandateSideEffects(mandate.id, mandate.userId, mandate.loanAccountId);
+      return { handled: true, status: 'ACTIVE', event: eventName };
+    }
+
+    if (eventName === 'subscription.halted' || rawStatus === 'halted') {
+      await autopayRepository.updateMandateStatus(mandate.id, {
+        status: AutopayMandateStatus.FAILED,
+        failureReason: 'Recurring EMI collection failed repeatedly — subscription halted by Razorpay.',
+        providerPayload: {
+          ...(mandate.providerPayload ?? {}),
+          lastWebhook: eventName,
+          subscriptionStatus: rawStatus,
+        },
+      });
+      await autopayRepository.setLoanAutopayEnabled(mandate.loanAccountId, false);
+      await notificationService.notify({
+        userId: mandate.userId,
+        event: 'AUTO_PAY_FAILED',
+        title: 'AutoPay halted',
+        message:
+          'Recurring EMI collection failed repeatedly. Please pay your EMI manually.',
+        metadata: { loanAccountId: mandate.loanAccountId, subscriptionId },
+      });
+      await auditLogService.log({
+        userId: mandate.userId,
+        action: 'MANDATE_HALTED',
+        entity: 'autopay_mandates',
+        metadata: { mandateId: mandate.id, subscriptionId, timestamp: new Date().toISOString() },
+      });
+      return { handled: true, status: 'FAILED', event: eventName };
+    }
+
+    if (
+      eventName === 'subscription.cancelled' ||
+      eventName === 'subscription.completed' ||
+      eventName === 'subscription.expired' ||
+      rawStatus === 'cancelled' ||
+      rawStatus === 'completed' ||
+      rawStatus === 'expired'
+    ) {
+      const status =
+        rawStatus === 'expired'
+          ? AutopayMandateStatus.EXPIRED
+          : AutopayMandateStatus.CANCELLED;
+      await autopayRepository.updateMandateStatus(mandate.id, {
+        status,
+        providerPayload: {
+          ...(mandate.providerPayload ?? {}),
+          lastWebhook: eventName,
+          subscriptionStatus: rawStatus,
+        },
+      });
+      await autopayRepository.setLoanAutopayEnabled(mandate.loanAccountId, false);
+      await notificationService.notify({
+        userId: mandate.userId,
+        event: 'AUTO_PAY_DISABLED',
+        title: status === AutopayMandateStatus.EXPIRED ? 'AutoPay expired' : 'AutoPay disabled',
+        message: `AutoPay ${status === AutopayMandateStatus.EXPIRED ? 'expired' : 'was disabled'}. You can pay EMIs manually from My EMI.`,
+        metadata: { loanAccountId: mandate.loanAccountId, subscriptionId, status },
+      });
+      await auditLogService.log({
+        userId: mandate.userId,
+        action: 'MANDATE_CLOSED',
+        entity: 'autopay_mandates',
+        metadata: { mandateId: mandate.id, subscriptionId, status, timestamp: new Date().toISOString() },
+      });
+      return { handled: true, status, event: eventName };
+    }
+
+    return { handled: false, reason: 'UNHANDLED_SUBSCRIPTION_EVENT', event: eventName };
+  }
+
+  /**
+   * `invoice.paid` — Razorpay collected the recurring EMI. Mark the next
+   * unpaid instalment PAID and roll the loan forward, exactly like a manual
+   * payment (receipt, audit, notification included).
+   */
+  private async handleInvoicePaid(subscriptionId: string, event: any) {
+    const mandate = await autopayRepository.findByMandateId(subscriptionId);
+    if (!mandate || !mandate.loanAccount) {
+      return { handled: false, reason: 'UNKNOWN_SUBSCRIPTION', event: 'invoice.paid' };
+    }
+
+    const invoice = event?.payload?.invoice?.entity ?? {};
+    const razorpayPaymentId = String(
+      invoice?.payment_id ??
+        invoice?.payments?.[0]?.payment_id ??
+        invoice?.payment?.entity?.id ??
+        '',
+    );
+    if (!razorpayPaymentId) {
+      return { handled: false, reason: 'NO_PAYMENT_ID', event: 'invoice.paid' };
+    }
+
+    // Dedup — Razorpay redelivers webhooks; never double-complete an EMI.
+    const existing = await autopayRepository.findTransactionByPaymentId(razorpayPaymentId);
+    if (existing?.paymentStatus === PaymentStatus.SUCCESS) {
+      return { handled: true, alreadyProcessed: true, event: 'invoice.paid' };
+    }
+
+    const loan = await autopayRepository.findLoanById(mandate.loanAccountId);
+    if (!loan) return { handled: false, reason: 'LOAN_NOT_FOUND', event: 'invoice.paid' };
+
+    const unpaid = (loan.schedule ?? [])
+      .filter((row: any) => row.paymentStatus !== 'PAID')
+      .sort((a: any, b: any) => a.emiNumber - b.emiNumber);
+    const nextEmi = unpaid[0];
+    if (!nextEmi) {
+      return { handled: true, alreadyProcessed: true, reason: 'NO_UNPAID_EMI', event: 'invoice.paid' };
+    }
+
+    const amountPaise = Number(invoice?.amount_paid ?? invoice?.amount ?? 0);
+    const amountInr = Math.round((amountPaise / 100) * 100) / 100;
+    const chargedAmount = amountInr || toNumber(nextEmi.emiAmount);
+
+    // A PENDING transaction means a previous delivery created the row but the
+    // completion crashed before marking SUCCESS — finish the job instead of
+    // skipping, so the EMI is never left unpaid.
+    const transaction =
+      existing?.paymentStatus === PaymentStatus.PENDING &&
+      existing.emiScheduleId === nextEmi.id
+        ? existing
+        : autopayRepository.createAutoCollectTransaction({
+            applicationId: loan.applicationId,
+            userId: loan.userId,
+            emiScheduleId: nextEmi.id,
+            razorpayPaymentId,
+            amount: chargedAmount,
+          });
+
+    const completed = (await emiPaymentService.completeEmiFromWebhook(
+      {
+        id: transaction.id,
+        userId: loan.userId,
+        emiScheduleId: nextEmi.id,
+        amount: chargedAmount,
+      },
+      razorpayPaymentId,
+      'invoice.paid',
+    )) as {
+      handled: boolean;
+      alreadyProcessed?: boolean;
+      emiNumber?: number;
+      outstandingAmount?: number;
+      unpaidCount?: number;
+      remainingEmis?: number;
+    };
+
+    await notificationService.notify({
+      userId: loan.userId,
+      event: 'AUTO_PAY_SUCCESS',
+      title: 'EMI paid automatically',
+      message: `EMI #${nextEmi.emiNumber} of ${toNumber(nextEmi.emiAmount)} was collected automatically for loan ${loan.loanAccountNumber}.`,
+      metadata: {
+        loanAccountId: loan.id,
+        loanAccountNumber: loan.loanAccountNumber,
+        emiNumber: nextEmi.emiNumber,
+        razorpayPaymentId,
+      },
+    });
+
+    await auditLogService.log({
+      userId: loan.userId,
+      action: 'AUTOPAY_EMI_COLLECTED',
+      entity: 'autopay_mandates',
+      metadata: {
+        emiId: nextEmi.id,
+        emiNumber: nextEmi.emiNumber,
+        razorpayPaymentId,
+        amount: amountInr || toNumber(nextEmi.emiAmount),
+        outstandingAmount: completed.outstandingAmount,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    return {
+      handled: true,
+      alreadyProcessed: false,
+      emiNumber: nextEmi.emiNumber,
+      outstandingAmount: completed.outstandingAmount,
+      remainingEmis: completed.unpaidCount ?? completed.remainingEmis ?? 0,
+      event: 'invoice.paid',
+    };
+  }
+
+  /**
+   * `invoice.payment_failed` — the recurring charge bounced. Record the failed
+   * attempt and notify; the EMI stays PENDING/OVERDUE so the customer can pay
+   * manually (Razorpay retries, and a later invoice.paid completes it).
+   */
+  private async handleInvoicePaymentFailed(subscriptionId: string, event: any) {
+    const mandate = await autopayRepository.findByMandateId(subscriptionId);
+    if (!mandate || !mandate.loanAccount) {
+      return { handled: false, reason: 'UNKNOWN_SUBSCRIPTION', event: 'invoice.payment_failed' };
+    }
+
+    const invoice = event?.payload?.invoice?.entity ?? {};
+    const razorpayPaymentId = String(invoice?.payment_id ?? invoice?.payments?.[0]?.payment_id ?? '');
+
+    if (razorpayPaymentId) {
+      const existing = await autopayRepository.findTransactionByPaymentId(razorpayPaymentId);
+      if (!existing) {
+        const loan = await autopayRepository.findLoanById(mandate.loanAccountId);
+        const unpaid = (loan?.schedule ?? [])
+          .filter((row: any) => row.paymentStatus !== 'PAID')
+          .sort((a: any, b: any) => a.emiNumber - b.emiNumber);
+        const nextEmi = unpaid[0];
+        if (loan && nextEmi) {
+          const amountPaise = Number(invoice?.amount ?? 0);
+          const failed = autopayRepository.createAutoCollectTransaction({
+            applicationId: loan.applicationId,
+            userId: loan.userId,
+            emiScheduleId: nextEmi.id,
+            razorpayPaymentId,
+            amount: Math.round((amountPaise / 100) * 100) / 100 || toNumber(nextEmi.emiAmount),
+          });
+          jsonDb.update('paymentTransaction', { id: failed.id }, { paymentStatus: PaymentStatus.FAILED });
+        }
+      }
+    }
+
+    await notificationService.notify({
+      userId: mandate.userId,
+      event: 'AUTO_PAY_FAILED',
+      title: 'EMI collection failed',
+      message: 'Automatic EMI collection failed. Please pay this EMI manually from My EMI.',
+      metadata: { loanAccountId: mandate.loanAccountId, subscriptionId },
+    });
+
+    await auditLogService.log({
+      userId: mandate.userId,
+      action: 'AUTOPAY_EMI_FAILED',
+      entity: 'autopay_mandates',
+      metadata: { subscriptionId, event: 'invoice.payment_failed', timestamp: new Date().toISOString() },
+    });
+
+    return { handled: true, event: 'invoice.payment_failed' };
   }
 
   async disableForClosedLoan(loanAccountId: string, userId: string) {

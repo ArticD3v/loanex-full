@@ -11,6 +11,7 @@ export interface NotificationData {
   time: string;
   read: boolean;
   type?: 'alert' | 'info' | 'success' | 'warning';
+  icon: string;
 }
 
 let items: NotificationData[] = [];
@@ -63,6 +64,7 @@ function mapFromApi(raw: any): NotificationData {
     time: formatTime(raw.createdAt),
     read: Boolean(raw.isRead ?? raw.read ?? false),
     type: (String(raw.type || '').toLowerCase() as NotificationData['type']) || undefined,
+    icon: iconForType(raw.type),
   };
 }
 

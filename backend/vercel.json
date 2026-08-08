@@ -16,5 +16,15 @@
       "includeFiles": "{dist/**,node_modules/@prisma/client/**,node_modules/.prisma/**}",
       "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/v1/internal/reminders",
+      "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/v1/internal/reminders",
+      "schedule": "30 12 * * *"
+    }
+  ]
 }

@@ -1,6 +1,8 @@
 import { Router } from 'express';
 
 import { createRateLimiter } from '../../../common/middleware/rate-limiter';
+import { authenticate } from '../../../common/middleware/authenticate';
+import { requirePermission } from '../../../common/middleware/require-permission';
 
 import { validateRequest } from '../../../common/middleware/validate';
 
@@ -52,6 +54,8 @@ productRouter.get(
 
 productRouter.post(
   '/',
+  authenticate,
+  requirePermission('products.create'),
   validateRequest(createProductBodySchema, 'body'),
   asyncHandler(productController.create),
 );
@@ -73,12 +77,16 @@ productRouter.get(
 
 productRouter.put(
   '/:productId',
+  authenticate,
+  requirePermission('products.edit'),
   validateRequest(productIdParamSchema, 'params'),
   asyncHandler(productController.update),
 );
 
 productRouter.delete(
   '/:productId',
+  authenticate,
+  requirePermission('products.delete'),
   validateRequest(productIdParamSchema, 'params'),
   asyncHandler(productController.remove),
 );

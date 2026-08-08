@@ -17,13 +17,14 @@ import {
 import { env } from '../../../config/env';
 import {
   createRazorpayOrder,
+  fetchRazorpayPayment,
   getRazorpayKeyId,
   isPaymentDevBypass,
   signDevPayment,
   verifyRazorpaySignature,
 } from '../../payment/service/razorpay.service';
 import { auditLogService } from '../../verification/service/audit-log.service';
-import { productImagePath } from '../../loan/service/loan-payload.service';
+import { resolveProductImage } from '../../../common/utils/product-assets';
 import { emiPaymentRepository } from '../repository/emi-payment.repository';
 
 function toNumber(value: { toString(): string } | number | null | undefined): number {
@@ -97,7 +98,7 @@ export class EmiPaymentService {
         loanAccountNumber: loan.loanAccountNumber,
         applicationNumber: loan.application.id,
         productName: loan.application.productName,
-        productImage: productImagePath(loan.productId),
+        productImage: resolveProductImage(loan.productId),
         loanStatus: loan.loanStatus,
       },
       emi: {
@@ -265,6 +266,27 @@ export class EmiPaymentService {
       throw new BadRequestError('Invalid Razorpay signature.');
     }
 
+    // Server-side confirmation — never trust the frontend callback alone.
+    if (!isPaymentDevBypass()) {
+      const remote = await fetchRazorpayPayment(input.razorpayPaymentId);
+      const okStatus = ['captured', 'authorized'].includes(
+        String(remote.status).toLowerCase(),
+      );
+      if (!okStatus) {
+        await emiPaymentRepository.markFailed(payment.id);
+        throw new BadRequestError('Payment not captured at Razorpay.', {
+          code: 'PAYMENT_NOT_CAPTURED',
+          status: remote.status,
+        });
+      }
+      if (remote.orderId && remote.orderId !== input.razorpayOrderId) {
+        await emiPaymentRepository.markFailed(payment.id);
+        throw new BadRequestError('Payment order mismatch.', {
+          code: 'ORDER_MISMATCH',
+        });
+      }
+    }
+
     const schedule = await emiPaymentRepository.findScheduleByIdForUser(input.emiId, userId);
     if (!schedule) throw new NotFoundError('EMI instalment not found.');
     if (schedule.paymentStatus === EmiPaymentStatus.PAID) {
@@ -321,6 +343,89 @@ export class EmiPaymentService {
       nextEmiDueDate: result.nextEmiDueDate,
       receiptAvailable: true,
       message: 'EMI payment successful.',
+    };
+  }
+
+  /**
+   * Webhook-driven completion for an EMI instalment payment. The client-side
+   * /verify may never run (tab closed after Razorpay captures), so the webhook
+   * must mark the schedule PAID server-side — otherwise the money is taken and
+   * the EMI stays PENDING forever.
+   */
+  async completeEmiFromWebhook(
+    transaction: {
+      id: string;
+      userId: string;
+      emiScheduleId: string | null;
+      amount: number;
+    },
+    razorpayPaymentId: string,
+    eventName: string,
+  ) {
+    if (!transaction.emiScheduleId) {
+      return { handled: false, reason: 'NO_EMI_SCHEDULE' };
+    }
+
+    const schedule = await emiPaymentRepository.findScheduleById(
+      transaction.emiScheduleId,
+    );
+    if (!schedule) {
+      return { handled: false, reason: 'EMI_SCHEDULE_NOT_FOUND' };
+    }
+    if (!schedule.loanAccount) {
+      return { handled: false, reason: 'EMI_LOAN_NOT_FOUND' };
+    }
+
+    if (schedule.paymentStatus === EmiPaymentStatus.PAID) {
+      return { handled: true, alreadyProcessed: true, emiId: schedule.id };
+    }
+
+    const receiptPath = await this.generateReceiptPdf({
+      loanAccountNumber: schedule.loanAccount.loanAccountNumber,
+      applicationNumber: schedule.loanAccount.application?.id ?? '—',
+      productName: schedule.loanAccount.application?.productName ?? null,
+      emiNumber: schedule.emiNumber,
+      amount: toNumber(transaction.amount),
+      razorpayPaymentId,
+      paidAt: new Date(),
+    });
+
+    const result = await emiPaymentRepository.completeEmiPayment({
+      paymentId: transaction.id,
+      emiScheduleId: schedule.id,
+      loanAccountId: schedule.loanAccountId,
+      razorpayPaymentId,
+      razorpaySignature: `webhook:${eventName}`,
+      paidAmount: toNumber(transaction.amount),
+      receiptPath,
+    });
+
+    await emiPaymentRepository.updateReceiptPath(transaction.id, receiptPath);
+
+    await auditLogService.log({
+      userId: transaction.userId,
+      action: 'EMI_PAYMENT_SUCCESS',
+      entity: 'payment_transactions',
+      metadata: {
+        emiId: schedule.id,
+        emiNumber: schedule.emiNumber,
+        source: 'WEBHOOK',
+        event: eventName,
+        razorpayPaymentId,
+        amount: toNumber(transaction.amount),
+        outstandingAmount: result.outstandingAmount,
+        remainingEmis: result.unpaidCount,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    return {
+      handled: true,
+      alreadyProcessed: false,
+      emiId: schedule.id,
+      emiNumber: schedule.emiNumber,
+      outstandingAmount: result.outstandingAmount,
+      remainingEmis: result.unpaidCount,
     };
   }
 

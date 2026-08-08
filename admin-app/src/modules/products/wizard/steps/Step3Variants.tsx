@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing.sm,
     right: spacing.sm,
-    backgroundColor: colors.surfaceHover,
+    backgroundColor: colors.dangerLight,
     width: 24,
     height: 24,
     borderRadius: 12,

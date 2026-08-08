@@ -1,6 +1,9 @@
 import { randomUUID } from 'crypto';
 import { Router, Request, Response, NextFunction } from 'express';
 import { jsonDb } from '../../config/json-db';
+import { authenticate } from '../../common/middleware/authenticate';
+import { requirePermission } from '../../common/middleware/require-permission';
+import { asyncHandler } from '../../common/utils/async-handler';
 
 export const bannerRouter = Router();
 
@@ -40,7 +43,11 @@ bannerRouter.get('/', async (_req: Request, res: Response, next: NextFunction) =
 });
 
 // POST /api/v1/banners - Create banner
-bannerRouter.post('/', async (req: Request, res: Response, next: NextFunction) => {
+bannerRouter.post(
+  '/',
+  authenticate,
+  requirePermission('products.create'),
+  asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { title, subtitle, badgeText, imageUrl, link, sortOrder, placement } = req.body;
     if (!title?.trim()) {
@@ -90,10 +97,14 @@ bannerRouter.post('/', async (req: Request, res: Response, next: NextFunction) =
   } catch (error) {
     next(error);
   }
-});
+}));
 
 // DELETE /api/v1/banners/:id - Delete banner
-bannerRouter.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
+bannerRouter.delete(
+  '/:id',
+  authenticate,
+  requirePermission('products.delete'),
+  asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     const existing = jsonDb.findOne('banners', { id });
@@ -105,4 +116,4 @@ bannerRouter.delete('/:id', async (req: Request, res: Response, next: NextFuncti
   } catch (error) {
     next(error);
   }
-});
+}));

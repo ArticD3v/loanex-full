@@ -28,6 +28,12 @@ export enum PaymentStatus {
   FAILED = 'FAILED',
 }
 
+export type OrderTracking = any;
+import { env } from '../../../config/env';
+import {
+  resolveProductBrand,
+  resolveProductImage,
+} from '../../../common/utils/product-assets';
 import { STATUS_FLOW, type OrderStatusType } from '../repository/order.repository';
 
 const BRAND = {
@@ -41,48 +47,21 @@ const BRAND = {
   success: '#16A34A',
 };
 
-const STEP_LABELS: Record<OrderStatusType, string> = {
+const STEP_LABELS: Record<string, string> = {
+  PENDING: 'Order Placed',
   ORDER_CONFIRMED: 'Order Confirmed',
   PROCESSING: 'Processing',
   PACKED: 'Packed',
   SHIPPED: 'Shipped',
   OUT_FOR_DELIVERY: 'Out for Delivery',
   DELIVERED: 'Delivered',
+  CANCELLED: 'Cancelled',
 };
 
 function toNumber(value: { toString(): string } | number | null | undefined): number {
   if (value === null || value === undefined) return 0;
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
-}
-
-export function productImagePath(productId: string): string {
-  const map: Record<string, string> = {
-    'smartphone-iphone-15': 'https://images.unsplash.com/photo-1695048133142-1a204986d903?w=800&q=80',
-    'laptop-hp-pavilion-15': 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&q=80',
-    'smart-tv-samsung-55': 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=800&q=80',
-    'refrigerator-lg-260': 'https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?w=800&q=80',
-    'washing-machine-bosch-7kg': 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=800&q=80',
-    'ac-voltas-1-5ton': 'https://images.unsplash.com/photo-1631545806606-867b4070886a?w=800&q=80',
-    'tablet-samsung-s9': 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=800&q=80',
-    'smartwatch-apple-series-9': 'https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?w=800&q=80',
-  };
-  return map[productId] ?? 'assets/images/products/laptop.png';
-}
-
-export function productBrand(productId: string, fallback?: string | null): string {
-  if (fallback) return fallback;
-  const map: Record<string, string> = {
-    'smartphone-iphone-15': 'Apple',
-    'laptop-hp-pavilion-15': 'HP',
-    'smart-tv-samsung-55': 'Samsung',
-    'refrigerator-lg-260': 'LG',
-    'washing-machine-bosch-7kg': 'Bosch',
-    'ac-voltas-1-5ton': 'Voltas',
-    'tablet-samsung-s9': 'Samsung',
-    'smartwatch-apple-series-9': 'Apple',
-  };
-  return map[productId] ?? 'LoanEx';
 }
 
 function normalizeFlowStatus(raw: unknown): OrderStatusType {
@@ -195,10 +174,13 @@ export function buildOrderPayload(order: any) {
     PAYABLE_DOWN_PAYMENT_STATUSES.includes(app.status) &&
     !downPaymentPaid;
 
-  const tenure = app.months || app.tenure || 6;
-  const monthlyEmi = toNumber(app.monthlyEmi || app.regular_emi_amount || 0);
+  const tenure = toNumber(app.approvedTenure || app.tenure || app.months || app.requestedTenure || 0) || null;
+  const monthlyEmi = toNumber(app.monthlyEmi || app.estimatedMonthlyEmi || app.regular_emi_amount || 0);
   const interestRate = toNumber(app.interestRate || 12.5);
-  const processingFee = toNumber(app.service_charge || 0);
+  const processingFee = toNumber(app.processingFee || app.service_charge || 0);
+  const gstPercent = env.GST_PERCENT;
+  const gstAmount = processingFee > 0 ? Math.round((processingFee * gstPercent) / 100) : 0;
+  const totalPayableToday = Math.round((downPayment + processingFee + gstAmount) * 100) / 100;
   const createdAt = order.createdAt ?? order.created_at ?? new Date().toISOString();
   const shippingAddress =
     order.addressSnapshot?.fullAddress ??
@@ -217,8 +199,8 @@ export function buildOrderPayload(order: any) {
       ? order.items.map((i: any) => ({
           productId: i.productId,
           productName: i.product?.name || i.productName || i.productId,
-          productBrand: productBrand(i.productId, i.product?.brand),
-          productImage: i.product?.imageUrl || productImagePath(i.productId),
+          productBrand: resolveProductBrand(i.productId, i.product?.brand),
+          productImage: i.product?.imageUrl || resolveProductImage(i.productId),
           quantity: i.quantity ?? 1,
           unitPrice: toNumber(i.unitPrice ?? productPrice),
         }))
@@ -240,9 +222,9 @@ export function buildOrderPayload(order: any) {
     productId: order.productId ?? app.productId ?? items?.[0]?.productId ?? 'prod-1',
     productName:
       app.product?.name ?? app.productName ?? order.productName ?? items?.[0]?.productName ?? 'Product',
-    productBrand: productBrand(order.productId, app.brand ?? items?.[0]?.productBrand),
+    productBrand: resolveProductBrand(order.productId, app.brand ?? items?.[0]?.productBrand),
     productImage:
-      app.product?.image ?? app.productImage ?? items?.[0]?.productImage ?? productImagePath(order.productId),
+      app.product?.image ?? app.productImage ?? items?.[0]?.productImage ?? resolveProductImage(order.productId),
     quantity: order.quantity ?? items?.[0]?.quantity ?? 1,
     items,
     productPrice,
@@ -256,16 +238,18 @@ export function buildOrderPayload(order: any) {
     monthlyEmi,
     interestRate,
     processingFee,
-    gstPercent: 18,
-    gstAmount: Math.round((processingFee * 18) / 100),
+    gstPercent,
+    gstAmount,
     totalPayableToday: paymentType === 'EMI' ? downPayment + processingFee : amountPaid,
     shippingAddress,
     billingAddress: shippingAddress,
-    courierPartner: order.courierPartner ?? 'Standard Delivery',
-    trackingNumber: order.trackingNumber ?? `TRK-${String(order.id ?? Date.now()).replace(/-/g, '').slice(-13)}`,
-    estimatedDeliveryDate:
-      order.estimatedDeliveryDate ?? new Date(Date.now() + 86400000 * 3).toISOString(),
+    // Real fulfillment fields only — never fabricate courier/tracking/warehouse
+    // placeholders. Operations fill these through the admin status update.
+    courierPartner: order.courierPartner ?? null,
+    trackingNumber: order.trackingNumber ?? null,
+    estimatedDeliveryDate: order.estimatedDeliveryDate ?? null,
     deliveryAddress: shippingAddress,
+    warehouse: order.warehouse ?? null,
     canPayDownPayment,
     downPaymentPaid,
     canOpenEmiDashboard: paymentType === 'EMI' && downPaymentPaid,
@@ -282,9 +266,11 @@ export function buildOrderPayload(order: any) {
             loanAmount,
             downPayment,
             tenure,
-            monthlyEmi,
-            interestRate,
-            processingFee,
+            monthlyEmi: monthlyEmi || null,
+            // Only surface a rate when the application actually has one — don't
+            // leak the 12.5% fallback into FULL PAYMENT order payloads.
+            interestRate: app.interestRate ? interestRate : null,
+            processingFee: processingFee || null,
           }
         : undefined,
     timeline: {
@@ -525,7 +511,7 @@ async function generateOrderPdfBuffer(
       doc.fillColor(BRAND.primary).font('Helvetica-Bold').fontSize(11).text('Delivery', left, y);
       y += 16;
       doc.fillColor(BRAND.ink).font('Helvetica').fontSize(10);
-      doc.text(`Courier: ${payload.courierPartner ?? 'Standard Delivery'}`, left, y);
+      doc.text(`Courier: ${payload.courierPartner ?? '—'}`, left, y);
       y += 14;
       doc.text(`Tracking: ${payload.trackingNumber ?? '—'}`, left, y);
       y += 14;

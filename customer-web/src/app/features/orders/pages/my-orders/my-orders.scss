@@ -82,6 +82,140 @@
   color: #166534;
 }
 
+.lx-mo__banner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.9rem;
+  align-items: start;
+  padding: 1rem 1.1rem;
+  border: 1px solid #bbf7d0;
+  border-radius: 0.9rem;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf3 100%);
+  animation: lx-mo-banner-in 380ms ease both;
+}
+
+.lx-mo__banner.is-replayed {
+  border-color: #bae6fd;
+  background: linear-gradient(135deg, #f0f9ff 0%, #eff6ff 100%);
+}
+
+@keyframes lx-mo-banner-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lx-mo__banner-icon {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #16a34a;
+  color: #fff;
+  font-size: 1.1rem;
+  box-shadow: 0 6px 14px rgba(22, 163, 74, 0.28);
+  flex-shrink: 0;
+}
+
+.lx-mo__banner.is-replayed .lx-mo__banner-icon {
+  background: #0284c7;
+  box-shadow: 0 6px 14px rgba(2, 132, 199, 0.28);
+}
+
+.lx-mo__banner-body {
+  min-width: 0;
+  padding-top: 0.1rem;
+
+  h2 {
+    margin: 0;
+    color: #14532d;
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+
+  p {
+    margin: 0.3rem 0 0;
+    color: #166534;
+    font-size: 0.88rem;
+    line-height: 1.45;
+  }
+
+  .lx-mo__banner-meta {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+
+    code {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+      font-size: 0.78rem;
+      background: rgba(22, 101, 52, 0.1);
+      border: 1px solid rgba(22, 101, 52, 0.18);
+      border-radius: 0.4rem;
+      padding: 0.12rem 0.4rem;
+      color: #14532d;
+      word-break: break-all;
+    }
+  }
+
+  .lx-btn {
+    margin-top: 0.8rem;
+    min-height: 2.3rem;
+    padding: 0.4rem 0.95rem;
+    font-size: 0.85rem;
+  }
+}
+
+.lx-mo__banner.is-replayed .lx-mo__banner-body {
+  h2 {
+    color: #0c4a6e;
+  }
+
+  p {
+    color: #075985;
+  }
+
+  code {
+    background: rgba(3, 105, 161, 0.1);
+    border-color: rgba(3, 105, 161, 0.18);
+    color: #0c4a6e;
+  }
+}
+
+.lx-mo__banner-close {
+  border: none;
+  background: transparent;
+  color: #16a34a;
+  font-size: 0.95rem;
+  width: 1.8rem;
+  height: 1.8rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(22, 163, 74, 0.12);
+    color: #14532d;
+  }
+}
+
+.lx-mo__banner.is-replayed .lx-mo__banner-close {
+  color: #0284c7;
+
+  &:hover {
+    background: rgba(2, 132, 199, 0.12);
+    color: #0c4a6e;
+  }
+}
+
 .lx-mo__loading {
   margin: 0;
   text-align: center;

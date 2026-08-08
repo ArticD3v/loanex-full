@@ -2,7 +2,7 @@ import {
   NotificationCategory,
   NotificationPriority,
   NotificationType,
-} from '@prisma/client';
+} from '../repository/notification.repository';
 import {
   ForbiddenError,
   NotFoundError,
@@ -68,7 +68,11 @@ export class NotificationService {
   }) {
     const category = categoryForType(input.type);
     const priority = input.priority ?? defaultPriority(input.type);
-    const channels = input.channels ?? ['inapp', 'email'];
+    // Default covers all outbound channels so transactional notifications
+    // (order events, autopay, reminders) are actually delivered once the
+    // real providers are configured. Callers can pass explicit channels to
+    // restrict (e.g. adminCreate stays inapp+email).
+    const channels = input.channels ?? ['inapp', 'email', 'sms', 'whatsapp'];
 
     const created = await notificationRepository.create({
       userId: input.userId,
@@ -93,6 +97,9 @@ export class NotificationService {
     });
 
     const user = jsonDb.findOne('users', { id: input.userId });
+    // User rows store the mobile under `phone` (e.g. createUser inserts
+    // phone: mobile) — fall back to `mobile` for legacy rows.
+    const mobile = user?.phone ?? user?.mobile;
 
     const outbound = {
       userId: input.userId,
@@ -103,20 +110,32 @@ export class NotificationService {
       metadata: input.metadata,
     };
 
-    await Promise.allSettled([
+    const results = await Promise.allSettled([
       channels.includes('email') && user?.email
         ? getEmailProvider().sendEmail({ ...outbound, toEmail: user.email })
         : Promise.resolve(),
-      channels.includes('sms') && user?.mobile
-        ? getSmsProvider().sendSms({ ...outbound, toMobile: user.mobile })
+      channels.includes('sms') && mobile
+        ? getSmsProvider().sendSms({ ...outbound, toMobile: mobile })
         : Promise.resolve(),
-      channels.includes('whatsapp') && user?.mobile
-        ? getWhatsAppProvider().sendWhatsApp({ ...outbound, toMobile: user.mobile })
+      channels.includes('whatsapp') && mobile
+        ? getWhatsAppProvider().sendWhatsApp({ ...outbound, toMobile: mobile })
         : Promise.resolve(),
       channels.includes('push')
         ? getPushProvider().sendPush(outbound)
         : Promise.resolve(),
     ]);
+
+    // Delivery failures must be visible even though the in-app notification
+    // (and the audit entry) already succeeded.
+    const channelsList = ['email', 'sms', 'whatsapp', 'push'];
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.error(
+          `[Notification] ${channelsList[index]} delivery failed`,
+          result.reason instanceof Error ? result.reason.message : result.reason,
+        );
+      }
+    });
 
     return mapNotification(created);
   }
@@ -279,6 +298,18 @@ export class NotificationService {
       metadata: { notificationId: id, by: 'admin', timestamp: new Date().toISOString() },
     });
     return { deleted: true };
+  }
+
+  async adminMarkRead(id: string) {
+    const existing = await notificationRepository.findById(id);
+    if (!existing) throw new NotFoundError('Notification not found.');
+    await notificationRepository.markRead(id, existing.userId);
+    return mapNotification(await notificationRepository.findById(id));
+  }
+
+  async adminMarkAllRead() {
+    const result = await notificationRepository.adminMarkAllRead();
+    return { updated: result.count };
   }
 
   assertOwner(userId: string, ownerId: string) {

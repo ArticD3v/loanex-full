@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Product } from '../types/product';
-import { getProductById } from '../../../services/productService';
+import { getProductById, updateProduct } from '../../../services/productService';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
@@ -36,13 +36,17 @@ export function ProductDetailsScreen({ navigation, route }: Props) {
           id: data.id,
           name: data.name,
           sku: data.sku || '',
-          category: data.categoryId || 'Uncategorized',
+          category: data.category || data.categoryId || 'Uncategorized',
           brand: data.brand || 'No Brand',
           sellingPrice: Number(data.price) || 0,
           mrp: Number(data.mrp) || Number(data.price) || 0,
           stock: data.stock || 0,
-          status: data.status || 'active',
-          imageUrl: data.image || null,
+          status: (data.status || 'active') as Product['status'],
+          imageUrl: data.image || undefined,
+          featured: Boolean(data.featured),
+          trending: Boolean(data.trending),
+          recommended: Boolean(data.recommended),
+          emiAvailable: Boolean(data.emiAvailable),
         });
       } catch (err) {
         console.warn('Error loading product details', err);
@@ -88,6 +92,18 @@ export function ProductDetailsScreen({ navigation, route }: Props) {
   }
 
   const formatPrice = (price: number) => `₹${price.toLocaleString('en-IN')}`;
+
+  const toggleFlag = async (key: 'featured' | 'trending' | 'recommended') => {
+    const next = !product[key];
+    // Optimistic update so the UI feels instant.
+    setProduct((prev) => (prev ? { ...prev, [key]: next } : prev));
+    try {
+      await updateProduct(product.id, { [key]: next } as Partial<Product>);
+    } catch (err) {
+      console.warn(`Failed to update ${key}`, err);
+      setProduct((prev) => (prev ? { ...prev, [key]: !next } : prev));
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -140,8 +156,50 @@ export function ProductDetailsScreen({ navigation, route }: Props) {
           <DetailRow label="Selling Price" value={formatPrice(product.sellingPrice)} />
           <DetailRow
             label="Discount"
-            value={`${Math.round(((product.mrp - product.sellingPrice) / product.mrp) * 100)}%`}
+            value={`${
+              product.mrp > product.sellingPrice
+                ? Math.round(((product.mrp - product.sellingPrice) / product.mrp) * 100)
+                : 0
+            }%`}
           />
+        </Card>
+
+        <Card style={styles.section}>
+          <SectionTitle title="Marketing & Visibility" />
+          <DetailRow label="EMI Available" value={product.emiAvailable ? 'Yes' : 'No'} />
+          <View style={styles.flagRow}>
+            <Text style={styles.flagLabel}>Featured</Text>
+            <TouchableOpacity
+              style={[styles.flagToggle, product.featured && styles.flagToggleOn]}
+              onPress={() => toggleFlag('featured')}
+            >
+              <Text style={[styles.flagToggleText, product.featured && styles.flagToggleTextOn]}>
+                {product.featured ? 'ON' : 'OFF'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.flagRow}>
+            <Text style={styles.flagLabel}>Trending</Text>
+            <TouchableOpacity
+              style={[styles.flagToggle, product.trending && styles.flagToggleOn]}
+              onPress={() => toggleFlag('trending')}
+            >
+              <Text style={[styles.flagToggleText, product.trending && styles.flagToggleTextOn]}>
+                {product.trending ? 'ON' : 'OFF'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.flagRow}>
+            <Text style={styles.flagLabel}>Recommended</Text>
+            <TouchableOpacity
+              style={[styles.flagToggle, product.recommended && styles.flagToggleOn]}
+              onPress={() => toggleFlag('recommended')}
+            >
+              <Text style={[styles.flagToggleText, product.recommended && styles.flagToggleTextOn]}>
+                {product.recommended ? 'ON' : 'OFF'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </Card>
       </ScrollView>
 
@@ -225,6 +283,24 @@ const styles = StyleSheet.create({
   },
   detailLabel: { fontSize: 14, color: colors.textSecondary },
   detailValue: { fontSize: 14, fontWeight: '600', color: colors.text },
+  flagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  flagLabel: { fontSize: 14, color: colors.textSecondary },
+  flagToggle: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
+    backgroundColor: colors.borderLight,
+  },
+  flagToggleOn: { backgroundColor: colors.primary },
+  flagToggleText: { fontSize: 13, fontWeight: '700', color: colors.textMuted },
+  flagToggleTextOn: { color: '#FFFFFF' },
   footer: {
     flexDirection: 'row',
     gap: spacing.md,

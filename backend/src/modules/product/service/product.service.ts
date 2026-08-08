@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { NotFoundError } from '../../../common/errors/app-error';
 import { jsonDb } from '../../../config/json-db';
 import { calculateEmiBreakdown } from '../../loan/service/emi-calculator.service';
+import { stockState } from '../../../common/utils/inventory';
 import type { ListProductsQuery } from '../dto/product.dto';
 import { productRepository } from '../repository/product.repository';
 import type { Product } from '../../../types/database.types';
@@ -181,7 +182,10 @@ function parseSpecs(specifications: unknown): ProductSpecs {
       return {
         ...obj,
         rows: nestedRows,
-        keySpecs: obj.keySpecs?.length ? obj.keySpecs : rowsToKeySpecs(nestedRows),
+        keySpecs:
+          Array.isArray((obj as any).keySpecs) && (obj as any).keySpecs.length > 0
+            ? (obj as any).keySpecs
+            : rowsToKeySpecs(nestedRows),
       };
     }
     return obj;
@@ -342,7 +346,8 @@ function mapVariant(variant: ProductVariant) {
   const images = parseImages(variant.images);
   const attributes = parseAttributes(variant.attributes);
   const specs = parseVariantSpecs(variant.specifications);
-  const inStock = variant.stock > 0;
+  const stock = toNumber(variant.stock);
+  const inStock = stock > 0;
 
   return {
     id: variant.id,
@@ -353,8 +358,9 @@ function mapVariant(variant: ProductVariant) {
     sellingPrice,
     mrp,
     discount: Math.max(mrp - sellingPrice, 0),
-    stock: variant.stock,
-    stockQuantity: variant.stock,
+    stock,
+    stockQuantity: stock,
+    stockStatus: stockState(stock),
     inStock,
     images,
     imagesGallery: images.map((src: string, index: number) => ({
@@ -436,8 +442,9 @@ function mapProduct(
   const parsedGallery = parseImages(product.galleryImages);
   const images = product.image
     ? [product.image, ...parsedGallery.filter((img) => img !== product.image)]
-    : parsedGallery;
-  const inStock = (product.status === 'active' || (product as any).isActive !== false) && product.stock > 0;
+    : parsedGallery;  const inStock =
+    (product.status === 'active' || (product as any).isActive !== false) &&
+    toNumber(product.stock) > 0;
   const liveReviewCount = stats.reviewCount;
   const liveAverageRating = stats.averageRating;
   const averageRating =
@@ -460,8 +467,9 @@ function mapProduct(
     sellingPrice,
     mrp,
     discount,
-    stock: product.stock,
-    stockQuantity: product.stock,
+    stock: toNumber(product.stock),
+    stockQuantity: toNumber(product.stock),
+    stockStatus: stockState(toNumber(product.stock)),
     inStock,
     sku: product.sku,
     thumbnail: product.image,
@@ -528,6 +536,7 @@ function mapPdpProduct(
   const stock = selectedVariant?.stock ?? base.stock;
   const sku = selectedVariant?.sku ?? base.sku;
   const inStock = (product.status === 'active' || (product as any).isActive !== false) && stock > 0;
+  const stockStatus = stockState(stock);
   const keySpecs =
     selectedVariant?.keySpecs?.length ? selectedVariant.keySpecs : (specs.keySpecs ?? []);
   const specificationRows =
@@ -616,13 +625,14 @@ function mapPdpProduct(
 
   return {
     ...base,
-    price: mrp,
+    price: sellingPrice,
     discountPrice,
     sellingPrice,
     mrp,
     discount: Math.max(mrp - sellingPrice, 0),
     stock,
     stockQuantity: stock,
+    stockStatus,
     inStock,
     sku,
     thumbnail: images[0] ?? base.thumbnail,
@@ -789,6 +799,10 @@ export class ProductService {
       childCategoryId: toStr(payload.childCategory) || toStr(data.childCategoryId) || undefined,
       colourSizeVariant:
         payload.colourSizeVariant || data.colourSizeVariant || undefined,
+      // Variants must persist on the product row — cart/checkout/wishlist/PDP
+      // all resolve variant selection from product.variants.
+      variants:
+        payload.variants ?? data.variants ?? undefined,
       metaTitle: toStr(payload.metaTitle),
       metaDescription: toStr(payload.metaDescription),
       keywords: Array.isArray(payload.keywords) ? payload.keywords.join(', ') : toStr(payload.keywords),
@@ -898,12 +912,59 @@ export class ProductService {
       throw new NotFoundError('Product not found.');
     }
     const mapped = this.mapPayloadToPrisma(data);
+    // Preserve marketing flags when this request didn't explicitly set them
+    // (the wizard never sends them, so re-saving a featured product must not
+    // silently un-feature it). mapPayloadToPrisma always yields booleans, so
+    // we must inspect the raw input, not the mapped value.
+    const payload = data.wizardData || data;
+    if (data.featured === undefined && payload.featured === undefined) {
+      mapped.featured = toBool(existing.featured, false);
+    }
+    if (data.trending === undefined && payload.trending === undefined) {
+      mapped.trending = toBool(existing.trending, false);
+    }
+    if (
+      data.recommended === undefined &&
+      data.newArrival === undefined &&
+      payload.recommended === undefined &&
+      payload.newArrival === undefined
+    ) {
+      mapped.recommended = toBool(existing.recommended, false);
+    }
+    // mapPayloadToPrisma hard-defaults several fields (price 0, stock 0,
+    // status 'active', emiAvailable true, warranty '1 Year', …). For partial
+    // updates (e.g. a marketing-flag toggle that sends only { featured }) those
+    // defaults would clobber real data, so restore the stored value for any
+    // field the caller did not explicitly provide.
+    const source = { ...data, ...(data.wizardData || {}) };
+    for (const key of [
+      'price',
+      'mrp',
+      'stock',
+      'status',
+      'emiAvailable',
+      'deliveryCharge',
+      'gst',
+      'warranty',
+      'warrantyType',
+      'galleryImages',
+    ]) {
+      if (source[key] === undefined && mapped[key] !== undefined) {
+        mapped[key] = existing[key];
+      }
+    }
     if (mapped.mrp != null && mapped.price != null && mapped.mrp > mapped.price) {
       mapped.discount = mapped.mrp - mapped.price;
       mapped.discountPrice = mapped.price;
     }
     const updated = await productRepository.update(id, mapped);
-    await this.syncEmiPlansFromWizard(id, data);
+    // Only touch the plans collection when the request actually carries plans;
+    // partial updates (e.g. a marketing-flag toggle) must not wipe previously
+    // saved plans.
+    const plans = data.wizardData?.emiPlans ?? data.emiPlans;
+    if (Array.isArray(plans)) {
+      await this.syncEmiPlansFromWizard(id, data);
+    }
     return updated;
   }
 

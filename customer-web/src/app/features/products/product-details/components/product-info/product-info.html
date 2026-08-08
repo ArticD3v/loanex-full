@@ -22,12 +22,20 @@
   }
   <p class="lx-info__tax">Inclusive of all taxes</p>
 
-  <p class="lx-info__stock" [class.is-out]="!p.inStock">
+  <p
+    class="lx-info__stock"
+    [class.is-out]="!p.inStock"
+    [class.is-low]="p.inStock && p.stockStatus === 'LOW_STOCK'"
+  >
     <span aria-hidden="true"></span>
     @if (p.inStock) {
-      In Stock
-      @if (p.stockQuantity > 0) {
-        <small>({{ p.stockQuantity }} available)</small>
+      @if (p.stockStatus === 'LOW_STOCK') {
+        Only {{ p.stockQuantity }} left in stock
+      } @else {
+        In Stock
+        @if (p.stockQuantity > 0) {
+          <small>({{ p.stockQuantity }} available)</small>
+        }
       }
     } @else {
       Out of Stock

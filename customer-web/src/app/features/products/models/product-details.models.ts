@@ -76,6 +76,8 @@ export interface VariantAttributeGroup {
   options: VariantAttributeOption[];
 }
 
+export type ProductStockStatus = 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
+
 export interface ProductVariantSku {
   id: string;
   productId: string;
@@ -88,6 +90,7 @@ export interface ProductVariantSku {
   discount: number;
   stock: number;
   stockQuantity: number;
+  stockStatus: ProductStockStatus;
   inStock: boolean;
   images: string[];
   imagesGallery: ProductImage[];
@@ -113,6 +116,7 @@ export interface ProductDetails {
   answeredQuestions: number;
   inStock: boolean;
   stockQuantity: number;
+  stockStatus: ProductStockStatus;
   sku: string;
   deliveryPincode: string;
   warrantyLabel: string;

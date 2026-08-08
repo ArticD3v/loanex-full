@@ -97,7 +97,10 @@ export const getCustomers = async (): Promise<Customer[]> => {
     const users = await getAllUsers();
     const kycRecords = await getAllKyc().catch(() => []);
 
-    return users.map((user) => {
+    // /admin/users returns staff AND customers — only map real customers.
+    return users
+      .filter((user) => user.role === 'customer')
+      .map((user) => {
       const kyc = kycRecords.find((k) => k.userId === user.id);
       
       const name =

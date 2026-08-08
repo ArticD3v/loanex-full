@@ -15,7 +15,7 @@ import {
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Order } from '../../types/order';
+import { Order, PAYMENT_TYPE_LABEL } from '../../types/order';
 import { OrderCard } from '../../components/order/OrderCard';
 import { Chip } from '../../components/ui/Chip';
 import { colors } from '../../theme/colors';
@@ -212,7 +212,7 @@ export function OrderListScreen({ navigation }: Props) {
             )}
             {filterPayment !== 'all' && (
               <Chip
-                label={`Payment: ${filterPayment}`}
+                label={`Payment: ${PAYMENT_TYPE_LABEL[filterPayment] ?? filterPayment}`}
                 selected
                 onRemove={() => setFilterPayment('all')}
               />
@@ -306,16 +306,19 @@ function FilterModal({
     { label: 'Pending', value: 'pending' },
     { label: 'Confirmed', value: 'confirmed' },
     { label: 'Approved', value: 'approved' },
+    { label: 'Processing', value: 'processing' },
     { label: 'Packed', value: 'packed' },
     { label: 'Shipped', value: 'shipped' },
+    { label: 'Out for Delivery', value: 'out_for_delivery' },
     { label: 'Delivered', value: 'delivered' },
     { label: 'Cancelled', value: 'cancelled' },
   ];
 
   const paymentOptions: { label: string; value: FilterPayment }[] = [
     { label: 'All Payment Types', value: 'all' },
-    { label: 'Cash', value: 'cash' },
-    { label: 'EMI', value: 'emi' },
+    { label: PAYMENT_TYPE_LABEL.online, value: 'online' },
+    { label: PAYMENT_TYPE_LABEL.cash, value: 'cash' },
+    { label: PAYMENT_TYPE_LABEL.emi, value: 'emi' },
   ];
 
   return (

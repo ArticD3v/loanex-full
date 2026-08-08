@@ -159,15 +159,15 @@ function createStyles(colors: ReturnType<typeof useTheme>) {
       color: colors.textOnPrimary,
       fontWeight: '700',
     },
-    headerText: {
+    userInfo: {
       flex: 1,
     },
-    name: {
+    userName: {
       ...typography.subtitle,
       color: colors.textHeading,
       marginBottom: 2,
     },
-    email: {
+    userRole: {
       ...typography.caption,
       color: colors.textSecondary,
     },

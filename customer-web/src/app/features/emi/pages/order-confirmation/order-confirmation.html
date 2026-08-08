@@ -8,6 +8,48 @@
     <p class="lx-oc__lead">Your down payment has been received successfully.</p>
     <p class="lx-oc__sub">Your order has been confirmed.</p>
 
+    @if (banner(); as b) {
+      <div
+        class="lx-oc__banner"
+        role="status"
+        [class.is-replayed]="b.alreadyProcessed"
+      >
+        <div class="lx-oc__banner-icon" aria-hidden="true">
+          <i class="pi pi-check"></i>
+        </div>
+
+        <div class="lx-oc__banner-body">
+          <h2>{{ b.title }}</h2>
+          <p>{{ b.message }}</p>
+
+          @if (b.paymentId; as pid) {
+            <p class="lx-oc__banner-meta">
+              Payment ID: <code>{{ pid }}</code>
+            </p>
+          }
+
+          @if (viewOrderId(); as orderId) {
+            <a
+              [routerLink]="['/orders', orderId]"
+              [queryParams]="{ autopay: 1 }"
+              class="lx-btn lx-btn--primary"
+            >
+              View your order
+            </a>
+          }
+        </div>
+
+        <button
+          type="button"
+          class="lx-oc__banner-close"
+          aria-label="Dismiss"
+          (click)="dismissBanner()"
+        >
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+    }
+
     @if (error(); as err) {
       <div class="lx-oc__alert" role="alert">{{ err }}</div>
     }

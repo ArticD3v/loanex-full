@@ -15,6 +15,40 @@
       <div class="lx-mo__info" role="status">{{ message }}</div>
     }
 
+    @if (banner(); as b) {
+      <div class="lx-mo__banner" role="status" [class.is-replayed]="b.alreadyProcessed">
+        <div class="lx-mo__banner-icon" aria-hidden="true">
+          <i class="pi pi-check"></i>
+        </div>
+
+        <div class="lx-mo__banner-body">
+          <h2>{{ b.title }}</h2>
+          <p>{{ b.message }}</p>
+
+          @if (b.paymentId; as pid) {
+            <p class="lx-mo__banner-meta">
+              Payment ID: <code>{{ pid }}</code>
+            </p>
+          }
+
+          @if (viewOrderId(); as orderId) {
+            <a [routerLink]="['/orders', orderId]" class="lx-btn lx-btn--primary">
+              View your order
+            </a>
+          }
+        </div>
+
+        <button
+          type="button"
+          class="lx-mo__banner-close"
+          aria-label="Dismiss"
+          (click)="dismissBanner()"
+        >
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+    }
+
     @if (loading()) {
       <p class="lx-mo__loading" aria-live="polite">Loading orders…</p>
     } @else if (!orders()?.items?.length) {

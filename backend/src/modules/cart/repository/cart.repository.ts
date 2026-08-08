@@ -73,6 +73,25 @@ export class CartRepository {
     return jsonDb.deleteMany('cart_items', { user_id: userId });
   }
 
+  /**
+   * Remove the cart lines for products that were actually purchased — used at
+   * payment success so abandoned checkouts keep the customer's cart intact.
+   * Only the bought products leave the cart; anything added later survives.
+   */
+  removeProducts(userId: string, productIds: string[] | undefined | null): number {
+    const ids = new Set((productIds ?? []).filter(Boolean));
+    if (ids.size === 0) return 0;
+    const items = jsonDb.findMany('cart_items', { user_id: userId });
+    let removed = 0;
+    for (const item of items) {
+      if (ids.has(item.product_id)) {
+        jsonDb.delete('cart_items', { id: item.id });
+        removed += 1;
+      }
+    }
+    return removed;
+  }
+
   async countItems(userId: string) {
     const items = jsonDb.findMany('cart_items', { user_id: userId });
     const total_quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);

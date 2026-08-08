@@ -127,8 +127,19 @@
           </dl>
           @if (mandate.status === 'PENDING') {
             <aside class="lx-ap__notice" role="status">
-              Mandate is pending approval. Once approved, AutoPay will be enabled automatically.
+              Mandate is pending approval. Approve it from the payment link below — AutoPay
+              will be enabled automatically once approved.
             </aside>
+            @if (mandate.approvalUrl) {
+              <a
+                class="lx-btn lx-btn--primary lx-ap__approve-link"
+                [href]="mandate.approvalUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Approve Mandate
+              </a>
+            }
           }
         </section>
       }

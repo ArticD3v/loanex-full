@@ -1,2 +1,8 @@
 node_modules/
 .env
+
+# Local tool state / runtime data (not part of the repo)
+.freebuff/
+LoanEx-9buu98.zip
+backup/
+backend/data/

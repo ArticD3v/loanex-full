@@ -2,18 +2,24 @@ import {
   BadRequestError,
   NotFoundError,
 } from '../../../common/errors/app-error';
-import { OrderStatus } from '@prisma/client';
 import { auditLogService } from '../../verification/service/audit-log.service';
 import { loanService } from '../../loan/service/loan.service';
-import { orderRepository, STATUS_FLOW } from '../repository/order.repository';
+import {
+  OrderStatus,
+  orderRepository,
+  STATUS_FLOW,
+  type OrderStatusType,
+} from '../repository/order.repository';
 import {
   buildOrderPayload,
   buildTrackingPayload,
   generateOrderInvoicePdf,
   generateOrderReceiptPdf,
-  productBrand,
-  productImagePath,
 } from './receipt.service';
+import {
+  resolveProductBrand,
+  resolveProductImage,
+} from '../../../common/utils/product-assets';
 
 function toNumber(value: { toString(): string } | number | null | undefined): number {
   if (value === null || value === undefined) return 0;
@@ -34,8 +40,8 @@ export class OrderService {
       product: {
         id: order.productId,
         name: order.application?.productName ?? 'Product',
-        brand: productBrand(order.productId, order.productBrand),
-        imageUrl: order.application?.productImage || productImagePath(order.productId),
+        brand: resolveProductBrand(order.productId, order.productBrand),
+        imageUrl: order.application?.productImage || resolveProductImage(order.productId),
       },
     }));
 
@@ -56,20 +62,20 @@ export class OrderService {
       product: order.application ? {
         id: order.productId,
         name: order.application.productName ?? order.productId,
-        brand: productBrand(order.productId, order.productBrand),
-        imageUrl: order.application.productImage || productImagePath(order.productId),
+        brand: resolveProductBrand(order.productId, order.productBrand),
+        imageUrl: order.application.productImage || resolveProductImage(order.productId),
       } : (order.items && order.items.length > 0 ? {
         id: order.items[0].productId,
         name: order.items[0].product?.name || order.items[0].productId,
-        brand: productBrand(order.items[0].productId, order.items[0].product?.brand),
-        imageUrl: order.items[0].product?.imageUrl || productImagePath(order.items[0].productId),
+        brand: resolveProductBrand(order.items[0].productId, order.items[0].product?.brand),
+        imageUrl: order.items[0].product?.imageUrl || resolveProductImage(order.items[0].productId),
       } : null),
       items: order.items && order.items.length > 0 ? order.items.map((i: any) => ({
         product: {
           id: i.productId,
           name: i.product?.name || i.productId,
-          brand: productBrand(i.productId, i.product?.brand),
-          imageUrl: i.product?.imageUrl || productImagePath(i.productId),
+          brand: resolveProductBrand(i.productId, i.product?.brand),
+          imageUrl: i.product?.imageUrl || resolveProductImage(i.productId),
         },
         quantity: i.quantity,
         unitPrice: i.unitPrice,
@@ -97,12 +103,32 @@ export class OrderService {
       productId: order.productId,
       productName: order.application?.productName ?? order.productId,
       sellingPrice: toNumber(order.application?.sellingPrice),
-      totalAmount: toNumber(order.totalAmount),
-      quantity: 1,
-      productImageUrl: order.application?.productImage || productImagePath(order.productId),
-      emiPlan: order.application?.productId,
-      emiAmount: toNumber(order.application?.emiAmount),
-      emiDuration: order.application?.tenure ? `${order.application.tenure} Months` : null,
+      totalAmount: toNumber(order.totalAmount ?? order.application?.sellingPrice),
+      quantity: order.quantity ?? 1,
+      productImageUrl: order.application?.productImage || resolveProductImage(order.productId),
+      // Real EMI terms from the joined application (product id is not a plan).
+      emiPlan:
+        order.application?.tenure || order.application?.approvedTenure
+          ? `${toNumber(order.application?.tenure ?? order.application?.approvedTenure)} Months EMI`
+          : null,
+      emiAmount: toNumber(
+        order.application?.monthlyEmi ??
+          order.application?.estimatedMonthlyEmi ??
+          order.application?.emiAmount,
+      ) || null,
+      emiDuration: order.application?.tenure || order.application?.approvedTenure
+        ? `${toNumber(order.application?.tenure ?? order.application?.approvedTenure)} Months`
+        : null,
+      downPayment: toNumber(
+        order.application?.approvedDownPayment ??
+          order.application?.downPayment ??
+          order.application?.requestedDownPayment,
+      ) || null,
+      loanAmount: toNumber(
+        order.application?.approvedAmount ??
+          order.application?.loanAmount ??
+          order.application?.requestedAmount,
+      ) || null,
     };
   }
 
@@ -244,7 +270,7 @@ export class OrderService {
     const normalized =
       input.status.toUpperCase() === 'CONFIRMED'
         ? OrderStatus.ORDER_CONFIRMED
-        : (input.status.toUpperCase() as OrderStatus);
+        : (input.status.toUpperCase() as OrderStatusType);
     const nextStatus = normalized;
     if (!STATUS_FLOW.includes(nextStatus) && nextStatus !== OrderStatus.CANCELLED) {
       throw new BadRequestError('Invalid order status.', { status: input.status });
@@ -269,13 +295,13 @@ export class OrderService {
     const updated = await orderRepository.updateStatus({
       orderId,
       status: nextStatus,
-      remarks: input.remarks ?? null,
-      updatedBy: input.updatedBy ?? 'admin',
-      location: input.location ?? null,
-      courierPartner: input.courierPartner ?? null,
-      trackingNumber: input.trackingNumber ?? null,
-      warehouse: input.warehouse ?? null,
-      deliveryAddress: input.deliveryAddress ?? null,
+      remarks: input.remarks,
+      updatedBy: input.updatedBy,
+      location: input.location,
+      courierPartner: input.courierPartner,
+      trackingNumber: input.trackingNumber,
+      warehouse: input.warehouse,
+      deliveryAddress: input.deliveryAddress,
     });
 
     await auditLogService.log({
@@ -315,6 +341,3 @@ export class OrderService {
 
 export const orderService = new OrderService();
 
-export function resolveProductBrand(productId: string): string {
-  return productBrand(productId);
-}

@@ -24,6 +24,10 @@ export interface Product {
   stock: number;
   status: ProductStatus;
   imageUrl?: string;
+  featured?: boolean;
+  trending?: boolean;
+  recommended?: boolean;
+  emiAvailable?: boolean;
 }
 
 export interface KeyValueItem {

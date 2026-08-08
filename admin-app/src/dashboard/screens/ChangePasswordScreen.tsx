@@ -18,7 +18,9 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { PasswordInput } from '../../authentication/components/PasswordInput';
 import { SectionTitle } from '../../components/ui/SectionTitle';
-import { STATIC_CREDENTIALS } from '../../authentication/constants';
+import api from '../../services/api';
+import { clearAuth } from '../../services/authService';
+import { clearRbac } from '../../auth/rbacStore';
 import { RootStackParamList } from '../../navigation/types';
 import { useTheme } from '../../theme/useTheme';
 import { radius, spacing } from '../../theme/spacing';
@@ -34,6 +36,7 @@ export function ChangePasswordScreen({ navigation }: Props) {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleGoBack = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -57,13 +60,9 @@ export function ChangePasswordScreen({ navigation }: Props) {
     if (error) setError('');
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!currentPassword.trim()) {
       setError('Please enter your current password.');
-      return;
-    }
-    if (currentPassword !== STATIC_CREDENTIALS.password) {
-      setError('Current password is incorrect.');
       return;
     }
     if (!newPassword.trim()) {
@@ -80,9 +79,22 @@ export function ChangePasswordScreen({ navigation }: Props) {
     }
 
     setError('');
-    Alert.alert('Password Updated', 'Your password has been changed (UI only).', [
-      { text: 'OK', onPress: handleGoBack },
-    ]);
+    setSubmitting(true);
+    try {
+      await api.post('/auth/change-password', {
+        currentPassword,
+        newPassword,
+      });
+      await clearAuth();
+      clearRbac();
+      Alert.alert('Password Updated', 'Password changed successfully. Please log in again with your new password.', [
+        { text: 'OK', onPress: () => navigation.replace('Login') },
+      ]);
+    } catch (e: any) {
+      setError(e.message || 'Failed to update password. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -107,7 +119,8 @@ export function ChangePasswordScreen({ navigation }: Props) {
           <Card style={styles.card}>
             <SectionTitle title="Update Password" />
             <Text style={styles.description}>
-              Enter your current password and choose a new one. Changes are UI only.
+              Enter your current password and choose a new one. You will be signed out
+              and asked to log in again after the update.
             </Text>
 
             <PasswordInput
@@ -142,7 +155,7 @@ export function ChangePasswordScreen({ navigation }: Props) {
 
             {error ? <Text style={styles.errorBanner}>{error}</Text> : null}
 
-            <Button title="Update Password" onPress={handleSubmit} />
+            <Button title="Update Password" onPress={handleSubmit} disabled={submitting} />
           </Card>
         </ScrollView>
       </KeyboardAvoidingView>

@@ -37,10 +37,12 @@ emiApplicationRouter.post(
   '/decline-offer',
   asyncHandler(emiApplicationController.declineOffer),
 );
-emiApplicationRouter.post(
-  '/dev-approve',
-  asyncHandler(emiApplicationController.devApprove),
-);
+if (env.NODE_ENV !== 'production') {
+  emiApplicationRouter.post(
+    '/dev-approve',
+    asyncHandler(emiApplicationController.devApprove),
+  );
+}
 emiApplicationRouter.post(
   '/',
   validateRequest(createEmiApplicationBodySchema),

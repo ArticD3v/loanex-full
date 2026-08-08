@@ -17,6 +17,8 @@ export interface AutopayMandate {
   nextDebitDate: string | null;
   status: string;
   failureReason: string | null;
+  /** Customer-facing URL to approve a pending mandate (Razorpay payment link). */
+  approvalUrl?: string | null;
   createdAt: string;
   updatedAt: string;
   message?: string;

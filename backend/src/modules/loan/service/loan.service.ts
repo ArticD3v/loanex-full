@@ -30,18 +30,19 @@ import {
   loanRepository,
   type LoanWithRelations,
 } from '../repository/loan.repository';
-import { addMonths, buildEmiSchedule } from './emi-calculator.service';
+import { addMonths, buildEmiSchedule, istMidnight } from './emi-calculator.service';
 import {
   buildDashboardPayload,
   buildLoanSummary,
   buildPaymentHistoryPayload,
-  productImagePath,
 } from './loan-payload.service';
 
 function toNumber(value: { toString(): string } | number | null | undefined): number {
   if (value === null || value === undefined) return 0;
   return Number(value);
 }
+
+
 
 export class LoanService {
   async getCurrent(userId: string) {
@@ -256,8 +257,7 @@ export class LoanService {
       toNumber(application.estimatedMonthlyEmi) ||
       toNumber(application.monthly_amount) ||
       0;
-    const startDate = new Date();
-    startDate.setHours(0, 0, 0, 0);
+    const startDate = istMidnight(new Date());
 
     const schedulePlan = buildEmiSchedule({
       principal: loanAmount,

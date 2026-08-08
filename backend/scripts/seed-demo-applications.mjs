@@ -1,7 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const USER_ID = 'd8f57913-2d25-4a65-8b36-4c28f645a271';
+// Synthetic demo identity — never real customer PII.
+const USER_ID = '11111111-1111-4111-8111-111111111111';
+const DEMO_PHONE = '9000000000';
 const OUT = path.resolve('..', 'supabase-emi-demo.sql');
 const NOW = '2026-08-06T10:00:00.000Z';
 
@@ -295,6 +297,12 @@ L.push(``);
 
 // 2) Customer KYC data ------------------------------------------------
 L.push(`-- ============ 2. CUSTOMER VERIFICATION (KYC DONE) ============`);
+L.push(`-- Synthetic demo customer (owner of the demo applications below)`);
+L.push(`INSERT INTO public."users" ("id", "phone", "email", "role", "encryptedPassword", "created_at", "updated_at")`);
+L.push(`VALUES (${[USER_ID, DEMO_PHONE, 'demo.customer@loanex.in', 'customer', NULL, NOW, NOW].map(q).join(', ')});`);
+L.push(`INSERT INTO public."profiles" ("id", "mobile_number", "fullName", "email", "kyc_status", "createdAt", "updatedAt")`);
+L.push(`VALUES (${[USER_ID, DEMO_PHONE, 'Demo Customer', 'demo.customer@loanex.in', 'Approved', NOW, NOW].map(q).join(', ')});`);
+L.push(``);
 L.push(`INSERT INTO public."customerVerification" ("id", "userId", "mobileVerified", "aadhaarVerified", "panVerified", "bankVerified", "verificationStatus", "cibilScore", "createdAt", "updatedAt")`);
 L.push(`VALUES (${['demo-cv-0001', USER_ID, true, true, true, false, 'COMPLETED', 720, NOW, NOW].map(q).join(', ')});`);
 L.push(``);
@@ -302,12 +310,12 @@ L.push(`INSERT INTO public."aadhaarVerification" ("id", "userId", "aadhaarNumber
 L.push(`VALUES (${['demo-aadhaar-0001', USER_ID, 'XXXXXXXX0292', 'demo-hash-aadhaar', 'VERIFIED', '2026-07-01T10:00:00.000Z', '2026-07-01T10:00:00.000Z', '2026-07-01T10:00:00.000Z'].map(q).join(', ')});`);
 L.push(``);
 L.push(`INSERT INTO public."panVerification" ("id", "userId", "panNumberMasked", "panHash", "fullName", "dateOfBirth", "status", "verifiedAt", "createdAt")`);
-L.push(`VALUES (${['demo-pan-0001', USER_ID, 'XXXXXXXX123K', 'demo-hash-pan', 'Musharraf Gouri', '1998-05-15', 'VERIFIED', '2026-07-02T11:00:00.000Z', '2026-07-02T11:00:00.000Z'].map(q).join(', ')});`);
+L.push(`VALUES (${['demo-pan-0001', USER_ID, 'XXXXXXXX123K', 'demo-hash-pan', 'Demo Customer', '1995-01-01', 'VERIFIED', '2026-07-02T11:00:00.000Z', '2026-07-02T11:00:00.000Z'].map(q).join(', ')});`);
 L.push(``);
 L.push(`INSERT INTO public."mobileVerification" ("id", "userId", "mobile", "isUsed", "isVerified", "purpose", "createdAt", "updatedAt")`);
-L.push(`VALUES (${['demo-mobile-0001', USER_ID, '9462557060', true, true, 'SIGNUP', '2026-06-28T09:00:00.000Z', '2026-06-28T09:00:00.000Z'].map(q).join(', ')});`);
+L.push(`VALUES (${['demo-mobile-0001', USER_ID, DEMO_PHONE, true, true, 'SIGNUP', '2026-06-28T09:00:00.000Z', '2026-06-28T09:00:00.000Z'].map(q).join(', ')});`);
 L.push(``);
-L.push(`UPDATE public."customer_kyc" SET "pan_verified" = true, "panNumber" = 'BZKPM1123K', "cibil_score" = 720, "updatedAt" = '2026-08-06T10:00:00.000Z' WHERE "userId" = ${q(USER_ID)};`);
+L.push(`UPDATE public."customer_kyc" SET "pan_verified" = true, "panNumber" = 'ABCDE1234F', "cibil_score" = 720, "updatedAt" = '2026-08-06T10:00:00.000Z' WHERE "userId" = ${q(USER_ID)};`);
 L.push(``);
 
 // 3) EMI applications -------------------------------------------------
@@ -340,13 +348,13 @@ L.push(`VALUES (${['demo-txn-dp-0001', dpDoneApp.id, USER_ID, 'order_demo_dp_000
 L.push(``);
 const orderedApp = apps.find((a) => a.id === 'demo-emi-ordered-0004');
 L.push(`INSERT INTO public."orders" ("id", "orderNumber", "applicationId", "userId", "productId", "quantity", "paymentTransactionId", "orderStatus", "status", "estimatedDeliveryDate", "courierPartner", "trackingNumber", "warehouse", "deliveryAddress", "createdAt", "updatedAt")`);
-L.push(`VALUES (${['demo-order-0004', 'LX-ORD-202607250004', orderedApp.id, USER_ID, orderedApp.productId, 1, 'demo-txn-dp-0002', 'ORDER_CONFIRMED', 'ORDER_CONFIRMED', '2026-08-01T00:00:00.000Z', 'LoanEx Express', 'LXTRK7420192837', 'LoanEx Central Warehouse, Mumbai', 'Customer registered address', '2026-07-25T15:30:00.000Z', '2026-07-25T15:30:00.000Z'].map(q).join(', ')});`);
+L.push(`VALUES (${['demo-order-0004', 'LX-ORD-202607250004', orderedApp.id, USER_ID, orderedApp.productId, 1, 'demo-txn-dp-0001', 'ORDER_CONFIRMED', 'ORDER_CONFIRMED', '2026-08-01T00:00:00.000Z', null, null, null, '1, Demo Street, Demo Apartments, Mumbai, Maharashtra - 400001', '2026-07-25T15:30:00.000Z', '2026-07-25T15:30:00.000Z'].map(q).join(', ')});`);
 L.push(``);
 
 // 6) Shipping address for the user -----------------------------------
 L.push(`-- ============ 6. DEFAULT SHIPPING ADDRESS ============`);
 L.push(`INSERT INTO public."userAddress" ("id", "userId", "addressType", "addressLine1", "addressLine2", "landmark", "city", "state", "pincode", "country", "isDefault", "createdAt", "updatedAt")`);
-L.push(`VALUES (${['demo-addr-0001', USER_ID, 'SHIPPING', '42, Park Street', '2nd Floor, Gouri House', 'Near City Mall', 'Kolkata', 'West Bengal', '700016', 'India', true, '2026-06-29T12:00:00.000Z', '2026-06-29T12:00:00.000Z'].map(q).join(', ')});`);
+L.push(`VALUES (${['demo-addr-0001', USER_ID, 'SHIPPING', '1, Demo Street', 'Demo Apartments', 'Near Demo Mall', 'Mumbai', 'Maharashtra', '400001', 'India', true, '2026-06-29T12:00:00.000Z', '2026-06-29T12:00:00.000Z'].map(q).join(', ')});`);
 L.push(``);
 L.push(`-- ============ DONE ============`);
 

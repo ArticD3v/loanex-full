@@ -8,8 +8,11 @@ import { jsonDb } from './config/json-db';
 import { setupSwagger } from './config/swagger';
 import { errorHandler, notFoundHandler } from './common/middleware/error-handler';
 import { createRateLimiter } from './common/middleware/rate-limiter';
+import { asyncHandler } from './common/utils/async-handler';
+import { runEmiReminderPass } from './modules/notifications';
 import { authRouter } from './modules/auth';
 import { adminRouter } from './modules/admin';
+import { rolesRouter } from './modules/rbac';
 import { bankVerificationRouter } from './modules/bank-verification';
 import { emiApplicationRouter } from './modules/emi-application';
 import { panVerificationRouter } from './modules/pan-verification';
@@ -116,6 +119,28 @@ export function createApp() {
     });
   });
 
+  // EMI reminder pass, triggered by Vercel Cron in production. Serverless
+  // instances cannot keep a setInterval alive, so production relies on this
+  // endpoint instead of startNotificationReminderEngine() (which runs in the
+  // long-lived dev/server.ts entry). Guarded by CRON_SECRET when configured.
+  app.get(
+    `${env.API_PREFIX}/internal/reminders`,
+    asyncHandler(async (req, res) => {
+      const auth = String(req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
+      // Fail closed in production: the endpoint must never be unauthenticated.
+      if (env.NODE_ENV === 'production' && !env.CRON_SECRET) {
+        res.status(503).json({ success: false, message: 'Cron not configured' });
+        return;
+      }
+      if (env.CRON_SECRET && auth !== env.CRON_SECRET) {
+        res.status(403).json({ success: false, message: 'Forbidden' });
+        return;
+      }
+      const result = await runEmiReminderPass();
+      res.json({ success: true, data: result });
+    }),
+  );
+
   app.use(`${env.API_PREFIX}/auth`, authRouter);
   app.use(`${env.API_PREFIX}/verification`, verificationRouter);
   app.use(`${env.API_PREFIX}/verification/pan`, panVerificationRouter);
@@ -139,6 +164,7 @@ export function createApp() {
   app.use(`${env.API_PREFIX}/banners`, bannerRouter);
   app.use(`${env.API_PREFIX}/support`, supportRouter);
   app.use(`${env.API_PREFIX}/admin`, adminRouter);
+  app.use(`${env.API_PREFIX}/admin/roles`, rolesRouter);
   app.use(`${env.API_PREFIX}/reports`, reportsRouter);
 
   app.use(notFoundHandler);

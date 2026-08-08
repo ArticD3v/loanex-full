@@ -1,6 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_CONFIG } from './config';
+import { clearRbac } from '../auth/rbacStore';
 
 // Create Axios instance with base configuration
 const api = axios.create({
@@ -10,6 +11,15 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+type SessionExpiredListener = () => void;
+const sessionExpiredListeners = new Set<SessionExpiredListener>();
+
+/** Subscribe to 401 events so the app can navigate back to Login. */
+export function onSessionExpired(listener: SessionExpiredListener): () => void {
+  sessionExpiredListeners.add(listener);
+  return () => sessionExpiredListeners.delete(listener);
+}
 
 // Request interceptor — attach JWT token to every request
 api.interceptors.request.use(
@@ -39,11 +49,15 @@ api.interceptors.response.use(
     const status = error.response?.status;
 
     if (status === 401) {
-      // Token expired or invalid — clear stored token
-      console.warn('[API] 401 Unauthorized — clearing token');
-      await AsyncStorage.removeItem(API_CONFIG.STORAGE_KEYS.AUTH_TOKEN);
-      await AsyncStorage.removeItem(API_CONFIG.STORAGE_KEYS.USER_DATA);
-      // Navigation to login will be handled by AuthContext listener
+      // Token expired or invalid — clear the session and notify listeners
+      // so the app can navigate back to Login.
+      console.warn('[API] 401 Unauthorized — clearing session');
+      await AsyncStorage.multiRemove([
+        API_CONFIG.STORAGE_KEYS.AUTH_TOKEN,
+        API_CONFIG.STORAGE_KEYS.USER_DATA,
+      ]);
+      clearRbac();
+      sessionExpiredListeners.forEach((listener) => listener());
     }
 
     if (status === 429) {

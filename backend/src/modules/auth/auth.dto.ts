@@ -82,6 +82,11 @@ export const resetPasswordBodySchema = z.object({
   newPassword: passwordSchema,
 });
 
+export const changePasswordBodySchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: passwordSchema,
+});
+
 export const completeRegistrationBodySchema = z.object({
   registrationToken: z.string().min(1, 'Registration token is required'),
   fullName: fullNameSchema,
@@ -110,6 +115,7 @@ export type SendOtpBody = z.infer<typeof sendOtpBodySchema>;
 export type VerifyOtpBody = z.infer<typeof verifyOtpBodySchema>;
 export type ForgotPasswordBody = z.infer<typeof forgotPasswordBodySchema>;
 export type ResetPasswordBody = z.infer<typeof resetPasswordBodySchema>;
+export type ChangePasswordBody = z.infer<typeof changePasswordBodySchema>;
 export type CompleteRegistrationBody = z.infer<typeof completeRegistrationBodySchema>;
 export type RefreshTokenBody = z.infer<typeof refreshTokenBodySchema>;
 export type LogoutBody = z.infer<typeof logoutBodySchema>;

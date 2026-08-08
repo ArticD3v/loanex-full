@@ -1,11 +1,20 @@
-export type PaymentType = 'cash' | 'emi';
+export type PaymentType = 'online' | 'cash' | 'emi';
+
+/** Display labels for order payment types. */
+export const PAYMENT_TYPE_LABEL: Record<PaymentType, string> = {
+  online: 'Full Payment (Online)',
+  cash: 'Cash (COD)',
+  emi: 'EMI',
+};
 
 export type OrderStatus =
   | 'pending'
   | 'confirmed'
   | 'approved'
+  | 'processing'
   | 'packed'
   | 'shipped'
+  | 'out_for_delivery'
   | 'delivered'
   | 'cancelled';
 

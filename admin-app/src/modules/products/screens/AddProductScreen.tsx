@@ -59,15 +59,25 @@ function AddProductContent({ navigation, route }: Props) {
   const isEditMode = route.params?.mode === 'edit';
   const productId = route.params?.productId;
   const [loading, setLoading] = useState(isEditMode);
+  const [savingDraft, setSavingDraft] = useState(false);
 
   useEffect(() => {
     if (isEditMode && productId) {
       const fetchProduct = async () => {
         try {
           const p = await getProductById(productId);
-          const wizardData = ((p as any).wizardData || {}) as Record<string, unknown>;
+          const wizardDataRaw = ((p as any).wizardData || {}) as Record<string, unknown>;
+          // Never overwrite defaults with undefined — undefined fields crash `.trim()` calls.
+          const wizardData = Object.fromEntries(
+            Object.entries(wizardDataRaw).filter(([, v]) => v !== undefined),
+          ) as Record<string, unknown>;
+          const primaryImage =
+            normalizeString(p.image || wizardData.primaryImage) || null;
+          // Prefer the dedicated gallery list; fall back to `images`
+          // (which includes the primary image) and drop the primary from it
+          // so the gallery doesn't show a duplicate first image.
           const galleryRaw =
-            (p as any).images || (p as any).galleryImages || wizardData.galleryImages || [];
+            (p as any).galleryImages || wizardData.galleryImages || (p as any).images || [];
 
           updateForm({
             ...wizardData,
@@ -78,17 +88,22 @@ function AddProductContent({ navigation, route }: Props) {
             shortDescription: normalizeString(
               (p as any).shortDescription || wizardData.shortDescription,
             ),
-            category: normalizeString(p.categoryId || wizardData.category),
-            primaryImage:
-              normalizeString(p.image || wizardData.primaryImage) || null,
+            category: normalizeString(
+              (p as any).category || wizardData.category || p.categoryId,
+            ),
+            primaryImage,
             galleryImages: Array.isArray(galleryRaw)
-              ? galleryRaw.filter((uri): uri is string => typeof uri === 'string')
+              ? galleryRaw.filter(
+                  (uri): uri is string =>
+                    typeof uri === 'string' && uri !== primaryImage,
+                )
               : [],
             sellingPrice: normalizeString(p.price ?? wizardData.sellingPrice, '0'),
             mrp: normalizeString(p.mrp ?? p.price ?? wizardData.mrp, '0'),
             availableStock: normalizeString(p.stock ?? wizardData.availableStock, '0'),
             warranty: normalizeString((p as any).warranty || wizardData.warranty),
             hsnCode: normalizeString((p as any).hsnCode || wizardData.hsnCode),
+            emiEnabled: (p as any).emiAvailable === true,
             manufacturer: normalizeString(
               (p as any).manufacturer || wizardData.manufacturer,
             ),
@@ -108,17 +123,23 @@ function AddProductContent({ navigation, route }: Props) {
             boxContents: normalizeTextListItems(
               wizardData.boxContents ?? (p as any).boxContents,
             ),
-            variants: Array.isArray(wizardData.variants)
-              ? (wizardData.variants as ProductVariant[]).map((variant) => ({
-                  ...variant,
-                  galleryImages: Array.isArray(variant.galleryImages)
-                    ? variant.galleryImages
-                    : [],
-                  specifications: normalizeKeyValueItems(variant.specifications),
-                  features: normalizeTextListItems(variant.features),
-                  boxContents: normalizeTextListItems(variant.boxContents),
-                }))
-              : [],
+            variants: (Array.isArray(wizardData.variants) && wizardData.variants.length
+              ? wizardData.variants
+              : ((p as any).variants ?? [])
+            ).map((variant: ProductVariant) => ({
+              ...variant,
+              galleryImages: Array.isArray(variant.galleryImages)
+                ? variant.galleryImages
+                : [],
+              specifications: normalizeKeyValueItems(variant.specifications),
+              features: normalizeTextListItems(variant.features),
+              boxContents: normalizeTextListItems(variant.boxContents),
+            })),
+            // Products created before the variants step existed have no
+            // wizardData.variantsEnabled — derive it from the saved variants.
+            variantsEnabled:
+              (Array.isArray(wizardData.variants) && wizardData.variants.length > 0) ||
+              (wizardData.variantsEnabled === true),
             suppliers: Array.isArray(wizardData.suppliers) ? wizardData.suppliers : [],
             emiPlans: Array.isArray(wizardData.emiPlans) ? wizardData.emiPlans : [],
             attributes: Array.isArray(wizardData.attributes) ? wizardData.attributes : [],
@@ -150,31 +171,65 @@ function AddProductContent({ navigation, route }: Props) {
     if (currentStep > 1) animateStep(currentStep - 1);
   };
 
-  const handleSaveDraft = () => {
-    navigation.navigate('ProductList');
+  const handleSaveDraft = async () => {
+    try {
+      setSavingDraft(true);
+      const payload = buildPayload('draft');
+      if (isEditMode && productId) {
+        await updateProduct(productId, payload);
+      } else {
+        await createProduct(payload);
+      }
+      Alert.alert('Draft Saved', `Product ${isEditMode ? 'updated as' : 'saved as'} draft`);
+      resetForm();
+      navigation.navigate('ProductList');
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'Failed to save draft');
+    } finally {
+      setSavingDraft(false);
+    }
   };
 
+  const buildPayload = (status: 'active' | 'draft') => ({
+    name: formData.productName,
+    sku: formData.sku,
+    brand: formData.brand,
+    description: formData.description,
+    shortDescription: formData.shortDescription,
+    categoryId: formData.category || undefined,
+    image: formData.primaryImage || undefined,
+    galleryImages: formData.galleryImages,
+    price: parseFloat(formData.sellingPrice) || 0,
+    mrp: parseFloat(formData.mrp) || 0,
+    stock: parseInt(formData.availableStock, 10) || 0,
+    status,
+    emiAvailable: formData.emiEnabled,
+    warranty: formData.warranty,
+    hsnCode: formData.hsnCode,
+    manufacturer: formData.manufacturer,
+    wizardData: formData, // <--- Add all form fields as wizardData
+  });
+
   const handlePublish = async () => {
+    const sellingPrice = parseFloat(formData.sellingPrice) || 0;
+    const mrp = parseFloat(formData.mrp) || 0;
+
+    if (!formData.productName?.trim()) {
+      Alert.alert('Missing Details', 'Product name is required.');
+      return;
+    }
+    if (sellingPrice <= 0) {
+      Alert.alert('Invalid Pricing', 'Selling price must be greater than 0.');
+      return;
+    }
+    if (mrp > 0 && mrp < sellingPrice) {
+      Alert.alert('Invalid Pricing', 'MRP cannot be less than the selling price.');
+      return;
+    }
+
     try {
-      const payload = {
-        name: formData.productName,
-        sku: formData.sku,
-        brand: formData.brand,
-        description: formData.description,
-        shortDescription: formData.shortDescription,
-        categoryId: formData.category || undefined,
-        image: formData.primaryImage || undefined,
-        galleryImages: formData.galleryImages,
-        price: parseFloat(formData.sellingPrice) || 0,
-        mrp: parseFloat(formData.mrp) || 0,
-        stock: parseInt(formData.availableStock, 10) || 0,
-        status: 'active',
-        emiAvailable: formData.variantsEnabled || true, // adjust based on form
-        warranty: formData.warranty,
-        hsnCode: formData.hsnCode,
-        manufacturer: formData.manufacturer,
-        wizardData: formData, // <--- Add all form fields as wizardData
-      };
+      const payload = buildPayload('active');
 
       if (isEditMode && productId) {
         await updateProduct(productId, payload);
@@ -211,8 +266,8 @@ function AddProductContent({ navigation, route }: Props) {
             <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
           <Text style={styles.topTitle}>{isEditMode ? 'Edit Product' : 'Add Product'}</Text>
-          <TouchableOpacity onPress={handleSaveDraft} style={styles.draftBtn}>
-            <Text style={styles.draftText}>Save Draft</Text>
+          <TouchableOpacity onPress={handleSaveDraft} style={styles.draftBtn} disabled={savingDraft}>
+            <Text style={styles.draftText}>{savingDraft ? 'Saving...' : 'Save Draft'}</Text>
           </TouchableOpacity>
         </View>
 

@@ -17,6 +17,4 @@ INSERT INTO public."products" ("id", "name", "slug", "sku", "brand", "descriptio
 INSERT INTO public."product_emi_plans" ("id", "productId", "planName", "months", "downPayment", "serviceCharge", "deliveryCharge", "minEligibilityAmount", "customerVisibility") VALUES ('31a01c3f-8f82-436d-a5d6-7b3cf16cbdf8', '3350a129-9ca9-486f-b62d-32fb54c9fce1', '6 Months Standard', 6, '2500.00', '500.00', '0.00', '5000.00', 'visible') ON CONFLICT DO NOTHING;
 INSERT INTO public."product_emi_plans" ("id", "productId", "planName", "months", "downPayment", "serviceCharge", "deliveryCharge", "minEligibilityAmount", "customerVisibility") VALUES ('baab7244-9e8b-4b95-82ea-534b919cda76', '657ff9b8-cef4-4a96-809a-6cee4ce64235', '6 Months Standard', 6, '2500.00', '500.00', '0.00', '5000.00', 'visible') ON CONFLICT DO NOTHING;
 
--- Table: public.users (1 records)
-INSERT INTO public."users" ("id", "phone", "email", "role", "encryptedPassword", "created_at", "updated_at") VALUES ('beabd43e-1a0a-47f3-983b-455918906e89', '9462557060', 'gourimusharraf@gmail.com', 'customer', NULL, '2026-08-06T09:04:06.914Z', '2026-08-06T09:04:06.914Z') ON CONFLICT DO NOTHING;
 

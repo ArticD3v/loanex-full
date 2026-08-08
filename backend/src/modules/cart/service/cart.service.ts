@@ -259,7 +259,7 @@ export class CartService {
       userId,
       action: 'CART_CLEARED',
       entity: 'cart_items',
-      metadata: { deleted: result.count, timestamp: new Date().toISOString() },
+      metadata: { deleted: result, timestamp: new Date().toISOString() },
     });
     return this.getCart(userId);
   }

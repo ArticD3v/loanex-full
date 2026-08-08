@@ -3,7 +3,10 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:Musharraf%401@localhost:5432/postgres';
+// Prefer DATABASE_URL from the environment. Fall back to a passwordless
+// local Postgres (peer/trust auth) so local dev keeps working with no
+// embedded credentials.
+const connectionString = process.env.DATABASE_URL || 'postgresql://postgres@localhost:5432/postgres';
 
 const pool = new Pool({
   connectionString,
@@ -23,13 +26,6 @@ async function setupDatabase() {
       console.log('✅ Schema tables created successfully!');
     }
 
-    // Insert default demo user into public.users and public.profiles
-    console.log('👤 Ensuring demo user exists in public.users...');
-    await client.query(`
-      INSERT INTO public.users (id, phone, email, role)
-      VALUES ('beabd43e-1a0a-47f3-983b-455918906e89', '9462557060', 'gourimusharraf@gmail.com', 'customer')
-      ON CONFLICT (id) DO NOTHING;
-    `);
 
     const dumpSqlPath = path.join(__dirname, '..', 'loanex_full_database.sql');
     if (fs.existsSync(dumpSqlPath)) {

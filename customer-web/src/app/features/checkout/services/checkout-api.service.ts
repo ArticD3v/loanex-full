@@ -106,6 +106,37 @@ export interface CheckoutSessionResponse {
   summary: Pick<CheckoutSummary, 'product' | 'quantity' | 'pricing' | 'items'>;
 }
 
+export interface CreateDirectPaymentOrderResponse {
+  orderId: string;
+  razorpayOrderId: string;
+  keyId: string;
+  amount: number;
+  amountPaise: number;
+  currency: string;
+  paymentDevBypass: boolean;
+}
+
+export interface VerifyDirectPaymentResponse {
+  paymentStatus: string;
+  alreadyProcessed?: boolean;
+  transactionId?: string;
+  orderId: string;
+  orderNumber: string | null;
+  nextStep: string;
+}
+
+export interface DevBypassSignatureResponse {
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+}
+
+export interface RazorpayVerifyPayload {
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+}
+
 const SESSION_KEY = 'loanex.checkoutSessionId';
 
 @Injectable({ providedIn: 'root' })
@@ -115,9 +146,11 @@ export class CheckoutApiService {
 
   private readonly loadingSignal = signal(false);
   private readonly errorSignal = signal<string | null>(null);
+  private readonly errorCodeSignal = signal<string | null>(null);
 
   readonly loading = this.loadingSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
+  readonly errorCode = this.errorCodeSignal.asReadonly();
 
   getSummary(productId: string, quantity = 1, variantId?: string, mode?: string): Observable<CheckoutSummary> {
     let params = new HttpParams().set('quantity', String(quantity));
@@ -155,6 +188,41 @@ export class CheckoutApiService {
     );
   }
 
+  /** Create the Razorpay order for a DIRECT (full-payment) session. */
+  createPaymentOrder(
+    sessionId: string,
+  ): Observable<CreateDirectPaymentOrderResponse> {
+    return this.wrap(
+      this.http.post<ApiSuccess<CreateDirectPaymentOrderResponse>>(
+        `${this.baseUrl}/${sessionId}/payment/order`,
+        {},
+      ),
+    );
+  }
+
+  /** Verify a Razorpay payment and complete the DIRECT order. */
+  verifyPayment(
+    sessionId: string,
+    payload: RazorpayVerifyPayload,
+  ): Observable<VerifyDirectPaymentResponse> {
+    return this.wrap(
+      this.http.post<ApiSuccess<VerifyDirectPaymentResponse>>(
+        `${this.baseUrl}/${sessionId}/payment/verify`,
+        payload,
+      ),
+    );
+  }
+
+  /** Dev-only: fabricate a signature to complete payment without Razorpay. */
+  createDevBypassSignature(sessionId: string): Observable<DevBypassSignatureResponse> {
+    return this.wrap(
+      this.http.post<ApiSuccess<DevBypassSignatureResponse>>(
+        `${this.baseUrl}/${sessionId}/payment/dev-bypass-signature`,
+        {},
+      ),
+    );
+  }
+
   saveSessionId(id: string): void {
     if (typeof sessionStorage !== 'undefined') {
       sessionStorage.setItem(SESSION_KEY, id);
@@ -168,28 +236,31 @@ export class CheckoutApiService {
 
   clearError(): void {
     this.errorSignal.set(null);
+    this.errorCodeSignal.set(null);
   }
 
   private wrap<T>(source: Observable<ApiSuccess<T>>): Observable<T> {
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
+    this.errorCodeSignal.set(null);
 
     return source.pipe(
       map((res) => res.data),
       tap(() => this.loadingSignal.set(false)),
       catchError((err: unknown) => {
         this.loadingSignal.set(false);
-        this.errorSignal.set(this.extractError(err));
+        const body = this.extractErrorBody(err);
+        this.errorSignal.set(body?.message ?? 'Unable to complete checkout request.');
+        this.errorCodeSignal.set(body?.code ?? null);
         return throwError(() => err);
       }),
     );
   }
 
-  private extractError(err: unknown): string {
+  private extractErrorBody(err: unknown): { message?: string; code?: string } | null {
     if (err && typeof err === 'object' && 'error' in err) {
-      const body = (err as { error?: { message?: string } }).error;
-      if (body?.message) return body.message;
+      return (err as { error?: { message?: string; code?: string } }).error ?? null;
     }
-    return 'Unable to complete checkout request.';
+    return null;
   }
 }

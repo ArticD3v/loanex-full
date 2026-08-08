@@ -15,6 +15,11 @@ function getClient(): Razorpay {
   return client;
 }
 
+/** Shared Razorpay client for the autopay provider (mandate payment links). */
+export function getRazorpayClient(): Razorpay {
+  return getClient();
+}
+
 export function isPaymentDevBypass(): boolean {
   return Boolean(env.PAYMENT_DEV_BYPASS) && env.NODE_ENV !== 'production';
 }

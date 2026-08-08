@@ -8,6 +8,8 @@ export interface FiCase {
   assignedExecutive: string;
   assignedDate: string;
   status: FiCaseStatus;
+  /** Link to the EMI application that created this case (backend field) */
+  applicationId?: string;
   /** Optional evidence fields — prepared for future FI submit flow */
   photoCount?: number;
   gpsLocation?: string;

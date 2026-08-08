@@ -5,7 +5,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
 import { formatInr } from '../../../../shared/utils/currency';
 import {
@@ -25,6 +25,7 @@ export class MyOrdersComponent implements OnInit {
   private readonly orderApi = inject(OrderService);
   private readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   readonly formatInr = formatInr;
   readonly loading = signal(true);
@@ -33,11 +34,50 @@ export class MyOrdersComponent implements OnInit {
   readonly info = signal<string | null>(null);
   readonly orders = signal<OrderListResponse | null>(null);
 
+  /** Post-payment banner shown after the checkout redirect lands here. */
+  readonly banner = signal<{
+    title: string;
+    message: string;
+    paymentId: string | null;
+    alreadyProcessed: boolean;
+  } | null>(null);
+
   ngOnInit(): void {
-    if (this.route.snapshot.queryParamMap.get('paymentSuccess') === 'true') {
-      this.info.set('🎉 Payment successful! Your order has been placed.');
-    }
+    this.readPaymentBanner();
     this.load();
+  }
+
+  /** Link the success banner to the newest order once the list has loaded. */
+  viewOrderId(): string | null {
+    return this.orders()?.items?.[0]?.id ?? null;
+  }
+
+  dismissBanner(): void {
+    this.banner.set(null);
+    // Strip the post-payment params so a page refresh doesn't re-show the
+    // banner (the order still appears in the list below).
+    void this.router.navigate([], {
+      queryParams: { paymentSuccess: null, paymentId: null, alreadyProcessed: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  private readPaymentBanner(): void {
+    const params = this.route.snapshot.queryParamMap;
+    if (params.get('paymentSuccess') !== 'true') return;
+
+    const paymentId = params.get('paymentId');
+    const alreadyProcessed = params.get('alreadyProcessed') === 'true';
+
+    this.banner.set({
+      title: alreadyProcessed ? 'Order already placed' : 'Order placed!',
+      message: alreadyProcessed
+        ? 'This payment was already processed — your order is confirmed. No need to pay again.'
+        : 'Payment successful. Your order is confirmed and being prepared for delivery.',
+      paymentId: paymentId?.trim() ? paymentId : null,
+      alreadyProcessed,
+    });
   }
 
   downloadInvoice(order: OrderListItem, event: Event): void {

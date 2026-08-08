@@ -53,7 +53,7 @@ export function GlobalSearchResults({ query, onSelect }: GlobalSearchResultsProp
       setLoading(true);
       try {
         const [products, orders, customers, emiApps] = await Promise.all([
-          getProducts().catch(() => []),
+          getProducts({ limit: 1000, status: 'all' }).catch(() => []),
           getAllOrders().catch(() => []),
           getCustomers().catch(() => []),
           getAllEmiApplications().catch(() => [])
@@ -74,12 +74,12 @@ export function GlobalSearchResults({ query, onSelect }: GlobalSearchResultsProp
         }));
 
         const filteredOrders: SearchResultItem[] = orders.filter((o: any) =>
-          matches(q, o.id, o.customer_name, o.customer_phone),
+          matches(q, o.id, o.customerName, o.customerMobile, o.productName),
         ).map((o: any) => ({
           id: o.id,
           type: 'order',
-          title: o.id,
-          subtitle: `${o.customer_name || 'Customer'} · ${o.status || ''}`,
+          title: o.productName || o.id,
+          subtitle: `${o.customerName || 'Customer'} · ${o.status || ''}`,
           icon: 'receipt-outline',
         }));
 

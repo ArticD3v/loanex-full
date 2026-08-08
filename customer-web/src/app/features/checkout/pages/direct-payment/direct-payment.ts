@@ -10,9 +10,10 @@ import { formatInr } from '../../../../shared/utils/currency';
 import {
   CheckoutApiService,
   CheckoutSessionResponse,
+  CreateDirectPaymentOrderResponse,
+  RazorpayVerifyPayload,
 } from '../../services/checkout-api.service';
-
-declare var Razorpay: any;
+import { openRazorpayCheckout } from '../../../emi/utils/razorpay-checkout';
 
 @Component({
   selector: 'app-direct-payment',
@@ -32,18 +33,21 @@ export class DirectPaymentComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly data = signal<CheckoutSessionResponse | null>(null);
 
-  ngOnInit(): void {
-    const sessionId =
-      this.route.snapshot.queryParamMap.get('sessionId') ||
-      this.checkoutApi.getSavedSessionId();
+  private sessionId = '';
 
-    if (!sessionId) {
+  ngOnInit(): void {
+    this.sessionId =
+      this.route.snapshot.queryParamMap.get('sessionId') ||
+      this.checkoutApi.getSavedSessionId() ||
+      '';
+
+    if (!this.sessionId) {
       this.loading.set(false);
       this.error.set('Checkout session not found. Please restart checkout.');
       return;
     }
 
-    this.checkoutApi.getSession(sessionId).subscribe({
+    this.checkoutApi.getSession(this.sessionId).subscribe({
       next: (payload) => {
         this.loading.set(false);
         if (payload.session.purchaseType !== 'DIRECT') {
@@ -62,50 +66,20 @@ export class DirectPaymentComponent implements OnInit {
   payNow(): void {
     if (this.processing()) return;
     this.processing.set(true);
+    this.error.set(null);
 
-    const payload = this.data();
-    const amountInPaise = Math.round((payload?.session.totalAmount ?? 0) * 100);
-    const razorpayKey = (window as any).RAZORPAY_KEY ?? 'rzp_test_TLQmOr6ccJBo6l';
-
-    if (typeof Razorpay !== 'undefined') {
-      const options = {
-        key: razorpayKey,
-        amount: amountInPaise,
-        currency: 'INR',
-        name: 'LoanEx FinTech',
-        description: payload?.summary.product.name ?? 'Direct Order Payment',
-        image: 'assets/images/loanex-logo.png',
-        handler: (response: any) => {
-          this.processing.set(false);
-          void this.router.navigate(['/my-orders'], {
-            queryParams: { paymentSuccess: 'true', paymentId: response.razorpay_payment_id },
-          });
-        },
-        modal: {
-          ondismiss: () => {
-            this.processing.set(false);
-          },
-        },
-        theme: {
-          color: '#0A2540',
-        },
-      };
-
-      try {
-        const rzp = new Razorpay(options);
-        rzp.open();
-        return;
-      } catch (err) {
-        console.error('Razorpay launch error:', err);
-      }
-    }
-
-    setTimeout(() => {
-      this.processing.set(false);
-      void this.router.navigate(['/my-orders'], {
-        queryParams: { paymentSuccess: 'true' },
-      });
-    }, 1200);
+    // Create the Razorpay order server-side — never construct the checkout
+    // with a hardcoded key or client-computed amount.
+    this.checkoutApi.createPaymentOrder(this.sessionId).subscribe({
+      next: (order) => {
+        if (order.paymentDevBypass) {
+          this.completeWithDevBypass();
+          return;
+        }
+        void this.openRazorpayCheckout(order);
+      },
+      error: () => this.handlePaymentError('Unable to start payment.'),
+    });
   }
 
   goToCheckout(): void {
@@ -115,5 +89,78 @@ export class DirectPaymentComponent implements OnInit {
       return;
     }
     void this.router.navigateByUrl('/checkout');
+  }
+
+  /** Dev-only path: fabricate a signature via the backend and verify it. */
+  private completeWithDevBypass(): void {
+    this.checkoutApi.createDevBypassSignature(this.sessionId).subscribe({
+      next: (signed) => this.verifyAndNavigate(signed),
+      error: () => this.handlePaymentError('Dev payment bypass failed.'),
+    });
+  }
+
+  private async openRazorpayCheckout(order: CreateDirectPaymentOrderResponse): Promise<void> {
+    const description =
+      this.data()?.summary.product.name ?? 'Direct Order Payment';
+
+    try {
+      await openRazorpayCheckout({
+        key: order.keyId,
+        amount: order.amountPaise,
+        currency: order.currency,
+        name: 'LoanEx',
+        description,
+        order_id: order.razorpayOrderId,
+        theme: { color: '#0A2E6F' },
+        handler: (response) => {
+          this.verifyAndNavigate({
+            razorpayOrderId: response.razorpay_order_id,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpaySignature: response.razorpay_signature,
+          });
+        },
+        modal: {
+          ondismiss: () => {
+            this.processing.set(false);
+            this.error.set('Payment was cancelled. You can try again when ready.');
+          },
+        },
+      });
+    } catch {
+      this.processing.set(false);
+      this.error.set('Unable to open Razorpay checkout. Please try again.');
+    }
+  }
+
+  /** Verify the payment server-side, then send the user to their orders. */
+  private verifyAndNavigate(payload: RazorpayVerifyPayload): void {
+    this.checkoutApi.verifyPayment(this.sessionId, payload).subscribe({
+      next: (result) => {
+        this.processing.set(false);
+        this.goToOrders(payload.razorpayPaymentId, result.alreadyProcessed);
+      },
+      error: () => this.handlePaymentError('Payment verification failed.'),
+    });
+  }
+
+  private handlePaymentError(fallback: string): void {
+    this.processing.set(false);
+    // The order may already be confirmed server-side (e.g. a retried verify or
+    // a replay of the checkout page) — treat that as success, not an error.
+    if (this.checkoutApi.errorCode() === 'ALREADY_PAID') {
+      this.goToOrders(undefined, true);
+      return;
+    }
+    this.error.set(this.checkoutApi.error() ?? fallback);
+  }
+
+  private goToOrders(paymentId?: string, alreadyProcessed?: boolean): void {
+    void this.router.navigate(['/my-orders'], {
+      queryParams: {
+        paymentSuccess: 'true',
+        ...(paymentId ? { paymentId } : {}),
+        ...(alreadyProcessed ? { alreadyProcessed: 'true' } : {}),
+      },
+    });
   }
 }

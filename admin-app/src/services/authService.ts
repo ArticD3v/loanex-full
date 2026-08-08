@@ -7,30 +7,20 @@ export interface User {
   phone: string;
   email?: string;
   role: 'customer' | 'admin';
+  roleId?: string | null;
+  roleName?: string | null;
+  permissions?: string[];
   created_at: string;
   updated_at: string;
 }
 
-export interface AuthResponse {
-  token: string;
-  user: User;
-}
-
 /**
- * Send OTP to the given phone number
+ * Logout — clear local auth data.
+ * Note: admin login issues an access token only (no refresh token),
+ * so there is nothing to revoke server-side.
  */
-export const sendOtp = async (phone: string): Promise<{ success: boolean; message: string }> => {
-  const response = await api.post('/auth/send-otp', { phone });
-  return response.data;
-};
-
-/**
- * Verify OTP and receive JWT token + user data
- */
-export const verifyOtp = async (phone: string, otp: string): Promise<AuthResponse> => {
-  const response = await api.post('/auth/verify-otp', { phone, otp });
-  const { token, user } = response.data.data;
-  return { token, user };
+export const logout = async (): Promise<void> => {
+  await clearAuth();
 };
 
 /**
@@ -82,6 +72,10 @@ export const getMe = async (): Promise<User> => {
   const raw = data?.user ?? data ?? {};
   const stored = await getStoredUser();
 
+  const permissions = Array.isArray(raw.permissions)
+    ? raw.permissions
+    : stored?.permissions ?? [];
+
   return {
     id: String(raw.id ?? stored?.id ?? ''),
     phone: String(raw.phone ?? raw.mobile ?? stored?.phone ?? ''),
@@ -89,32 +83,12 @@ export const getMe = async (): Promise<User> => {
     role: raw.role === 'customer' || raw.role === 'admin'
       ? raw.role
       : stored?.role ?? 'admin',
+    roleId: raw.roleId ?? stored?.roleId ?? null,
+    roleName: raw.roleName ?? stored?.roleName ?? null,
+    permissions,
     created_at: String(raw.created_at ?? raw.createdAt ?? stored?.created_at ?? new Date().toISOString()),
     updated_at: String(raw.updated_at ?? raw.updatedAt ?? stored?.updated_at ?? new Date().toISOString()),
   };
-};
-
-/**
- * Logout — clear token on server and locally
- */
-export const logout = async (): Promise<void> => {
-  try {
-    await api.post('/auth/logout');
-  } catch (error) {
-    // Ignore errors on logout — we still want to clear local data
-    console.warn('[Auth] Server logout failed:', error);
-  }
-  await clearAuth();
-};
-
-/**
- * Refresh the JWT token
- */
-export const refreshToken = async (): Promise<string> => {
-  const response = await api.post('/auth/refresh');
-  const newToken = response.data.data.token;
-  await storeToken(newToken);
-  return newToken;
 };
 
 /**
@@ -130,7 +104,10 @@ export const loginAsAdmin = async (emailOrPhone: string, password: string): Prom
   }
 
   await storeToken(token);
-  await storeUser(user);
+  await storeUser({
+    ...user,
+    permissions: Array.isArray(user.permissions) ? user.permissions : [],
+  });
 
   return user;
 };

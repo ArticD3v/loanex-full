@@ -35,10 +35,12 @@ emiPaymentRouter.post(
   validateRequest(verifyEmiPaymentBodySchema),
   asyncHandler(emiPaymentController.verify),
 );
-emiPaymentRouter.post(
-  '/dev-bypass-signature',
-  validateRequest(devBypassEmiPaymentSchema),
-  asyncHandler(emiPaymentController.createDevBypassSignature),
-);
+if (env.NODE_ENV !== 'production') {
+  emiPaymentRouter.post(
+    '/dev-bypass-signature',
+    validateRequest(devBypassEmiPaymentSchema),
+    asyncHandler(emiPaymentController.createDevBypassSignature),
+  );
+}
 emiPaymentRouter.get('/:emiId/receipt', asyncHandler(emiPaymentController.getReceipt));
 emiPaymentRouter.get('/:emiId', asyncHandler(emiPaymentController.getByEmiId));

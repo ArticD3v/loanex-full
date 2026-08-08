@@ -5,6 +5,7 @@ import {
   PaymentType,
 } from '@prisma/client';
 import { jsonDb } from '../../../config/json-db';
+import { decrementStockDurable } from '../../../common/utils/inventory';
 
 const PAYABLE_STATUSES: EmiApplicationStatus[] = [
   EmiApplicationStatus.APPROVED,
@@ -135,7 +136,33 @@ export class PaymentRepository {
     let existing = jsonDb.findOne('orders', { applicationId: input.applicationId });
     let order = existing;
 
+    // Reduce inventory exactly once per order — only when this payment is what
+    // creates or links the order (a second success short-circuits earlier). The
+    // durable variant writes stock to Supabase directly and awaits it, so the
+    // decrement survives cold starts / the source-mode catalog refresh.
+    const inventoryItems = (() => {
+      const rows = Array.isArray(existing?.items) ? existing.items : [];
+      if (rows.length > 0) {
+        return rows.map((row: any) => ({
+          productId: row.productId,
+          quantity: row.quantity ?? 1,
+          variantId: row.variantId ?? null,
+        }));
+      }
+      return [{ productId: input.productId, quantity: 1, variantId: null }];
+    })();
+
     if (!existing) {
+      // Real fulfillment data: derive the delivery address from the customer's
+      // saved address book. Courier/tracking/warehouse are intentionally left
+      // unset here — they are entered by operations through the admin status
+      // update (and persisted by OrderRepository.updateStatus), so receipts and
+      // tracking never show fabricated placeholders.
+      const defaultAddress =
+        jsonDb.findOne('addresses', { userId: input.userId, is_default: true }) ??
+        jsonDb.findMany('addresses', { userId: input.userId })[0] ??
+        null;
+
       order = await jsonDb.insertAwaited('orders', {
         orderNumber: input.orderNumber,
         applicationId: input.applicationId,
@@ -149,15 +176,13 @@ export class PaymentRepository {
         paymentMethod: 'EMI',
         payment_status: 'SUCCESS',
         estimatedDeliveryDate,
-        courierPartner: 'LoanEx Express',
-        trackingNumber: `LXTRK${Date.now().toString().slice(-10)}`,
-        warehouse: 'LoanEx Central Warehouse, Mumbai',
-        deliveryAddress: 'Customer registered address',
+        deliveryAddress: defaultAddress?.fullAddress ?? null,
         items: [{ productId: input.productId, quantity: 1 }],
         totalAmount: application?.sellingPrice ?? application?.approvedLoanAmount ?? 0,
         subtotal: application?.sellingPrice ?? application?.approvedLoanAmount ?? 0,
         total: application?.sellingPrice ?? application?.approvedLoanAmount ?? 0,
       });
+      await decrementStockDurable(inventoryItems);
     }
 
     if (existing && !existing.paymentTransactionId) {
@@ -169,6 +194,7 @@ export class PaymentRepository {
         estimatedDeliveryDate: existing.estimatedDeliveryDate ?? estimatedDeliveryDate,
       });
       order = jsonDb.findOne('orders', { id: existing.id });
+      await decrementStockDurable(inventoryItems);
     }
 
     const freshOrder = jsonDb.findOne('orders', { id: order.id });
@@ -181,7 +207,7 @@ export class PaymentRepository {
         status: 'ORDER_CONFIRMED',
         remarks: 'Order confirmed after successful down payment',
         updatedBy: 'system',
-        location: freshOrder.warehouse ?? 'LoanEx Central Warehouse, Mumbai',
+        location: freshOrder.warehouse ?? null,
       });
     }
 

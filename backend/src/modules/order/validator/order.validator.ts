@@ -10,6 +10,7 @@ export const adminUpdateOrderStatusSchema = z.object({
       'SHIPPED',
       'OUT_FOR_DELIVERY',
       'DELIVERED',
+      'CANCELLED',
     ])
     .transform((value) => (value === 'CONFIRMED' ? 'ORDER_CONFIRMED' : value)),
   remarks: z.string().trim().max(500).optional(),

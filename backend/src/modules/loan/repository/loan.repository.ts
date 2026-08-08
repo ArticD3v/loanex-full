@@ -1,13 +1,12 @@
-import {
-  EmiPaymentStatus,
-  LoanStatus,
-  type EmiApplication,
-  type EmiSchedule,
-  type LoanAccount,
-  type Order,
-  type User,
-} from '@prisma/client';
+import { EmiPaymentStatus, LoanStatus } from '@prisma/client';
 import { jsonDb } from '../../../config/json-db';
+import { addMonths, buildEmiSchedule, istMidnight } from '../service/emi-calculator.service';
+
+type EmiApplication = Record<string, any>;
+type EmiSchedule = Record<string, any>;
+type LoanAccount = Record<string, any>;
+type Order = Record<string, any>;
+type User = Record<string, any>;
 
 export type LoanWithRelations = LoanAccount & {
   application: EmiApplication & { order?: Order | null };
@@ -75,8 +74,58 @@ export class LoanRepository {
     return this.enrich(jsonDb.findOne('loanAccount', { id: loanId }));
   }
 
+  /**
+   * Legacy loans (created before the schedule feature, or with a dropped
+   * emi_schedules table) have no instalment rows — nothing would ever show
+   * them a schedule or allow EMI payment. Rebuild the schedule from the
+   * loan's own terms so those loans become usable again.
+   */
+  private ensureSchedule(loan: any): void {
+    const existing = jsonDb.findMany('emi_schedules', { loanAccountId: loan.id });
+    if (existing.length > 0) return;
+
+    const loanAmount = Number(loan.loanAmount ?? 0);
+    const tenure = Number(loan.loanTenure ?? 6);
+    if (loanAmount <= 0 || tenure <= 0) return;
+
+    const startDate = loan.loanStartDate
+      ? new Date(loan.loanStartDate)
+      : istMidnight(new Date());
+
+    const plan = buildEmiSchedule({
+      principal: loanAmount,
+      annualRatePercent: Number(loan.interestRate ?? 12.5),
+      tenureMonths: tenure,
+      startDate,
+      emiAmount: Number(loan.emiAmount) || undefined,
+    });
+
+    for (const row of plan.rows) {
+      jsonDb.insert('emi_schedules', {
+        loanAccountId: loan.id,
+        emiNumber: row.emiNumber,
+        dueDate: row.dueDate,
+        principalAmount: row.principalAmount,
+        interestAmount: row.interestAmount,
+        emiAmount: row.emiAmount,
+        remainingBalance: row.remainingBalance,
+        paymentStatus: EmiPaymentStatus.PENDING,
+      });
+    }
+
+    if (!loan.loanStartDate) {
+      jsonDb.update('loanAccount', { id: loan.id }, {
+        loanStartDate: startDate,
+        loanEndDate: addMonths(startDate, tenure),
+        nextEmiDueDate: plan.rows[0]?.dueDate ?? null,
+        outstandingAmount: Number(loan.outstandingAmount) || plan.totalPayable,
+      });
+    }
+  }
+
   private enrich(loan: any): LoanWithRelations | null {
     if (!loan) return null;
+    this.ensureSchedule(loan);
     const applicationRow =
       jsonDb.findOne('emi_applications', { id: loan.applicationId }) ??
       jsonDb.findOne('emiApplication', { id: loan.applicationId });

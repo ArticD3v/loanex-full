@@ -208,6 +208,12 @@
   gap: 0.75rem;
 }
 
+.lx-ap__approve-link {
+  justify-self: stretch;
+  text-align: center;
+  text-decoration: none;
+}
+
 .lx-ap__actions {
   display: flex;
   flex-wrap: wrap;

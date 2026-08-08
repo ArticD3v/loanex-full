@@ -15,7 +15,9 @@ export interface BackendOrder {
   totalAmount: number;
   subtotal: number;
   total: number;
-  paymentMethod: 'FULL_PAYMENT' | 'EMI';
+  // Backend mapOrderRecord emits 'FULL PAYMENT' (with space) for DIRECT orders,
+  // 'EMI' for EMI orders, and could carry 'COD'/'CASH' for genuine COD sales.
+  paymentMethod?: string;
   payment_status: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
   status: string;
   items?: OrderItem[];
@@ -45,11 +47,26 @@ const VALID_STATUSES: OrderStatus[] = [
   'pending',
   'confirmed',
   'approved',
+  'processing',
   'packed',
   'shipped',
+  'out_for_delivery',
   'delivered',
   'cancelled',
 ];
+
+const BACKEND_TO_FRONTEND_STATUS: Record<string, OrderStatus> = {
+  PENDING: 'pending',
+  ORDER_CONFIRMED: 'confirmed',
+  CONFIRMED: 'confirmed',
+  PROCESSING: 'processing',
+  APPROVED: 'approved',
+  PACKED: 'packed',
+  SHIPPED: 'shipped',
+  OUT_FOR_DELIVERY: 'out_for_delivery',
+  DELIVERED: 'delivered',
+  CANCELLED: 'cancelled',
+};
 
 /**
  * Map raw backend order object to Frontend Order type
@@ -61,8 +78,9 @@ export const mapBackendOrderToFrontend = (
 ): Order => {
   const items = Array.isArray(rawOrder.items) ? rawOrder.items : [];
   const firstItem = items[0] || {};
-  const productId = rawOrder.productId || firstItem.productId || '';
-  const product = productsMap?.get(productId);
+  const product = rawOrder.product ?? {};
+  const productId = rawOrder.productId || product.id || firstItem.productId || '';
+  const productFromMap = productsMap?.get(productId);
 
   const userId = rawOrder.userId || rawOrder.profileId || rawOrder.customerId || '';
   const user = usersMap?.get(userId);
@@ -70,13 +88,21 @@ export const mapBackendOrderToFrontend = (
   const rawPayment = (rawOrder.paymentMethod || rawOrder.paymentType || 'FULL_PAYMENT')
     .toString()
     .toUpperCase();
+  // Distinguish genuine Razorpay DIRECT (full payment online) from COD/cash.
+  // Only explicit COD/CASH markers map to 'cash' — anything else non-EMI
+  // (FULL_PAYMENT / FULL PAYMENT / DIRECT / ONLINE / Razorpay) is an online
+  // full payment. Previously every non-EMI order was lumped into 'cash'.
   const paymentType: PaymentType =
-    rawPayment === 'EMI' || rawPayment === 'EMI_PAYMENT' ? 'emi' : 'cash';
+    rawPayment === 'EMI' || rawPayment === 'EMI_PAYMENT'
+      ? 'emi'
+      : rawPayment === 'COD' ||
+          rawPayment === 'CASH' ||
+          rawPayment === 'CASH_ON_DELIVERY'
+        ? 'cash'
+        : 'online';
 
-  const rawStatus = (rawOrder.status || 'pending').toString().toLowerCase();
-  const status: OrderStatus = VALID_STATUSES.includes(rawStatus as OrderStatus)
-    ? (rawStatus as OrderStatus)
-    : 'pending';
+  const rawStatus = String(rawOrder.orderStatus ?? rawOrder.status ?? 'PENDING').toUpperCase();
+  const status: OrderStatus = BACKEND_TO_FRONTEND_STATUS[rawStatus] ?? 'pending';
 
   const customerName =
     rawOrder.customerName ||
@@ -93,21 +119,25 @@ export const mapBackendOrderToFrontend = (
     '';
 
   const productName =
+    product.name ||
     rawOrder.productName ||
-    product?.name ||
+    productFromMap?.name ||
     firstItem.productName ||
+    firstItem.product?.name ||
     'Product';
 
   const productImageUrl =
+    product.imageUrl ||
     rawOrder.productImageUrl ||
-    product?.image ||
+    productFromMap?.image ||
     firstItem.productImageUrl ||
+    firstItem.product?.imageUrl ||
     undefined;
 
   const totalAmount =
+    rawOrder.orderAmount ??
     rawOrder.totalAmount ??
     rawOrder.total ??
-    rawOrder.orderAmount ??
     (firstItem.unitPrice ? firstItem.unitPrice * (firstItem.quantity || 1) : 0);
 
   const quantity = rawOrder.quantity ?? firstItem.quantity ?? 1;
@@ -117,6 +147,14 @@ export const mapBackendOrderToFrontend = (
     firstItem.unitPrice ??
     (quantity > 0 ? Math.round(totalAmount / quantity) : totalAmount);
 
+  const rawOrderDate = rawOrder.orderDate ?? rawOrder.createdAt;
+  const orderDate =
+    rawOrderDate instanceof Date
+      ? rawOrderDate.toISOString()
+      : typeof rawOrderDate === 'string'
+        ? rawOrderDate
+        : new Date().toISOString();
+
   return {
     id: rawOrder.id,
     customerId: userId,
@@ -124,7 +162,7 @@ export const mapBackendOrderToFrontend = (
     customerMobile,
     productId,
     productName,
-    orderDate: rawOrder.createdAt || rawOrder.orderDate || new Date().toISOString(),
+    orderDate,
     orderAmount: totalAmount,
     quantity,
     sellingPrice,
@@ -132,7 +170,7 @@ export const mapBackendOrderToFrontend = (
     paymentType,
     status,
     productImageUrl,
-    emiPlan: rawOrder.emiPlan,
+    emiPlan: rawOrder.emiPlan ?? product.name,
     emiAmount: rawOrder.emiAmount,
     emiDuration: rawOrder.emiDuration,
   };
@@ -204,19 +242,26 @@ export const getAllOrders = async (): Promise<Order[]> => {
 };
 
 /**
- * Get a single order by ID
+ * Get a single order by ID (admin-aware)
  */
 export const getOrderById = async (orderId: string): Promise<Order> => {
   let rawOrder: any = null;
   try {
-    const response = await api.get(`/orders/${orderId}`);
+    // Admin detail endpoint first — the customer-scoped /orders/:orderId
+    // filters by the caller's own userId and 404s for admin tokens.
+    const response = await api.get(`/orders/admin/${orderId}`);
     rawOrder = response.data.data;
   } catch (error: any) {
-    // If not found in /orders/:orderId, attempt to fetch from /admin/orders list
-    const all = await getAllOrders();
-    const found = all.find((o) => o.id === orderId);
-    if (found) return found;
-    throw error;
+    try {
+      const response = await api.get(`/orders/${orderId}`);
+      rawOrder = response.data.data;
+    } catch (error2: any) {
+      // Final fallback: find in the admin list.
+      const all = await getAllOrders();
+      const found = all.find((o) => o.id === orderId);
+      if (found) return found;
+      throw error2;
+    }
   }
 
   const { usersMap, productsMap } = await fetchEnrichmentData();
@@ -231,10 +276,9 @@ export const updateOrderStatus = async (
   data: UpdateOrderStatusData
 ): Promise<Order> => {
   const response = await api.patch(`/admin/orders/${orderId}/status`, data);
-  const updatedRaw = response.data.data;
-
-  const { usersMap, productsMap } = await fetchEnrichmentData();
-  return mapBackendOrderToFrontend(updatedRaw, usersMap, productsMap);
+  // The PATCH returns a tracking-only payload; refetch the full order so the
+  // details screen isn't replaced with placeholder data.
+  return getOrderById(response.data.data?.orderId ?? orderId);
 };
 
 /**

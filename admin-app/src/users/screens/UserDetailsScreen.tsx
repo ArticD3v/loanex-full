@@ -25,6 +25,7 @@ import {
   getUserActivityLog,
 } from '../../services/userService';
 import { AppUser, UserLoginEntry, UserActivityEntry } from '../../types/user';
+import { useRbac, can } from '../../auth/rbacStore';
 import { useMasterData, activeNames } from '../../settings/context/MasterDataContext';
 import { colors } from '../../theme/colors';
 import { radius, spacing } from '../../theme/spacing';
@@ -113,6 +114,7 @@ const chipStyles = StyleSheet.create({
 export function UserDetailsScreen({ navigation, route }: Props) {
   const userId = route.params.userId;
   const master = useMasterData();
+  const rbac = useRbac();
 
   const [user, setUser] = useState<AppUser | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -226,12 +228,16 @@ export function UserDetailsScreen({ navigation, route }: Props) {
           text: nextBlocked ? 'Block' : 'Unblock',
           style: nextBlocked ? 'destructive' : 'default',
           onPress: async () => {
-            await setUserBlocked(user.id, nextBlocked);
-            setUser({ ...user, blocked: nextBlocked });
-            Alert.alert(
-              'Updated',
-              nextBlocked ? 'User blocked.' : 'User unblocked.',
-            );
+            try {
+              await setUserBlocked(user.id, nextBlocked);
+              setUser({ ...user, blocked: nextBlocked });
+              Alert.alert(
+                'Updated',
+                nextBlocked ? 'User blocked.' : 'User unblocked.',
+              );
+            } catch (error: any) {
+              Alert.alert('Update Failed', error?.message || 'Could not update blocked state.');
+            }
           },
         },
       ],
@@ -257,8 +263,12 @@ export function UserDetailsScreen({ navigation, route }: Props) {
   };
 
   const handleSaveAccess = async () => {
-    await updateUserAccess(user.id, { branches, pincodes });
-    Alert.alert('Access Updated', 'Branch and pincode mapping saved.');
+    try {
+      await updateUserAccess(user.id, { branches, pincodes });
+      Alert.alert('Access Updated', 'Branch and pincode mapping saved.');
+    } catch (error: any) {
+      Alert.alert('Update Failed', error?.message || 'Could not save access mapping.');
+    }
   };
 
   return (
@@ -295,14 +305,15 @@ export function UserDetailsScreen({ navigation, route }: Props) {
               variant={user.blocked ? 'success' : 'danger'}
               onPress={handleBlockToggle}
             />
-            <Button title="Password Reset" variant="outline" onPress={handlePasswordReset} />
-            <Button
-              title="Edit User / Role"
-              variant="secondary"
-              onPress={() =>
-                navigation.navigate('AddUser', { mode: 'edit', userId: user.id })
-              }
-            />
+            {can('users.edit') ? (
+              <Button
+                title="Edit User / Role"
+                variant="secondary"
+                onPress={() =>
+                  navigation.navigate('AddUser', { mode: 'edit', userId: user.id })
+                }
+              />
+            ) : null}
           </View>
         </Card>
 

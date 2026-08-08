@@ -4,12 +4,13 @@ import {
   PaymentStatus,
   PaymentType,
   Prisma,
-  type EmiApplication,
-  type EmiSchedule,
-  type LoanAccount,
-  type PaymentTransaction,
 } from '@prisma/client';
 import { jsonDb } from '../../../config/json-db';
+
+export type EmiApplication = Record<string, any>;
+export type EmiSchedule = Record<string, any>;
+export type LoanAccount = Record<string, any>;
+export type PaymentTransaction = Record<string, any>;
 
 export type HistoryPayment = PaymentTransaction & {
   emiSchedule: (EmiSchedule & {

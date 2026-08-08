@@ -158,6 +158,7 @@ export function emptyDealerForm(): DealerFormState {
   return {
     dealerCode: '',
     dealerName: '',
+    name: '',
     mobile: '',
     email: '',
     status: 'active',
