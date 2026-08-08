@@ -1,10 +1,17 @@
 import { randomUUID } from 'crypto';
 import { NotFoundError } from '../../../common/errors/app-error';
 import { jsonDb } from '../../../config/json-db';
-import { calculateEmiBreakdown } from '../../loan/service/emi-calculator.service';
+import {
+  calculateEmiBreakdown,
+  DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
+} from '../../loan/service/emi-calculator.service';
 import { stockState } from '../../../common/utils/inventory';
 import type { ListProductsQuery } from '../dto/product.dto';
 import { productRepository } from '../repository/product.repository';
+import {
+  isCustomerVisibleProduct,
+  resolveCustomerFacingName,
+} from '../utils/customer-visibility';
 import type { Product } from '../../../types/database.types';
 type ProductVariant = any;
 
@@ -456,7 +463,7 @@ function mapProduct(
   return {
     ...product,
     id: product.id,
-    name: product.name,
+    name: resolveCustomerFacingName(product),
     slug: product.slug,
     description: product.description,
     shortDescription: product.shortDescription,
@@ -574,6 +581,7 @@ function mapPdpProduct(
       downPayment,
       processingFee: serviceCharge + deliveryCharge,
       tenureMonths: months,
+      annualInterestRatePercent: DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
     });
 
     return {
@@ -700,9 +708,13 @@ export class ProductService {
     };
   }
 
-  async getById(productId: string) {
+  async getById(productId: string, options?: { allowHidden?: boolean }) {
     const product = await productRepository.findByIdWithVariants(productId);
     if (!product) {
+      throw new NotFoundError('Product not found.');
+    }
+
+    if (!options?.allowHidden && !isCustomerVisibleProduct(product)) {
       throw new NotFoundError('Product not found.');
     }
 
@@ -712,9 +724,13 @@ export class ProductService {
     return mapPdpProduct(product, stats);
   }
 
-  async getBySlug(slug: string) {
+  async getBySlug(slug: string, options?: { allowHidden?: boolean }) {
     const product = await productRepository.findBySlugWithVariants(slug);
     if (!product) {
+      throw new NotFoundError('Product not found.');
+    }
+
+    if (!options?.allowHidden && !isCustomerVisibleProduct(product)) {
       throw new NotFoundError('Product not found.');
     }
 

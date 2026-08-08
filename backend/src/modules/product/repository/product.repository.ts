@@ -1,5 +1,9 @@
 import { jsonDb } from '../../../config/json-db';
 import type { ListProductsQuery } from '../dto/product.dto';
+import {
+  applyCustomerCatalogVisibility,
+  isCustomerVisibleProduct,
+} from '../utils/customer-visibility';
 
 export type ProductWithReviewStats = any & {
   averageRating: number;
@@ -52,6 +56,9 @@ export class ProductRepository {
     } else if (!reqQuery.status) {
       rows = rows.filter((p: any) => p.status === 'active');
     }
+
+    // Hide incomplete wizard placeholders from the customer catalog.
+    rows = applyCustomerCatalogVisibility(rows, reqQuery);
 
     if (reqQuery.search) {
       const s = reqQuery.search.toLowerCase();
@@ -226,7 +233,9 @@ export class ProductRepository {
       return filtersCache.value;
     }
 
-    const products = jsonDb.findMany('products').filter((p: any) => p.status === 'active');
+    const products = jsonDb
+      .findMany('products')
+      .filter((p: any) => isCustomerVisibleProduct(p));
     const brandSet = new Set<string>();
     const categorySet = new Set<string>();
 

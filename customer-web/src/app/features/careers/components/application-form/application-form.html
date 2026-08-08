@@ -1,0 +1,125 @@
+<form class="lx-apply-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <header class="lx-apply-form__intro">
+    <h2>Apply for {{ jobTitle() }}</h2>
+    <p>Share a few details and we will get back to you soon.</p>
+  </header>
+
+  @if (error(); as errorMsg) {
+    <div class="lx-apply-form__banner lx-apply-form__banner--error" role="alert">
+      <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
+      <p>{{ errorMsg }}</p>
+    </div>
+  }
+
+  <div class="lx-apply-form__grid">
+    <div class="lx-field">
+      <label class="lx-label" for="careers-full-name">Full Name <span aria-hidden="true">*</span></label>
+      <input id="careers-full-name" class="lx-input" type="text" formControlName="fullName" autocomplete="name" />
+      <app-form-field-error [control]="form.controls.fullName" label="Full name" [submitted]="submittedTick()" />
+    </div>
+
+    <div class="lx-field">
+      <label class="lx-label" for="careers-email">Email <span aria-hidden="true">*</span></label>
+      <input id="careers-email" class="lx-input" type="email" formControlName="email" autocomplete="email" />
+      <app-form-field-error [control]="form.controls.email" label="Email" [submitted]="submittedTick()" />
+    </div>
+
+    <div class="lx-field">
+      <label class="lx-label" for="careers-phone">Phone Number <span aria-hidden="true">*</span></label>
+      <input
+        id="careers-phone"
+        class="lx-input"
+        type="tel"
+        formControlName="phone"
+        autocomplete="tel"
+        inputmode="numeric"
+        maxlength="10"
+      />
+      <app-form-field-error [control]="form.controls.phone" label="Phone number" [submitted]="submittedTick()" />
+    </div>
+
+    <div class="lx-field">
+      <label class="lx-label" for="careers-location">Current Location <span aria-hidden="true">*</span></label>
+      <input id="careers-location" class="lx-input" type="text" formControlName="location" autocomplete="address-level2" />
+      <app-form-field-error [control]="form.controls.location" label="Current location" [submitted]="submittedTick()" />
+    </div>
+
+    <div class="lx-field">
+      <label class="lx-label" for="careers-experience">Experience <span aria-hidden="true">*</span></label>
+      <input id="careers-experience" class="lx-input" type="text" formControlName="experience" placeholder="e.g. 3 years" />
+      <app-form-field-error [control]="form.controls.experience" label="Experience" [submitted]="submittedTick()" />
+    </div>
+
+    <div class="lx-field">
+      <label class="lx-label" for="careers-title">Current / Previous Job Title</label>
+      <input id="careers-title" class="lx-input" type="text" formControlName="currentJobTitle" />
+    </div>
+
+    <div class="lx-field lx-apply-form__full">
+      <label class="lx-label" for="careers-skills">Skills</label>
+      <input id="careers-skills" class="lx-input" type="text" formControlName="skills" placeholder="e.g. Angular, TypeScript" />
+    </div>
+
+    <div class="lx-field lx-apply-form__full">
+      <span class="lx-label" id="careers-resume-label">Resume Upload <span aria-hidden="true">*</span></span>
+      <label class="lx-file-upload" for="careers-resume" [class.is-filled]="!!resumeName()">
+        <span class="lx-file-upload__icon" aria-hidden="true">
+          <i class="pi" [class.pi-upload]="!resumeName()" [class.pi-check]="!!resumeName()"></i>
+        </span>
+        <span class="lx-file-upload__text">
+          @if (resumeName(); as name) {
+            <strong>{{ name }}</strong>
+            <small>Click to replace file</small>
+          } @else {
+            <strong>Choose resume file</strong>
+            <small>PDF, DOC, or DOCX · Max 5MB</small>
+          }
+        </span>
+        <input
+          id="careers-resume"
+          class="lx-file-upload__input"
+          type="file"
+          accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          (change)="onResumeSelected($event)"
+          aria-labelledby="careers-resume-label"
+        />
+      </label>
+      @if (resumeError()) {
+        <p class="lx-error-text">{{ resumeError() }}</p>
+      }
+    </div>
+
+    <div class="lx-field">
+      <label class="lx-label" for="careers-linkedin">LinkedIn URL <span class="lx-apply-form__optional">(optional)</span></label>
+      <input id="careers-linkedin" class="lx-input" type="url" formControlName="linkedinUrl" />
+    </div>
+
+    <div class="lx-field">
+      <label class="lx-label" for="careers-portfolio">Portfolio URL <span class="lx-apply-form__optional">(optional)</span></label>
+      <input id="careers-portfolio" class="lx-input" type="url" formControlName="portfolioUrl" />
+    </div>
+
+    <div class="lx-field lx-apply-form__full">
+      <label class="lx-label" for="careers-about">Tell Us About Yourself <span aria-hidden="true">*</span></label>
+      <textarea
+        id="careers-about"
+        class="lx-input lx-apply-form__textarea"
+        formControlName="about"
+        rows="5"
+        placeholder="Tell us about your experience, skills, and why you're interested in this role."
+      ></textarea>
+      <app-form-field-error [control]="form.controls.about" label="About yourself" [submitted]="submittedTick()" />
+    </div>
+  </div>
+
+  <div class="lx-apply-form__actions">
+    <button
+      type="submit"
+      class="lx-btn lx-btn--primary"
+      [class.is-loading]="submitting()"
+      [disabled]="submitting()"
+    >
+      Submit Application
+    </button>
+  </div>
+</form>

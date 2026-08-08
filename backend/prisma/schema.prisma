@@ -105,10 +105,86 @@ model banners {
   badgeText  String?
   image_url  String
   link       String?
+  placement  String?   @default("home")
   sort_order Int?      @default(0)
   status     String?   @default("active")
   createdAt  DateTime? @default(now()) @db.Timestamptz(6)
 
+  @@schema("public")
+}
+
+model job_openings {
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title            String
+  department       String
+  location         String
+  employmentType   String
+  experience       String
+  shortDescription String?
+  description      String
+  responsibilities String[]          @default([])
+  requirements     String[]          @default([])
+  skills           String[]          @default([])
+  benefits         String[]          @default([])
+  slug             String?
+  status           String            @default("active")
+  createdAt        DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime          @default(now()) @db.Timestamptz(6)
+  applications     job_applications[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([slug])
+  @@schema("public")
+}
+
+model job_applications {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobId           String       @db.Uuid
+  fullName        String
+  email           String
+  phone           String
+  location        String?
+  experience      String?
+  currentJobTitle String?
+  skills          String?
+  resumeUrl       String
+  resumeFileName  String?
+  linkedinUrl     String?
+  portfolioUrl    String?
+  about           String
+  status          String       @default("Applied")
+  createdAt       DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime     @default(now()) @db.Timestamptz(6)
+  job             job_openings @relation(fields: [jobId], references: [id])
+
+  @@index([jobId])
+  @@index([status])
+  @@index([createdAt])
+  @@schema("public")
+}
+
+model general_applications {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fullName            String
+  email               String
+  phone               String
+  location            String?
+  experience          String?
+  currentJobTitle     String?
+  skills              String?
+  preferredDepartment String
+  resumeUrl           String
+  resumeFileName      String?
+  linkedinUrl         String?
+  portfolioUrl        String?
+  about               String
+  status              String   @default("Applied")
+  createdAt           DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([status])
+  @@index([createdAt])
   @@schema("public")
 }
 
@@ -151,6 +227,7 @@ model categories {
   icon        String?
   color       String?
   bgColor     String?
+  parentId    String?    @db.Uuid
   status      String?    @default("active")
   sortOrder   Int?       @default(0)
   createdAt   DateTime?  @default(now()) @db.Timestamptz(6)
@@ -989,6 +1066,8 @@ enum EmiApplicationStatus {
 enum PaymentType {
   DOWN_PAYMENT
   EMI
+  KYC_VERIFICATION
+  FULL_PAYMENT
   @@schema("public")
 }
 

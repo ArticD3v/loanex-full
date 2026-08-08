@@ -149,6 +149,7 @@ function mapOrderRecord(order: any) {
 
 export class OrderRepository {
   async listForUser(userId: string) {
+    await jsonDb.refreshCollection('orders');
     const orders = jsonDb.findMany('orders');
     const filtered = orders.filter((o: any) => orderOwnedBy(o, userId));
     filtered.sort((a, b) => new Date(b.createdAt ?? b.created_at).getTime() - new Date(a.createdAt ?? a.created_at).getTime());
@@ -156,6 +157,7 @@ export class OrderRepository {
   }
 
   async adminListAll() {
+    await jsonDb.refreshCollection('orders');
     const orders = jsonDb.findMany('orders');
     orders.sort((a, b) => new Date(b.createdAt ?? b.created_at).getTime() - new Date(a.createdAt ?? a.created_at).getTime());
     return orders.map(mapOrderRecord);
@@ -167,7 +169,8 @@ export class OrderRepository {
   }
 
   async findByIdForUser(orderId: string, userId: string) {
-    const order = jsonDb.findOne('orders', { id: orderId });
+    await jsonDb.refreshCollection('orders');
+    const order = this.findRawByRef(orderId);
     if (order && orderOwnedBy(order, userId)) {
       return mapOrderRecord(order);
     }
@@ -175,8 +178,34 @@ export class OrderRepository {
   }
 
   async findById(orderId: string) {
-    const order = jsonDb.findOne('orders', { id: orderId });
+    await jsonDb.refreshCollection('orders');
+    const order = this.findRawByRef(orderId);
     return mapOrderRecord(order);
+  }
+
+  /** Look up by UUID or human-readable order number (e.g. ORD-11DDC768). */
+  private findRawByRef(ref: string) {
+    const key = String(ref || '').trim();
+    if (!key) return null;
+    const byId = jsonDb.findOne('orders', { id: key });
+    if (byId) return byId;
+
+    const upper = key.toUpperCase();
+    const orders = jsonDb.findMany('orders');
+    return (
+      orders.find((order: any) => {
+        const storedNumber = String(order.orderNumber ?? '').toUpperCase();
+        if (storedNumber && storedNumber === upper) return true;
+        // List API synthesizes ORD-{first8OfId} when orderNumber is missing —
+        // accept that form so "View Order" resolves the same row.
+        const id = String(order.id ?? '');
+        if (id.length >= 8) {
+          const synthesized = `ORD-${id.slice(0, 8).toUpperCase()}`;
+          if (synthesized === upper) return true;
+        }
+        return false;
+      }) ?? null
+    );
   }
 
   async findByApplicationId(applicationId: string) {

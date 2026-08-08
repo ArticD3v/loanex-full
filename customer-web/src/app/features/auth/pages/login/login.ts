@@ -1,9 +1,17 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
 import { FormFieldErrorComponent } from '../../../../shared/components/form-field-error/form-field-error';
-import { indianMobileValidator } from '../../../../shared/validators/auth.validators';
+
+/** Accept Indian mobile (10 digits starting 6-9) or a basic email. */
+function loginIdentifierValidator(control: AbstractControl): ValidationErrors | null {
+  const value = String(control.value ?? '').trim();
+  if (!value) return null;
+  if (/^[6-9]\d{9}$/.test(value)) return null;
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return null;
+  return { loginIdentifier: true };
+}
 
 @Component({
   selector: 'app-login',
@@ -22,7 +30,7 @@ export class Login {
   readonly showPassword = signal(false);
 
   readonly form = this.fb.nonNullable.group({
-    mobile: ['', [Validators.required, indianMobileValidator()]],
+    identifier: ['', [Validators.required, loginIdentifierValidator]],
     password: ['', [Validators.required, Validators.minLength(1)]],
   });
 
@@ -40,10 +48,14 @@ export class Login {
     this.showPassword.update((v) => !v);
   }
 
-  onMobileInput(event: Event): void {
+  onIdentifierInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const value = input.value.replace(/\D/g, '').slice(0, 10);
-    this.form.controls.mobile.setValue(value);
+    let value = input.value.trim();
+    // Digits-only → treat as mobile and cap at 10.
+    if (/^\d+$/.test(value)) {
+      value = value.replace(/\D/g, '').slice(0, 10);
+    }
+    this.form.controls.identifier.setValue(value);
     input.value = value;
   }
 
@@ -52,9 +64,9 @@ export class Login {
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
 
-    const { mobile, password } = this.form.getRawValue();
+    const { identifier, password } = this.form.getRawValue();
     // Password login only — OTP login is disabled on the API.
-    this.auth.login({ identifier: mobile.trim(), password }).subscribe({
+    this.auth.login({ identifier: identifier.trim(), password }).subscribe({
       next: () => {
         this.auth.redirectAfterAuth();
       },

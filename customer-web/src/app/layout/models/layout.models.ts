@@ -4,6 +4,8 @@ export interface NavItem {
   path: string;
   fragment?: string;
   icon?: string;
+  /** Active matching for nested routes (e.g. /careers/:id). Defaults to exact. */
+  matchPaths?: 'exact' | 'subset';
 }
 
 export interface CategoryItem {
@@ -18,7 +20,10 @@ export interface CategoryItem {
 export interface FooterLink {
   id: string;
   label: string;
-  path: string;
+  /** Router path when the page exists. Omit when content is unavailable. */
+  path?: string;
+  /** When true, render as non-navigable unavailable text. */
+  unavailable?: boolean;
 }
 
 export interface FooterSection {
@@ -31,7 +36,8 @@ export interface SocialLink {
   id: string;
   label: string;
   icon: string;
-  href: string;
+  /** Absolute https URL only. Empty/missing = do not render. */
+  href?: string;
 }
 
 export interface BreadcrumbItem {

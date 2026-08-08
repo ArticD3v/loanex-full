@@ -1,4 +1,4 @@
-import { EmiApplicationStatus, PaymentStatus } from '@prisma/client';
+import { EmiApplicationStatus, PaymentStatus, PaymentType } from '@prisma/client';
 import {
   BadRequestError,
   ConflictError,
@@ -13,6 +13,7 @@ import { loanService } from '../../loan/service/loan.service';
 import { cartRepository } from '../../cart/repository/cart.repository';
 import { emiPaymentService } from '../../emi-payment/service/emi-payment.service';
 import { autopayService } from '../../autopay/service/autopay.service';
+import { KYC_FEE_AMOUNT_INR, KYC_VERIFICATION_PURPOSE } from '../kyc-fee.constants';
 import { paymentRepository } from '../repository/payment.repository';
 import {
   createRazorpayOrder,
@@ -283,6 +284,15 @@ export class PaymentService {
           code: 'ORDER_MISMATCH',
         });
       }
+      const expectedPaise = Math.round(toNumber(transaction.amount) * 100);
+      if (remote.amount != null && expectedPaise > 0 && Number(remote.amount) !== expectedPaise) {
+        await paymentRepository.markFailed(transaction.id);
+        throw new BadRequestError('Payment amount mismatch.', {
+          code: 'AMOUNT_MISMATCH',
+          expectedPaise,
+          actualPaise: remote.amount,
+        });
+      }
     }
 
     const app = await paymentRepository.findApplicationForUser(
@@ -494,8 +504,9 @@ export class PaymentService {
       ? await paymentRepository.findByRazorpayOrderId(remote.orderId)
       : null;
 
-    if (transaction && transaction.userId !== userId) {
-      throw new ForbiddenError('Payment does not belong to this account.');
+    // Do not act as a Razorpay oracle for payments with no local ownership.
+    if (!transaction || transaction.userId !== userId) {
+      throw new NotFoundError('Payment not found for this account.');
     }
 
     return {
@@ -505,8 +516,8 @@ export class PaymentService {
       amountPaise: remote.amount,
       currency: remote.currency,
       method: remote.method,
-      localStatus: transaction?.paymentStatus ?? null,
-      transactionId: transaction?.id ?? null,
+      localStatus: transaction.paymentStatus ?? null,
+      transactionId: transaction.id ?? null,
     };
   }
 
@@ -615,14 +626,17 @@ export class PaymentService {
       return { handled: false, reason: 'UNKNOWN_ORDER', event: eventName, orderId };
     }
 
-    // This webhook completes EMI down-payments AND monthly EMI instalments.
-    // DIRECT (FULL_PAYMENT) transactions live in the same collection but are
-    // completed by the checkout module's verify flow — without this guard a
-    // DIRECT payment would fall through to the user's latest EMI application
-    // and complete (and now decrement stock for) the wrong order.
+    // This webhook completes EMI down-payments, monthly EMI instalments, and
+    // KYC fee captures. DIRECT (FULL_PAYMENT) transactions live in the same
+    // collection but are completed by the checkout module's verify flow —
+    // without this guard a DIRECT payment would fall through to the user's
+    // latest EMI application and complete (and now decrement stock for) the
+    // wrong order.
     const isEmiInstalment = transaction.paymentType === 'EMI';
+    const isKycVerification = transaction.paymentType === PaymentType.KYC_VERIFICATION;
     if (
       !isEmiInstalment &&
+      !isKycVerification &&
       (!transaction.applicationId || transaction.paymentType !== 'DOWN_PAYMENT')
     ) {
       return {
@@ -640,6 +654,63 @@ export class PaymentService {
     ) {
       if (transaction.paymentStatus === PaymentStatus.SUCCESS) {
         return { handled: true, alreadyProcessed: true, event: eventName };
+      }
+
+      // Amount must match for KYC, EMI, and DOWN_PAYMENT before any completion.
+      const expectedPaise = Math.round(toNumber(transaction.amount) * 100);
+      const remoteAmount = paymentEntity?.amount != null ? Number(paymentEntity.amount) : null;
+      if (remoteAmount != null && expectedPaise > 0 && remoteAmount !== expectedPaise) {
+        await auditLogService.log({
+          userId: transaction.userId,
+          action: 'PAYMENT_WEBHOOK_AMOUNT_MISMATCH',
+          entity: 'payment_transactions',
+          metadata: {
+            event: eventName,
+            razorpayOrderId: orderId,
+            razorpayPaymentId: paymentId,
+            paymentType: transaction.paymentType,
+            expectedPaise,
+            actualPaise: remoteAmount,
+            timestamp: new Date().toISOString(),
+          },
+        });
+        return {
+          handled: false,
+          reason: 'AMOUNT_MISMATCH',
+          event: eventName,
+          orderId,
+          expectedPaise,
+          actualPaise: remoteAmount,
+        };
+      }
+
+      // Lifetime KYC fee — mark SUCCESS only; do not create EMI order/loan.
+      if (isKycVerification) {
+        await paymentRepository.completeKycVerificationPayment({
+          transactionId: transaction.id,
+          razorpayPaymentId: paymentId ?? `wh_${Date.now()}`,
+          razorpaySignature: signature,
+        });
+
+        await auditLogService.log({
+          userId: transaction.userId,
+          action: 'KYC_FEE_WEBHOOK_SUCCESS',
+          entity: 'payment_transactions',
+          metadata: {
+            event: eventName,
+            razorpayOrderId: orderId,
+            razorpayPaymentId: paymentId,
+            purpose: KYC_VERIFICATION_PURPOSE,
+            timestamp: new Date().toISOString(),
+          },
+        });
+
+        return {
+          handled: true,
+          paymentStatus: 'SUCCESS',
+          event: eventName,
+          purpose: KYC_VERIFICATION_PURPOSE,
+        };
       }
 
       // Monthly EMI instalment captured — complete it server-side so the
@@ -660,12 +731,14 @@ export class PaymentService {
         };
       }
 
-      const app = paymentRepository.findLatestApplicationForUser(transaction.userId);
-      const application =
-        (await paymentRepository.findApplicationForUser(
-          transaction.applicationId,
-          transaction.userId,
-        )) ?? app;
+      // Never fall back to "latest application" — wrong loan/order side effects.
+      if (!transaction.applicationId) {
+        return { handled: false, reason: 'APPLICATION_ID_MISSING', event: eventName, orderId };
+      }
+      const application = await paymentRepository.findApplicationForUser(
+        transaction.applicationId,
+        transaction.userId,
+      );
 
       if (!application) {
         return { handled: false, reason: 'APPLICATION_MISSING', event: eventName };
@@ -726,6 +799,250 @@ export class PaymentService {
     }
 
     return { handled: false, reason: 'UNHANDLED_EVENT', event: eventName };
+  }
+
+  // ── Lifetime one-time KYC verification fee (₹299) ─────────────────────────
+
+  async getKycFeeStatus(userId: string) {
+    const existing = await paymentRepository.findSuccessKycVerification(userId);
+    if (existing) {
+      return {
+        paid: true as const,
+        amount: KYC_FEE_AMOUNT_INR,
+        purpose: KYC_VERIFICATION_PURPOSE,
+        paymentId: existing.id,
+        razorpayOrderId: existing.razorpayOrderId ?? null,
+        razorpayPaymentId: existing.razorpayPaymentId ?? null,
+        paidAt: existing.paidAt ?? existing.updatedAt ?? existing.createdAt ?? null,
+      };
+    }
+    return {
+      paid: false as const,
+      amount: KYC_FEE_AMOUNT_INR,
+      purpose: KYC_VERIFICATION_PURPOSE,
+      paymentId: null,
+      razorpayOrderId: null,
+      razorpayPaymentId: null,
+      paidAt: null,
+    };
+  }
+
+  async createKycFeeOrder(
+    userId: string,
+    meta?: { ipAddress?: string | null; userAgent?: string | null },
+  ) {
+    const alreadyPaid = await paymentRepository.findSuccessKycVerification(userId);
+    if (alreadyPaid) {
+      throw new ConflictError('KYC verification fee already paid for this account.', {
+        code: 'KYC_FEE_ALREADY_PAID',
+        paid: true,
+        amount: KYC_FEE_AMOUNT_INR,
+        purpose: KYC_VERIFICATION_PURPOSE,
+        paymentId: alreadyPaid.id,
+        paidAt: alreadyPaid.paidAt ?? alreadyPaid.updatedAt ?? null,
+      });
+    }
+
+    const user = await paymentRepository.findUserById(userId);
+    if (!user) {
+      throw new UnauthorizedError('User not found');
+    }
+
+    const amountInr = KYC_FEE_AMOUNT_INR;
+    const razorpayOrder = await createRazorpayOrder({
+      amountInr,
+      receipt: `kyc_${userId}`.slice(0, 40),
+      notes: {
+        userId,
+        purpose: KYC_VERIFICATION_PURPOSE,
+        paymentType: PaymentType.KYC_VERIFICATION,
+      },
+    });
+
+    const transaction = await paymentRepository.createKycVerificationTransaction({
+      userId,
+      razorpayOrderId: razorpayOrder.id,
+      amount: amountInr,
+      currency: razorpayOrder.currency,
+    });
+
+    await auditLogService.log({
+      userId,
+      action: 'KYC_FEE_ORDER_CREATED',
+      entity: 'payment_transactions',
+      metadata: {
+        razorpayOrderId: razorpayOrder.id,
+        amount: amountInr,
+        purpose: KYC_VERIFICATION_PURPOSE,
+        timestamp: new Date().toISOString(),
+        ipAddress: meta?.ipAddress ?? null,
+        device: meta?.userAgent ?? null,
+      },
+    });
+
+    return {
+      transactionId: transaction.id,
+      razorpayOrderId: razorpayOrder.id,
+      amount: amountInr,
+      amountPaise: razorpayOrder.amount,
+      currency: razorpayOrder.currency,
+      keyId: getRazorpayKeyId(),
+      paymentDevBypass: isPaymentDevBypass(),
+      purpose: KYC_VERIFICATION_PURPOSE,
+      customer: {
+        name: user.fullName,
+        email: user.email,
+        contact: user.mobile,
+      },
+      prefill: {
+        name: user.fullName,
+        email: user.email,
+        contact: user.mobile,
+      },
+      notes: {
+        purpose: KYC_VERIFICATION_PURPOSE,
+      },
+    };
+  }
+
+  async verifyKycFeePayment(
+    userId: string,
+    input: {
+      razorpayOrderId: string;
+      razorpayPaymentId: string;
+      razorpaySignature: string;
+    },
+    meta?: { ipAddress?: string | null; userAgent?: string | null },
+  ) {
+    // Lifetime check first — never double-charge / double-mark.
+    const alreadyPaid = await paymentRepository.findSuccessKycVerification(userId);
+    if (alreadyPaid) {
+      return {
+        paymentStatus: 'SUCCESS' as const,
+        alreadyProcessed: true,
+        purpose: KYC_VERIFICATION_PURPOSE,
+        amount: KYC_FEE_AMOUNT_INR,
+        transactionId: alreadyPaid.id,
+        razorpayOrderId: alreadyPaid.razorpayOrderId ?? input.razorpayOrderId,
+        razorpayPaymentId: alreadyPaid.razorpayPaymentId ?? input.razorpayPaymentId,
+        paidAt: alreadyPaid.paidAt ?? alreadyPaid.updatedAt ?? null,
+      };
+    }
+
+    const transaction = await paymentRepository.findByRazorpayOrderId(input.razorpayOrderId);
+    if (
+      !transaction ||
+      transaction.userId !== userId ||
+      transaction.paymentType !== PaymentType.KYC_VERIFICATION
+    ) {
+      throw new NotFoundError('KYC verification payment order not found for this account.');
+    }
+
+    if (transaction.paymentStatus === PaymentStatus.SUCCESS) {
+      return {
+        paymentStatus: 'SUCCESS' as const,
+        alreadyProcessed: true,
+        purpose: KYC_VERIFICATION_PURPOSE,
+        amount: KYC_FEE_AMOUNT_INR,
+        transactionId: transaction.id,
+        razorpayOrderId: transaction.razorpayOrderId,
+        razorpayPaymentId: transaction.razorpayPaymentId ?? input.razorpayPaymentId,
+        paidAt: transaction.paidAt ?? transaction.updatedAt ?? null,
+      };
+    }
+
+    // Backend-enforced amount — never trust client.
+    if (Number(transaction.amount) !== KYC_FEE_AMOUNT_INR) {
+      await paymentRepository.markFailed(transaction.id);
+      throw new BadRequestError('Invalid KYC fee amount on payment order.', {
+        code: 'KYC_FEE_AMOUNT_MISMATCH',
+        expected: KYC_FEE_AMOUNT_INR,
+        actual: Number(transaction.amount),
+      });
+    }
+
+    const valid = verifyRazorpaySignature({
+      orderId: input.razorpayOrderId,
+      paymentId: input.razorpayPaymentId,
+      signature: input.razorpaySignature,
+    });
+
+    if (!valid) {
+      await paymentRepository.markFailed(transaction.id);
+      await auditLogService.log({
+        userId,
+        action: 'KYC_FEE_SIGNATURE_FAILED',
+        entity: 'payment_transactions',
+        metadata: {
+          razorpayOrderId: input.razorpayOrderId,
+          razorpayPaymentId: input.razorpayPaymentId,
+          timestamp: new Date().toISOString(),
+          ipAddress: meta?.ipAddress ?? null,
+        },
+      });
+      throw new BadRequestError('Payment signature verification failed.', {
+        code: 'SIGNATURE_FAILED',
+      });
+    }
+
+    if (!isPaymentDevBypass()) {
+      const remote = await fetchRazorpayPayment(input.razorpayPaymentId);
+      const okStatus = ['captured', 'authorized'].includes(String(remote.status).toLowerCase());
+      if (!okStatus) {
+        await paymentRepository.markFailed(transaction.id);
+        throw new BadRequestError('Payment not captured at Razorpay.', {
+          code: 'PAYMENT_NOT_CAPTURED',
+          status: remote.status,
+        });
+      }
+      if (remote.orderId && remote.orderId !== input.razorpayOrderId) {
+        await paymentRepository.markFailed(transaction.id);
+        throw new BadRequestError('Payment order mismatch.', {
+          code: 'ORDER_MISMATCH',
+        });
+      }
+      // Razorpay amount is in paise
+      if (remote.amount && remote.amount !== KYC_FEE_AMOUNT_INR * 100) {
+        await paymentRepository.markFailed(transaction.id);
+        throw new BadRequestError('Razorpay amount does not match KYC fee.', {
+          code: 'KYC_FEE_AMOUNT_MISMATCH',
+          expectedPaise: KYC_FEE_AMOUNT_INR * 100,
+          actualPaise: remote.amount,
+        });
+      }
+    }
+
+    const payment = await paymentRepository.completeKycVerificationPayment({
+      transactionId: transaction.id,
+      razorpayPaymentId: input.razorpayPaymentId,
+      razorpaySignature: input.razorpaySignature,
+    });
+
+    await auditLogService.log({
+      userId,
+      action: 'KYC_FEE_PAYMENT_SUCCESS',
+      entity: 'payment_transactions',
+      metadata: {
+        razorpayOrderId: input.razorpayOrderId,
+        razorpayPaymentId: input.razorpayPaymentId,
+        amount: KYC_FEE_AMOUNT_INR,
+        purpose: KYC_VERIFICATION_PURPOSE,
+        timestamp: new Date().toISOString(),
+        ipAddress: meta?.ipAddress ?? null,
+        device: meta?.userAgent ?? null,
+      },
+    });
+
+    return {
+      paymentStatus: 'SUCCESS' as const,
+      alreadyProcessed: false,
+      purpose: KYC_VERIFICATION_PURPOSE,
+      amount: KYC_FEE_AMOUNT_INR,
+      transactionId: payment?.id ?? transaction.id,
+      razorpayOrderId: input.razorpayOrderId,
+      razorpayPaymentId: input.razorpayPaymentId,
+      paidAt: payment?.paidAt ?? new Date().toISOString(),
+    };
   }
 
   private async generateOrderNumber(): Promise<string> {

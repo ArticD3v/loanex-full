@@ -18,6 +18,17 @@ function queryString(req: Request): Record<string, string | undefined> {
   };
 }
 
+function sendDownload(
+  res: Response,
+  file: { buffer: Buffer; fileName: string },
+  contentType: string,
+) {
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
+  res.setHeader('Content-Length', String(file.buffer.length));
+  return res.send(file.buffer);
+}
+
 export class EmiHistoryController {
   getHistory = async (req: Request, res: Response) => {
     const data = await emiHistoryService.getPaymentHistory(
@@ -51,9 +62,7 @@ export class EmiHistoryController {
         ? 'application/pdf'
         : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
-    return res.sendFile(file.absolutePath);
+    return sendDownload(res, file, contentType);
   };
 
   getReceipt = async (req: Request, res: Response) => {
@@ -62,9 +71,7 @@ export class EmiHistoryController {
       paymentId,
       requireUserId(req as AuthenticatedRequest),
     );
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${receipt.fileName}"`);
-    return res.sendFile(receipt.absolutePath);
+    return sendDownload(res, receipt, 'application/pdf');
   };
 
   getStatement = async (req: Request, res: Response) => {
@@ -78,9 +85,7 @@ export class EmiHistoryController {
     const file = await emiHistoryService.getStatementPdf(
       requireUserId(req as AuthenticatedRequest),
     );
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
-    return res.sendFile(file.absolutePath);
+    return sendDownload(res, file, 'application/pdf');
   };
 }
 

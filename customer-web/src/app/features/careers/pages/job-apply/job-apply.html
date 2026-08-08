@@ -1,0 +1,46 @@
+<div class="lx-job-apply">
+  @if (job(); as role) {
+    <a [routerLink]="['/careers', jobPath(role)]" class="lx-job-apply__back">
+      <i class="pi pi-arrow-left" aria-hidden="true"></i>
+      Back to {{ role.title }}
+    </a>
+  } @else {
+    <a routerLink="/careers" class="lx-job-apply__back">
+      <i class="pi pi-arrow-left" aria-hidden="true"></i>
+      Back to Careers
+    </a>
+  }
+
+  @if (loading()) {
+    <p class="lx-job-apply__muted">Loading application form…</p>
+  } @else if (notFound()) {
+    <section class="lx-job-apply__empty">
+      <h1>Position not found</h1>
+      <p>This role may no longer be open.</p>
+      <a routerLink="/careers" class="lx-btn lx-btn--primary">View Open Positions</a>
+    </section>
+  } @else if (job(); as role) {
+    @if (applicationId()) {
+      <section class="lx-job-apply__done">
+        <i class="pi pi-check-circle" aria-hidden="true"></i>
+        <h1>Application Submitted Successfully!</h1>
+        <p>
+          Thank you for applying. Our team will review your profile and contact you if there is a
+          suitable opportunity.
+        </p>
+        <div class="lx-job-apply__done-actions">
+          <a routerLink="/careers" class="lx-btn lx-btn--primary">Back to Careers</a>
+          <a routerLink="/careers" fragment="open-positions" class="lx-btn lx-btn--outline">
+            Browse more roles
+          </a>
+        </div>
+      </section>
+    } @else {
+      <app-application-form
+        [jobId]="role.id"
+        [jobTitle]="role.title"
+        (submittedSuccess)="onSubmitted($event)"
+      />
+    }
+  }
+</div>

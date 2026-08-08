@@ -12,7 +12,10 @@ import { isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs/operators';
-import { BREADCRUMB_LABELS } from '../data/layout-mock.data';
+import {
+  BREADCRUMB_ID_PARENT_LABELS,
+  BREADCRUMB_LABELS,
+} from '../data/layout-mock.data';
 import { BreadcrumbItem } from '../models/layout.models';
 import { LayoutUiService } from '../services/layout-ui.service';
 import { Breadcrumb } from '../breadcrumb/breadcrumb';
@@ -21,6 +24,10 @@ import { Navbar } from '../navbar/navbar';
 import { AuthService } from '../../core/services/auth.service';
 import { CartService } from '../../features/cart/services/cart.service';
 import { WishlistService } from '../../features/wishlist/services/wishlist.service';
+
+/** UUID / ObjectId-style path segments that should not be title-cased into breadcrumbs. */
+const RESOURCE_ID_SEGMENT =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 @Component({
   selector: 'app-shell',
@@ -91,15 +98,47 @@ export class Shell {
     const items: BreadcrumbItem[] = [{ label: 'Home', path: '/' }];
     let acc = '';
 
-    for (const segment of segments) {
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
+      const parent = i > 0 ? segments[i - 1] : undefined;
       acc += `/${segment}`;
       items.push({
-        label: BREADCRUMB_LABELS[segment] ?? this.toTitle(segment),
-        path: acc,
+        label: this.labelForSegment(segment, parent),
+        path: this.breadcrumbPathForSegment(segment, parent, acc),
       });
     }
 
     return items;
+  }
+
+  private labelForSegment(segment: string, parent: string | undefined): string {
+    if (BREADCRUMB_LABELS[segment]) {
+      return BREADCRUMB_LABELS[segment];
+    }
+    if (this.isResourceIdSegment(segment)) {
+      return (parent && BREADCRUMB_ID_PARENT_LABELS[parent]) || 'Details';
+    }
+    // Keep human order numbers readable (ORD-11DDC768), don't title-case them.
+    if (/^ORD-/i.test(segment)) {
+      return segment.toUpperCase();
+    }
+    return this.toTitle(segment);
+  }
+
+  /** Prefer the list route for order detail crumbs (`/orders/:id` → Orders links to `/my-orders`). */
+  private breadcrumbPathForSegment(
+    segment: string,
+    parent: string | undefined,
+    accumulatedPath: string,
+  ): string {
+    if (segment === 'orders' && !parent) {
+      return '/my-orders';
+    }
+    return accumulatedPath;
+  }
+
+  private isResourceIdSegment(segment: string): boolean {
+    return RESOURCE_ID_SEGMENT.test(segment);
   }
 
   private toTitle(value: string): string {

@@ -116,7 +116,7 @@ export class Hero {
       ctaPath: path,
       ctaQueryParams: queryParams,
       secondaryCtaText: 'Check Eligibility',
-      secondaryCtaPath: '/emi',
+      secondaryCtaPath: '/verification',
     };
   }
 

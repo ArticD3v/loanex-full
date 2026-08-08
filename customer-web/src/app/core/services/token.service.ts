@@ -2,12 +2,14 @@ import { Injectable, signal } from '@angular/core';
 import { AuthUser } from '../models/auth.models';
 
 const ACCESS_KEY = 'loanex.accessToken';
+/** @deprecated Prefer HttpOnly cookie; kept only for migration / native clients. */
 const REFRESH_KEY = 'loanex.refreshToken';
 const USER_KEY = 'loanex.user';
 
 @Injectable({ providedIn: 'root' })
 export class TokenService {
   private readonly accessTokenSignal = signal<string | null>(this.read(ACCESS_KEY));
+  /** In-memory only when possible; localStorage refresh is cleared on new sessions. */
   private readonly refreshTokenSignal = signal<string | null>(this.read(REFRESH_KEY));
   private readonly userSignal = signal<AuthUser | null>(this.readUser());
 
@@ -17,18 +19,19 @@ export class TokenService {
 
   setSession(accessToken: string, refreshToken: string, user: AuthUser): void {
     this.write(ACCESS_KEY, accessToken);
-    this.write(REFRESH_KEY, refreshToken);
+    // Do not persist refresh token in localStorage (XSS-readable).
+    this.remove(REFRESH_KEY);
     this.write(USER_KEY, JSON.stringify(user));
     this.accessTokenSignal.set(accessToken);
-    this.refreshTokenSignal.set(refreshToken);
+    this.refreshTokenSignal.set(refreshToken || null);
     this.userSignal.set(user);
   }
 
   setTokens(accessToken: string, refreshToken: string): void {
     this.write(ACCESS_KEY, accessToken);
-    this.write(REFRESH_KEY, refreshToken);
+    this.remove(REFRESH_KEY);
     this.accessTokenSignal.set(accessToken);
-    this.refreshTokenSignal.set(refreshToken);
+    this.refreshTokenSignal.set(refreshToken || null);
   }
 
   setUser(user: AuthUser): void {
@@ -47,6 +50,11 @@ export class TokenService {
 
   hasAccessToken(): boolean {
     return !!this.accessTokenSignal();
+  }
+
+  /** True when a refresh token exists in memory or legacy localStorage. */
+  hasRefreshToken(): boolean {
+    return !!this.refreshTokenSignal();
   }
 
   private read(key: string): string | null {

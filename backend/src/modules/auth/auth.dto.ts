@@ -101,11 +101,12 @@ export const completeRegistrationBodySchema = z.object({
 });
 
 export const refreshTokenBodySchema = z.object({
-  refreshToken: z.string().min(1, 'Refresh token is required'),
+  // Optional when the HttpOnly refresh cookie is present.
+  refreshToken: z.string().min(1, 'Refresh token is required').optional(),
 });
 
 export const logoutBodySchema = z.object({
-  refreshToken: z.string().min(1, 'Refresh token is required'),
+  refreshToken: z.string().min(1, 'Refresh token is required').optional(),
 });
 
 export type RegisterBody = z.infer<typeof registerBodySchema>;

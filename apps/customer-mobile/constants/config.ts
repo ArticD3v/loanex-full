@@ -32,10 +32,10 @@ export const KYC_CONFIG = {
 };
 
 export const EMI_RATES = [
-  { months: 3, annualRate: 12 },
-  { months: 6, annualRate: 14 },
-  { months: 9, annualRate: 16 },
-  { months: 12, annualRate: 18 },
+  { months: 3, annualRate: 12.5 },
+  { months: 6, annualRate: 12.5 },
+  { months: 9, annualRate: 12.5 },
+  { months: 12, annualRate: 12.5 },
 ];
 
 export const CATEGORIES = [
@@ -49,9 +49,27 @@ export const CATEGORIES = [
 
 export const ADMIN_PHONES = ['9876543210', '9999999999'];
 
+function roundMoney(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+/** Reducing-balance EMI (paise rounding) — matches backend calculator. */
 export function calculateEMI(principal: number, annualRate: number, months: number) {
+  if (months <= 0 || principal <= 0) {
+    return { monthlyAmount: 0, totalAmount: 0, processingFee: 0, interest: 0 };
+  }
   const r = annualRate / 12 / 100;
-  if (r === 0) return { monthlyAmount: Math.ceil(principal / months), totalAmount: principal, processingFee: 0, interest: 0 };
-  const emi = Math.ceil((principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1));
-  return { monthlyAmount: emi, totalAmount: emi * months, processingFee: Math.ceil(principal * 0.01), interest: emi * months - principal };
+  if (r === 0) {
+    const monthlyAmount = roundMoney(principal / months);
+    return { monthlyAmount, totalAmount: principal, processingFee: 0, interest: 0 };
+  }
+  const factor = Math.pow(1 + r, months);
+  const monthlyAmount = roundMoney((principal * r * factor) / (factor - 1));
+  const totalAmount = roundMoney(monthlyAmount * months);
+  return {
+    monthlyAmount,
+    totalAmount,
+    processingFee: 0,
+    interest: roundMoney(Math.max(0, totalAmount - principal)),
+  };
 }

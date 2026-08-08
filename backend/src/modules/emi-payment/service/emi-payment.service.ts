@@ -14,6 +14,10 @@ import {
   ForbiddenError,
   NotFoundError,
 } from '../../../common/errors/app-error';
+import {
+  ensureWritableStorageDir,
+  toRelativeStoragePath,
+} from '../../../common/utils/writable-storage';
 import { env } from '../../../config/env';
 import {
   createRazorpayOrder,
@@ -285,6 +289,15 @@ export class EmiPaymentService {
           code: 'ORDER_MISMATCH',
         });
       }
+      const expectedPaise = Math.round(toNumber(payment.amount) * 100);
+      if (remote.amount != null && expectedPaise > 0 && Number(remote.amount) !== expectedPaise) {
+        await emiPaymentRepository.markFailed(payment.id);
+        throw new BadRequestError('Payment amount mismatch.', {
+          code: 'AMOUNT_MISMATCH',
+          expectedPaise,
+          actualPaise: remote.amount,
+        });
+      }
     }
 
     const schedule = await emiPaymentRepository.findScheduleByIdForUser(input.emiId, userId);
@@ -293,16 +306,7 @@ export class EmiPaymentService {
       throw new ConflictError('This EMI is already paid.');
     }
 
-    const receiptPath = await this.generateReceiptPdf({
-      loanAccountNumber: schedule.loanAccount.loanAccountNumber,
-      applicationNumber: schedule.loanAccount.application.id,
-      productName: schedule.loanAccount.application.productName,
-      emiNumber: schedule.emiNumber,
-      amount: toNumber(payment.amount),
-      razorpayPaymentId: input.razorpayPaymentId,
-      paidAt: new Date(),
-    });
-
+    // Mark payment SUCCESS only after signature verification — never block on PDF I/O.
     const result = await emiPaymentRepository.completeEmiPayment({
       paymentId: payment.id,
       emiScheduleId: schedule.id,
@@ -310,10 +314,26 @@ export class EmiPaymentService {
       razorpayPaymentId: input.razorpayPaymentId,
       razorpaySignature: input.razorpaySignature,
       paidAmount: toNumber(payment.amount),
-      receiptPath,
+      receiptPath: null,
     });
 
-    await emiPaymentRepository.updateReceiptPath(payment.id, receiptPath);
+    let receiptAvailable = true;
+    try {
+      const receiptPath = await this.generateReceiptPdf({
+        loanAccountNumber: schedule.loanAccount.loanAccountNumber,
+        applicationNumber: schedule.loanAccount.application.id,
+        productName: schedule.loanAccount.application.productName,
+        emiNumber: schedule.emiNumber,
+        amount: toNumber(payment.amount),
+        razorpayPaymentId: input.razorpayPaymentId,
+        paidAt: new Date(),
+      });
+      await emiPaymentRepository.updateReceiptPath(payment.id, receiptPath);
+    } catch (err) {
+      // Serverless read-only FS must not fail an otherwise-valid payment.
+      console.warn('[EMI] Receipt PDF generation failed after successful verification:', err);
+      receiptAvailable = true; // can still be regenerated on download
+    }
 
     await auditLogService.log({
       userId,
@@ -341,7 +361,7 @@ export class EmiPaymentService {
       outstandingAmount: result.outstandingAmount,
       remainingEmis: result.unpaidCount,
       nextEmiDueDate: result.nextEmiDueDate,
-      receiptAvailable: true,
+      receiptAvailable,
       message: 'EMI payment successful.',
     };
   }
@@ -458,33 +478,41 @@ export class EmiPaymentService {
     }
 
     const payment = schedule.paymentTransaction;
-    let absolutePath: string | null = null;
+    const fileName = `${schedule.loanAccount.loanAccountNumber}-emi-${schedule.emiNumber}-receipt.pdf`;
 
     if (payment?.receiptPath) {
-      const candidate = path.resolve(process.cwd(), payment.receiptPath);
-      if (fs.existsSync(candidate)) absolutePath = candidate;
+      const candidate = path.isAbsolute(payment.receiptPath)
+        ? payment.receiptPath
+        : path.resolve(process.cwd(), payment.receiptPath);
+      if (fs.existsSync(candidate)) {
+        return {
+          buffer: fs.readFileSync(candidate),
+          fileName,
+        };
+      }
     }
 
-    if (!absolutePath) {
-      const relative = await this.generateReceiptPdf({
-        loanAccountNumber: schedule.loanAccount.loanAccountNumber,
-        applicationNumber: schedule.loanAccount.application.id,
-        productName: schedule.loanAccount.application.productName,
-        emiNumber: schedule.emiNumber,
-        amount: toNumber(schedule.paidAmount ?? schedule.emiAmount),
-        razorpayPaymentId: schedule.transactionId ?? 'N/A',
-        paidAt: schedule.paidAt ?? new Date(),
-      });
+    const buffer = await this.buildReceiptPdfBuffer({
+      loanAccountNumber: schedule.loanAccount.loanAccountNumber,
+      applicationNumber: schedule.loanAccount.application.id,
+      productName: schedule.loanAccount.application.productName,
+      emiNumber: schedule.emiNumber,
+      amount: toNumber(schedule.paidAmount ?? schedule.emiAmount),
+      razorpayPaymentId: schedule.transactionId ?? 'N/A',
+      paidAt: schedule.paidAt ?? new Date(),
+    });
+
+    // Best-effort cache for local/dev; ignore failures on serverless.
+    try {
+      const relative = await this.persistReceiptPdf(fileName, buffer);
       if (payment) {
         await emiPaymentRepository.updateReceiptPath(payment.id, relative);
       }
-      absolutePath = path.resolve(process.cwd(), relative);
+    } catch (err) {
+      console.warn('[EMI] Unable to cache regenerated receipt PDF:', err);
     }
 
-    return {
-      absolutePath,
-      fileName: `${schedule.loanAccount.loanAccountNumber}-emi-${schedule.emiNumber}-receipt.pdf`,
-    };
+    return { buffer, fileName };
   }
 
   async listForAdmin(loanId?: string) {
@@ -573,16 +601,33 @@ export class EmiPaymentService {
     razorpayPaymentId: string;
     paidAt: Date;
   }): Promise<string> {
-    const dir = path.resolve(process.cwd(), 'storage', 'emi-receipts');
-    fs.mkdirSync(dir, { recursive: true });
     const fileName = `${input.loanAccountNumber}-emi-${input.emiNumber}-receipt.pdf`;
-    const absolutePath = path.join(dir, fileName);
-    const relativePath = path.join('storage', 'emi-receipts', fileName);
+    const buffer = await this.buildReceiptPdfBuffer(input);
+    return this.persistReceiptPdf(fileName, buffer);
+  }
 
-    await new Promise<void>((resolve, reject) => {
+  private async persistReceiptPdf(fileName: string, buffer: Buffer): Promise<string> {
+    const dir = ensureWritableStorageDir('emi-receipts');
+    const absolutePath = path.join(dir, fileName);
+    fs.writeFileSync(absolutePath, buffer);
+    return toRelativeStoragePath('emi-receipts', fileName);
+  }
+
+  private buildReceiptPdfBuffer(input: {
+    loanAccountNumber: string;
+    applicationNumber: string;
+    productName: string | null;
+    emiNumber: number;
+    amount: number;
+    razorpayPaymentId: string;
+    paidAt: Date;
+  }): Promise<Buffer> {
+    return new Promise<Buffer>((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50 });
-      const stream = fs.createWriteStream(absolutePath);
-      doc.pipe(stream);
+      const chunks: Buffer[] = [];
+      doc.on('data', (chunk) => chunks.push(chunk as Buffer));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
 
       doc.fontSize(20).fillColor('#0A2E6F').text('LoanEx EMI Payment Receipt');
       doc.moveDown(0.5);
@@ -593,16 +638,13 @@ export class EmiPaymentService {
       doc.text(`EMI Number: #${input.emiNumber}`);
       doc.text(`Amount Paid: INR ${input.amount.toFixed(2)}`);
       doc.text(`Payment ID: ${input.razorpayPaymentId}`);
-      doc.text(`Paid At: ${input.paidAt instanceof Date ? input.paidAt.toISOString() : String(input.paidAt ?? '')}`);
+      doc.text(
+        `Paid At: ${input.paidAt instanceof Date ? input.paidAt.toISOString() : String(input.paidAt ?? '')}`,
+      );
       doc.moveDown();
       doc.fontSize(10).fillColor('#6B7280').text('System-generated receipt from LoanEx.');
       doc.end();
-
-      stream.on('finish', () => resolve());
-      stream.on('error', reject);
     });
-
-    return relativePath;
   }
 }
 

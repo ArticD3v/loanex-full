@@ -11,6 +11,10 @@ import { maskPan } from '../../../common/utils/pan';
 import { auditLogService } from '../../verification/service/audit-log.service';
 import { orderRepository } from '../../order/repository/order.repository';
 import { loanRepository } from '../../loan/repository/loan.repository';
+import {
+  calculateMonthlyEmi,
+  DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
+} from '../../loan/service/emi-calculator.service';
 import type { CreateEmiApplicationBody } from '../dto/emi-application.dto';
 import { emiApplicationRepository } from '../repository/emi-application.repository';
 
@@ -124,7 +128,10 @@ function toStatusPayload(app: Parameters<typeof serializeApplication>[0], custom
     canModifyApplication: false,
     canSubmitAnother:
       status === EmiApplicationStatus.REJECTED ||
-      status === EmiApplicationStatus.DECLINED_BY_CUSTOMER,
+      status === EmiApplicationStatus.DECLINED_BY_CUSTOMER ||
+      status === EmiApplicationStatus.DOWN_PAYMENT_COMPLETED ||
+      status === EmiApplicationStatus.ORDER_CONFIRMED ||
+      status === EmiApplicationStatus.ACTIVE_EMI,
     canPayDownPayment:
       status === EmiApplicationStatus.APPROVED ||
       status === EmiApplicationStatus.OFFER_ACCEPTED ||
@@ -315,6 +322,12 @@ export class EmiApplicationService {
     }
 
     const applicationNumber = await this.generateApplicationNumber();
+    const interestRate = DEFAULT_ANNUAL_INTEREST_RATE_PERCENT;
+    const estimatedMonthlyEmi = calculateMonthlyEmi(
+      input.requestedAmount,
+      interestRate,
+      input.requestedTenure,
+    );
     const created = await emiApplicationRepository.create({
       applicationNumber,
       userId,
@@ -324,7 +337,8 @@ export class EmiApplicationService {
       requestedAmount: input.requestedAmount,
       requestedDownPayment: input.requestedDownPayment,
       requestedTenure: input.requestedTenure,
-      estimatedMonthlyEmi: input.estimatedMonthlyEmi,
+      estimatedMonthlyEmi,
+      interestRate,
     });
 
     await emiApplicationRepository.markCustomerPendingReview(userId);
@@ -705,15 +719,9 @@ export class EmiApplicationService {
       });
     }
 
-    return this.finalizeApproval(app, {
-      approvedAmount: Number(app.approvedAmount ?? app.requestedAmount ?? app.loanAmount ?? 0),
-      approvedTenure: Number(app.approvedTenure ?? app.requestedTenure ?? 12),
-      approvedDownPayment: Number(app.approvedDownPayment ?? app.requestedDownPayment ?? app.downPayment ?? 0),
-      monthlyEmi: Number(app.monthlyEmi ?? app.estimatedMonthlyEmi ?? 0),
-      interestRate: Number(app.interestRate ?? 12.5),
-      processingFee: Number(app.processingFee ?? 499),
+    return this.finalizeApproval(app, this.buildApprovalTerms(app, {
       adminRemarks: 'Approved via pending-page test button.',
-    }, {
+    }), {
       auditAction: 'APPLICATION_APPROVED_DEV',
       userId,
       message: 'Application approved (dev)',
@@ -735,15 +743,9 @@ export class EmiApplicationService {
       });
     }
 
-    return this.finalizeApproval(app, {
-      approvedAmount: Number(app.approvedAmount ?? app.requestedAmount ?? app.loanAmount ?? 0),
-      approvedTenure: Number(app.approvedTenure ?? app.requestedTenure ?? 12),
-      approvedDownPayment: Number(app.approvedDownPayment ?? app.requestedDownPayment ?? app.downPayment ?? 0),
-      monthlyEmi: Number(app.monthlyEmi ?? app.estimatedMonthlyEmi ?? 0),
-      interestRate: Number(app.interestRate ?? 12.5),
-      processingFee: Number(app.processingFee ?? 499),
+    return this.finalizeApproval(app, this.buildApprovalTerms(app, {
       adminRemarks: 'Approved by admin.',
-    }, {
+    }), {
       auditAction: 'APPLICATION_APPROVED',
       userId: app.userId,
       message: 'Application approved',
@@ -835,15 +837,16 @@ export class EmiApplicationService {
       });
     }
 
-    const counterOffer = {
-      approvedAmount: Number(input.approvedAmount ?? app.approvedAmount ?? app.requestedAmount ?? 0),
-      approvedTenure: Number(input.approvedTenure ?? app.approvedTenure ?? app.requestedTenure ?? 12),
-      approvedDownPayment: Number(input.approvedDownPayment ?? app.approvedDownPayment ?? app.requestedDownPayment ?? 0),
-      monthlyEmi: Number(input.monthlyEmi ?? app.monthlyEmi ?? app.estimatedMonthlyEmi ?? 0),
-      interestRate: Number(input.interestRate ?? app.interestRate ?? 12.5),
-      processingFee: Number(input.processingFee ?? app.processingFee ?? 499),
+    const counterOffer = this.buildApprovalTerms(app, {
+      approvedAmount: input.approvedAmount,
+      approvedTenure: input.approvedTenure,
+      approvedDownPayment: input.approvedDownPayment,
+      interestRate: input.interestRate,
+      processingFee: input.processingFee,
+      // Prefer rate-derived EMI; only use admin monthlyEmi when rate is explicitly 0.
+      monthlyEmi: input.monthlyEmi,
       adminRemarks: input.adminRemarks ?? 'Terms modified by admin.',
-    };
+    });
 
     const updated = await emiApplicationRepository.modifyTerms(app.id, counterOffer);
 
@@ -864,6 +867,52 @@ export class EmiApplicationService {
       ...serializeApplication(updated),
       message: 'Loan terms modified. Customer will be asked to accept or decline.',
       nextStep: 'COUNTER_OFFER_SENT' as const,
+    };
+  }
+
+  /** Derive approval terms with reducing-balance EMI from principal + rate + tenure. */
+  private buildApprovalTerms(
+    app: any,
+    overrides: {
+      approvedAmount?: number;
+      approvedTenure?: number;
+      approvedDownPayment?: number;
+      monthlyEmi?: number;
+      interestRate?: number;
+      processingFee?: number;
+      adminRemarks?: string;
+    } = {},
+  ) {
+    const approvedAmount = Number(
+      overrides.approvedAmount ?? app.approvedAmount ?? app.requestedAmount ?? app.loanAmount ?? 0,
+    );
+    const approvedTenure = Number(
+      overrides.approvedTenure ?? app.approvedTenure ?? app.requestedTenure ?? 12,
+    );
+    const approvedDownPayment = Number(
+      overrides.approvedDownPayment ??
+        app.approvedDownPayment ??
+        app.requestedDownPayment ??
+        app.downPayment ??
+        0,
+    );
+    const interestRate = Number(
+      overrides.interestRate ?? app.interestRate ?? DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
+    );
+    const calculatedEmi = calculateMonthlyEmi(approvedAmount, interestRate, approvedTenure);
+    const monthlyEmi =
+      interestRate === 0 && overrides.monthlyEmi != null && overrides.monthlyEmi > 0
+        ? Number(overrides.monthlyEmi)
+        : calculatedEmi;
+
+    return {
+      approvedAmount,
+      approvedTenure,
+      approvedDownPayment,
+      monthlyEmi,
+      interestRate,
+      processingFee: Number(overrides.processingFee ?? app.processingFee ?? 499),
+      adminRemarks: overrides.adminRemarks ?? 'Approved.',
     };
   }
 
@@ -916,7 +965,7 @@ export class EmiApplicationService {
         orderId: order.id,
         orderNumber: order.orderNumber,
         applicationNumber: updated.id,
-        actionUrl: `/orders/${order.id}`,
+        actionUrl: `/orders/${order.orderNumber}`,
         status: updated.status,
         approvedBy: options.approvedBy ?? null,
         timestamp: new Date().toISOString(),

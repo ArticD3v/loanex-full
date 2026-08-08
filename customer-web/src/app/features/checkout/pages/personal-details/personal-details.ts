@@ -76,13 +76,13 @@ export class PersonalDetailsComponent implements OnInit {
   readonly hasProfile = signal(false);
 
   readonly form = this.fb.nonNullable.group({
-    fullName: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
+    fullName: [{ value: '', disabled: true }],
     mobile: [{ value: '', disabled: true }],
-    email: ['', [Validators.required, Validators.email, Validators.maxLength(150)]],
-    dob: ['', [Validators.required]],
-    gender: ['' as Gender | '', [Validators.required]],
+    email: [{ value: '', disabled: true }],
+    dob: [{ value: '', disabled: true }],
+    gender: [{ value: '' as Gender | '', disabled: true }],
     addressLine1: ['', [Validators.required, Validators.maxLength(120)]],
-    addressLine2: ['', [Validators.required, Validators.maxLength(200)]],
+    addressLine2: ['', [Validators.maxLength(200)]],
     landmark: [''],
     city: ['', [Validators.required, Validators.maxLength(80)]],
     state: ['', [Validators.required]],
@@ -188,7 +188,18 @@ export class PersonalDetailsComponent implements OnInit {
           });
           return;
         }
-        void this.router.navigateByUrl('/verification');
+        if (intent?.mode === 'CART') {
+          void this.router.navigate(['/checkout'], { queryParams: { mode: 'cart' } });
+          return;
+        }
+        const plan = this.emiPlan.get();
+        if (plan?.productId) {
+          void this.router.navigate(['/checkout'], {
+            queryParams: { productId: plan.productId },
+          });
+          return;
+        }
+        void this.router.navigateByUrl('/checkout');
       },
       error: () => {
         this.saving.set(false);
@@ -257,10 +268,7 @@ export class PersonalDetailsComponent implements OnInit {
       Validators.required,
       Validators.maxLength(120),
     ]);
-    this.form.controls.billingAddressLine2.setValidators([
-      Validators.required,
-      Validators.maxLength(200),
-    ]);
+    this.form.controls.billingAddressLine2.setValidators([Validators.maxLength(200)]);
     this.form.controls.billingCity.setValidators([
       Validators.required,
       Validators.maxLength(80),

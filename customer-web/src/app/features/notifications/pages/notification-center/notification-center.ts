@@ -368,19 +368,23 @@ export class NotificationCenterComponent implements OnInit {
 
 
 
+    const orderNumber = this.metadataString(metadata, 'orderNumber');
+
     const orderId = this.metadataString(metadata, 'orderId');
 
-    if (orderId) {
+    const orderRef = orderNumber || orderId;
 
-      return `/orders/${orderId}`;
+    if (orderRef) {
+
+      return `/orders/${orderRef}`;
 
     }
 
 
 
-    if (item.type === 'APPLICATION_APPROVED' && orderId) {
+    if (item.type === 'APPLICATION_APPROVED' && orderRef) {
 
-      return `/orders/${orderId}`;
+      return `/orders/${orderRef}`;
 
     }
 

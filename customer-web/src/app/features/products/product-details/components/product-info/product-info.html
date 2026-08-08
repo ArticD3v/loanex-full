@@ -70,6 +70,7 @@
               [attr.aria-label]="option.label + (optionAvailable(group, option.value) ? '' : ' (Out of Stock)')"
               [attr.aria-selected]="isSelected(group, option.value)"
               [attr.title]="optionAvailable(group, option.value) ? option.label : option.label + ' — Out of Stock'"
+              [disabled]="!optionAvailable(group, option.value)"
               (click)="selectAttribute(group, option.value)"
             ></button>
           }
@@ -84,7 +85,7 @@
               [class.is-active]="isSelected(group, option.value)"
               [class.is-disabled]="!optionAvailable(group, option.value)"
               [attr.aria-selected]="isSelected(group, option.value)"
-              [disabled]="false"
+              [disabled]="!optionAvailable(group, option.value)"
               (click)="selectAttribute(group, option.value)"
             >
               {{ option.label }}

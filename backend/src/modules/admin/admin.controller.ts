@@ -361,6 +361,30 @@ export class AdminController {
     return sendSuccess(res, records, 'User KYC fetched');
   };
 
+  /**
+   * POST /admin/dev/clear-orders-emi
+   * Wipes orders + EMI applications (+ related loans) from memory and Supabase.
+   */
+  clearOrdersAndEmi = async (_req: Request, res: Response) => {
+    const tables = [
+      'orders',
+      'emi_applications',
+      'emiApplication',
+      'loan_accounts',
+      'loanAccount',
+      'emi_schedules',
+      'orderTracking',
+      'paymentTransaction',
+    ] as const;
+
+    const deleted: Record<string, number> = {};
+    for (const table of tables) {
+      deleted[table] = await jsonDb.clearCollectionAwaited(table);
+    }
+
+    return sendSuccess(res, { deleted }, 'Orders and EMI application data cleared');
+  };
+
   private resolveMasterCollection(path: string): string {
     const match = MASTER_COLLECTIONS.find((c) => path.startsWith(`/${c}`));
     if (!match) {

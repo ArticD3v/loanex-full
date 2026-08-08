@@ -8,8 +8,9 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Dialog } from 'primeng/dialog';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of, catchError } from 'rxjs';
 import { formatInr } from '../../../../shared/utils/currency';
+import { LayoutUiService } from '../../../../layout/services/layout-ui.service';
 import { AutopayService } from '../../../emi/services/autopay.service';
 import {
   CreatePaymentOrderResponse,
@@ -35,6 +36,7 @@ export class OrderDetailsComponent implements OnInit {
   private readonly autopayApi = inject(AutopayService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly layoutUi = inject(LayoutUiService);
 
   readonly loading = signal(true);
   readonly downloading = signal(false);
@@ -64,17 +66,23 @@ export class OrderDetailsComponent implements OnInit {
     return fee !== null && fee !== undefined && fee > 0;
   });
 
-  private orderId = '';
+  private orderRef = '';
 
   ngOnInit(): void {
-    this.orderId = this.route.snapshot.paramMap.get('orderId') ?? '';
-    if (!this.orderId.trim()) {
-      this.loading.set(false);
-      this.error.set('Invalid order ID.');
-      return;
-    }
-
-    this.load();
+    this.route.paramMap.subscribe((params) => {
+      const nextRef = params.get('orderId') ?? '';
+      if (!nextRef.trim()) {
+        this.loading.set(false);
+        this.error.set('Invalid order reference.');
+        this.order.set(null);
+        return;
+      }
+      if (nextRef === this.orderRef && this.order()) {
+        return;
+      }
+      this.orderRef = nextRef;
+      this.load();
+    });
   }
 
   downloadInvoice(): void {
@@ -201,21 +209,46 @@ export class OrderDetailsComponent implements OnInit {
     this.error.set(null);
 
     forkJoin({
-      order: this.orderApi.getById(this.orderId),
-      tracking: this.orderApi.getTracking(this.orderId),
+      order: this.orderApi.getById(this.orderRef),
+      tracking: this.orderApi.getTracking(this.orderRef).pipe(
+        catchError(() =>
+          of({
+            steps: [],
+            trackingEvents: [],
+          } as Partial<OrderTrackingDetails> as OrderTrackingDetails),
+        ),
+      ),
     }).subscribe({
       next: ({ order, tracking }) => {
         this.loading.set(false);
         this.order.set(order);
+        this.setBreadcrumbs(order);
+
         const steps =
           tracking.steps?.length
             ? tracking.steps
             : ((tracking as { trackingSteps?: OrderTrackingDetails['steps'] }).trackingSteps ?? []);
         this.tracking.set({
-          ...tracking,
           ...order,
+          ...tracking,
           steps,
         });
+
+        // Prefer human-readable URL, but never leave the page stuck loading.
+        const publicRef = order.orderNumber || order.id;
+        if (
+          publicRef &&
+          publicRef !== this.orderRef &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            this.orderRef,
+          )
+        ) {
+          this.orderRef = publicRef;
+          void this.router.navigate(['/orders', publicRef], {
+            replaceUrl: true,
+            queryParamsHandling: 'preserve',
+          });
+        }
 
         const autopay = this.route.snapshot.queryParamMap.get('autopay');
         if (autopay === '1' && order.downPaymentPaid) {
@@ -224,15 +257,25 @@ export class OrderDetailsComponent implements OnInit {
       },
       error: () => {
         this.loading.set(false);
+        this.order.set(null);
         this.error.set(this.orderApi.error() ?? 'Order not found or you do not have access.');
       },
     });
   }
 
+  private setBreadcrumbs(order: OrderConfirmationDetails): void {
+    this.layoutUi.setBreadcrumbs([
+      { label: 'Home', path: '/' },
+      { label: 'Orders', path: '/my-orders' },
+      { label: order.orderNumber || 'Order Details' },
+    ]);
+  }
+
   private reloadOrder(): void {
-    this.orderApi.getById(this.orderId).subscribe({
+    this.orderApi.getById(this.orderRef).subscribe({
       next: (order) => {
         this.order.set(order);
+        this.setBreadcrumbs(order);
         if (order.downPaymentPaid) {
           this.showAutopayDialog.set(true);
         }
@@ -294,12 +337,15 @@ export class OrderDetailsComponent implements OnInit {
       next: (result) => {
         this.paying.set(false);
         this.info.set('Down payment completed successfully.');
-        if (result.orderId && result.orderId !== this.orderId) {
-          void this.router.navigate(['/orders', result.orderId], {
-            queryParams: { autopay: 1 },
-            replaceUrl: true,
-          });
-          return;
+        if (result.orderNumber || result.orderId) {
+          const nextRef = result.orderNumber || result.orderId!;
+          if (nextRef !== this.orderRef) {
+            void this.router.navigate(['/orders', nextRef], {
+              queryParams: { autopay: 1 },
+              replaceUrl: true,
+            });
+            return;
+          }
         }
         this.reloadOrder();
         this.showAutopayDialog.set(true);

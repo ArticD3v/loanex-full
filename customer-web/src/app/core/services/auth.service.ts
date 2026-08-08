@@ -98,12 +98,15 @@ export class AuthService {
   login(payload: { identifier: string; password: string }): Observable<LoginResponse> {
     return this.run(
       this.http
-        .post<ApiSuccess<LoginResponse>>(`${this.baseUrl}/login`, payload)
+        .post<ApiSuccess<LoginResponse>>(`${this.baseUrl}/login`, payload, {
+          withCredentials: true,
+        })
         .pipe(
           map((res) => res.data),
           tap((data) => {
-            if (!data.requiresOtp && data.accessToken && data.refreshToken && data.user) {
-              this.persistSession(data.accessToken, data.refreshToken, data.user);
+            if (!data.requiresOtp && data.accessToken && data.user) {
+              // Refresh may be HttpOnly-cookie-only; still persist access + user.
+              this.persistSession(data.accessToken, data.refreshToken ?? '', data.user);
             }
           }),
         ),
@@ -130,18 +133,15 @@ export class AuthService {
   }): Observable<VerifyOtpSuccessResponse> {
     return this.run(
       this.http
-        .post<ApiSuccess<VerifyOtpSuccessResponse>>(`${this.baseUrl}/verify-otp`, payload)
+        .post<ApiSuccess<VerifyOtpSuccessResponse>>(`${this.baseUrl}/verify-otp`, payload, {
+          withCredentials: true,
+        })
         .pipe(
           map((res) => res.data),
           tap((data) => {
             // Only persist session when tokens are issued (not mid-signup profile step).
-            if (
-              !data.requiresProfile &&
-              data.accessToken &&
-              data.refreshToken &&
-              data.user
-            ) {
-              this.persistSession(data.accessToken, data.refreshToken, data.user);
+            if (!data.requiresProfile && data.accessToken && data.user) {
+              this.persistSession(data.accessToken, data.refreshToken ?? '', data.user);
             }
           }),
         ),
@@ -161,12 +161,13 @@ export class AuthService {
         .post<ApiSuccess<CompleteRegistrationResponse>>(
           `${this.baseUrl}/complete-registration`,
           payload,
+          { withCredentials: true },
         )
         .pipe(
           map((res) => res.data),
           tap((data) => {
-            if (data.accessToken && data.refreshToken && data.user) {
-              this.persistSession(data.accessToken, data.refreshToken, data.user);
+            if (data.accessToken && data.user) {
+              this.persistSession(data.accessToken, data.refreshToken ?? '', data.user);
             }
           }),
         ),
@@ -195,12 +196,12 @@ export class AuthService {
 
   refreshToken(): Observable<RefreshTokenResponse> {
     const refreshToken = this.tokens.refreshToken();
-    if (!refreshToken) {
-      return throwError(() => new Error('Missing refresh token'));
-    }
+    const body = refreshToken ? { refreshToken } : {};
 
     return this.http
-      .post<ApiSuccess<RefreshTokenResponse>>(`${this.baseUrl}/refresh-token`, { refreshToken })
+      .post<ApiSuccess<RefreshTokenResponse>>(`${this.baseUrl}/refresh-token`, body, {
+        withCredentials: true,
+      })
       .pipe(
         map((res) => res.data),
         tap((data) => this.persistSession(data.accessToken, data.refreshToken, data.user)),
@@ -209,16 +210,14 @@ export class AuthService {
 
   logout(): Observable<{ loggedOut: boolean; message: string }> {
     const refreshToken = this.tokens.refreshToken();
-    const request$ = refreshToken
-      ? this.http
-          .post<ApiSuccess<{ loggedOut: boolean; message: string }>>(`${this.baseUrl}/logout`, {
-            refreshToken,
-          })
-          .pipe(map((res) => res.data))
-      : new Observable<{ loggedOut: boolean; message: string }>((subscriber) => {
-          subscriber.next({ loggedOut: true, message: 'Logged out' });
-          subscriber.complete();
-        });
+    const body = refreshToken ? { refreshToken } : {};
+    const request$ = this.http
+      .post<ApiSuccess<{ loggedOut: boolean; message: string }>>(
+        `${this.baseUrl}/logout`,
+        body,
+        { withCredentials: true },
+      )
+      .pipe(map((res) => res.data));
 
     return request$.pipe(
       tap(() => this.tokens.clear()),

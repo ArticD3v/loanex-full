@@ -208,6 +208,16 @@
   }
 }
 
+.lx-footer__link--unavailable {
+  display: inline-block;
+  color: rgba(255, 255, 255, 0.38);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.4;
+  cursor: default;
+  user-select: none;
+}
+
 /* —— Newsletter —— */
 .lx-footer__newsletter {
   max-width: 17.5rem;

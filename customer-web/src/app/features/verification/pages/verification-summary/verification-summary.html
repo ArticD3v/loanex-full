@@ -119,30 +119,57 @@
 
       <section class="lx-summary__card lx-summary__card--wide" aria-labelledby="lx-declare-title">
         <h2 id="lx-declare-title">Declaration</h2>
-        <label class="lx-summary__consent">
-          <input
-            type="checkbox"
-            [checked]="accepted()"
-            (change)="onAcceptChange($event)"
-          />
-          <span>
-            I confirm that all the information provided is accurate and I agree to the Terms &amp;
-            Conditions.
-          </span>
-        </label>
 
-        <div class="lx-summary__actions">
-          <a routerLink="/verification" class="lx-btn lx-btn--outline">Back</a>
-          <button
-            type="button"
-            class="lx-btn lx-btn--primary"
-            [class.is-loading]="submitting()"
-            [disabled]="!canSubmit()"
-            (click)="submitApplication()"
-          >
-            Submit EMI Application
-          </button>
-        </div>
+        @if (alreadySubmitted()) {
+          <div class="lx-summary__alert" role="status">
+            Your EMI application is already submitted and is waiting for admin review.
+          </div>
+          <div class="lx-summary__actions">
+            <a routerLink="/verification" class="lx-btn lx-btn--outline">Back</a>
+            <a routerLink="/application/pending" class="lx-btn lx-btn--primary">
+              View Application Status
+            </a>
+          </div>
+        } @else {
+          <div class="lx-summary__consents">
+            <label class="lx-summary__consent">
+              <input
+                type="checkbox"
+                [checked]="accepted()"
+                (change)="onAcceptChange($event)"
+              />
+              <span>
+                I confirm that all the information provided is accurate and I agree to the Terms &amp;
+                Conditions.
+              </span>
+            </label>
+
+            <label class="lx-summary__consent">
+              <input
+                type="checkbox"
+                [checked]="acceptedOneTimePayment()"
+                (change)="onOneTimePaymentAcceptChange($event)"
+              />
+              <span>
+                I understand and agree to pay the one-time payment (KYC / verification fee and any
+                applicable down payment) required to process this EMI application.
+              </span>
+            </label>
+          </div>
+
+          <div class="lx-summary__actions">
+            <a routerLink="/verification" class="lx-btn lx-btn--outline">Back</a>
+            <button
+              type="button"
+              class="lx-btn lx-btn--primary"
+              [class.is-loading]="submitting()"
+              [disabled]="!canSubmit()"
+              (click)="submitApplication()"
+            >
+              Submit EMI Application
+            </button>
+          </div>
+        }
       </section>
     </div>
   }

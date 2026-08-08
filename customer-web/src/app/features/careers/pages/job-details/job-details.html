@@ -1,0 +1,86 @@
+<div class="lx-job-details">
+  <a routerLink="/careers" class="lx-job-details__back">
+    <i class="pi pi-arrow-left" aria-hidden="true"></i>
+    Back to Careers
+  </a>
+
+  @if (loading()) {
+    <p class="lx-job-details__muted">Loading job details…</p>
+  } @else if (error()) {
+    <section class="lx-job-details__empty">
+      <h1>Unable to load open positions.</h1>
+      <p>{{ error() }}</p>
+      <button type="button" class="lx-btn lx-btn--primary" (click)="retry()">Try Again</button>
+    </section>
+  } @else if (notFound()) {
+    <section class="lx-job-details__empty">
+      <h1>Position not found</h1>
+      <p>This role may no longer be open. Browse other opportunities on our careers page.</p>
+      <a routerLink="/careers" class="lx-btn lx-btn--primary">View Open Positions</a>
+    </section>
+  } @else if (job(); as role) {
+    <header class="lx-job-details__hero">
+      <div>
+        <span class="lx-job-details__dept">{{ role.department }}</span>
+        <h1>{{ role.title }}</h1>
+        <ul class="lx-job-details__meta">
+          <li><i class="pi pi-map-marker" aria-hidden="true"></i>{{ role.location }}</li>
+          <li><i class="pi pi-clock" aria-hidden="true"></i>{{ role.employmentType }}</li>
+          <li><i class="pi pi-briefcase" aria-hidden="true"></i>{{ role.experience }}</li>
+        </ul>
+      </div>
+      <a class="lx-btn lx-btn--secondary" [routerLink]="['/careers', jobPath(role), 'apply']">Apply Now</a>
+    </header>
+
+    <div class="lx-job-details__layout">
+      <div class="lx-job-details__main">
+        <section>
+          <h2>Job Description</h2>
+          <p>{{ role.description }}</p>
+        </section>
+
+        <section>
+          <h2>Responsibilities</h2>
+          <ul>
+            @for (item of role.responsibilities; track item) {
+              <li>{{ item }}</li>
+            }
+          </ul>
+        </section>
+
+        <section>
+          <h2>Requirements</h2>
+          <ul>
+            @for (item of role.requirements; track item) {
+              <li>{{ item }}</li>
+            }
+          </ul>
+        </section>
+      </div>
+
+      <aside class="lx-job-details__aside">
+        <section class="lx-job-details__panel">
+          <h2>Required Skills</h2>
+          <div class="lx-job-details__skills">
+            @for (skill of role.skills; track skill) {
+              <span>{{ skill }}</span>
+            }
+          </div>
+        </section>
+
+        <section class="lx-job-details__panel">
+          <h2>Benefits</h2>
+          <ul>
+            @for (item of role.benefits; track item) {
+              <li>{{ item }}</li>
+            }
+          </ul>
+        </section>
+
+        <a class="lx-btn lx-btn--primary lx-job-details__apply" [routerLink]="['/careers', jobPath(role), 'apply']">
+          Apply Now
+        </a>
+      </aside>
+    </div>
+  }
+</div>

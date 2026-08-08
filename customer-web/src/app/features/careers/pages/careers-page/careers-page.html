@@ -1,0 +1,163 @@
+<div class="lx-careers">
+  <!-- Hero -->
+  <section class="lx-careers-hero" aria-labelledby="lx-careers-hero-heading">
+    <div class="lx-careers-hero__inner">
+      <div class="lx-careers-hero__copy">
+        <span class="lx-careers-hero__eyebrow">Careers at LoanEx</span>
+        <h1 id="lx-careers-hero-heading" class="lx-careers-hero__title">Join Our Team</h1>
+        <p class="lx-careers-hero__desc">
+          Help us build a clearer, more trusted way for people to shop on EMI. We are growing a
+          team that values craft, ownership, and learning together.
+        </p>
+        <div class="lx-careers-hero__actions">
+          <a class="lx-btn lx-btn--secondary" href="#open-positions">View Open Positions</a>
+          <a class="lx-btn lx-btn--outline lx-careers-hero__ghost" href="#life-at-loanex">Learn About Us</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why Join Us -->
+  <section class="lx-careers-section" aria-labelledby="lx-why-join-heading">
+    <header class="lx-careers-section__header">
+      <h2 id="lx-why-join-heading">Why Join Us</h2>
+      <p>A workplace built for growth, clarity, and meaningful impact.</p>
+    </header>
+
+    <div class="lx-careers-why__grid">
+      @for (card of whyJoin(); track card.id; let i = $index) {
+        <article class="lx-careers-why__card" [style.--lx-delay]="i * 70 + 'ms'">
+          <div class="lx-careers-why__icon" aria-hidden="true">
+            <i [class]="card.icon"></i>
+          </div>
+          <h3>{{ card.title }}</h3>
+          <p>{{ card.description }}</p>
+        </article>
+      }
+    </div>
+  </section>
+
+  <!-- Open Positions -->
+  <section
+    id="open-positions"
+    class="lx-careers-section lx-careers-section--jobs"
+    aria-labelledby="lx-open-positions-heading"
+  >
+    <header class="lx-careers-section__header">
+      <h2 id="lx-open-positions-heading">Open Positions</h2>
+      <p>Find a role that matches your skills and ambition.</p>
+    </header>
+
+    @if (loading()) {
+      <div class="lx-careers-jobs__grid" aria-busy="true" aria-label="Loading open positions">
+        @for (skeleton of [1, 2, 3, 4]; track skeleton) {
+          <div class="lx-careers-skeleton">
+            <div class="lx-careers-skeleton__line lx-careers-skeleton__line--title"></div>
+            <div class="lx-careers-skeleton__line lx-careers-skeleton__line--meta"></div>
+            <div class="lx-careers-skeleton__line"></div>
+            <div class="lx-careers-skeleton__line"></div>
+            <div class="lx-careers-skeleton__actions">
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        }
+      </div>
+    } @else if (error()) {
+      <div class="lx-careers-state lx-careers-state--error">
+        <h3>Unable to load open positions.</h3>
+        <p>
+          We couldn’t fetch jobs right now. Please try again in a moment, or submit your resume
+          for our talent pool.
+        </p>
+        <div class="lx-careers-state__actions">
+          <button type="button" class="lx-btn lx-btn--primary" (click)="retry()">Try Again</button>
+          <a routerLink="/careers/general-application" class="lx-btn lx-btn--outline">
+            Submit Your Resume
+          </a>
+        </div>
+      </div>
+    } @else if (jobs().length === 0) {
+      <div class="lx-careers-state">
+        <h3>No Open Positions Right Now</h3>
+        <p>
+          We don't have any active openings at the moment, but we're always interested in hearing
+          from talented people.
+        </p>
+        <a routerLink="/careers/general-application" class="lx-btn lx-btn--primary">
+          Submit Your Resume
+        </a>
+      </div>
+    } @else {
+      <div class="lx-careers-jobs__grid">
+        @for (job of jobs(); track job.id) {
+          <app-job-card [job]="job" />
+        }
+      </div>
+    }
+  </section>
+
+  <!-- General / open application CTA -->
+  <section
+    id="general-application"
+    class="lx-careers-section lx-careers-open-app"
+    aria-labelledby="lx-open-app-heading"
+  >
+    <div class="lx-careers-open-app__panel">
+      <div class="lx-careers-open-app__copy">
+        <h2 id="lx-open-app-heading">Don't See the Right Role?</h2>
+        <p>
+          We're always interested in meeting talented people. If you don't see a position that
+          matches your experience, share your resume with us and tell us a little about yourself.
+          We'll reach out when a suitable opportunity becomes available.
+        </p>
+        <a routerLink="/careers/general-application" class="lx-btn lx-btn--primary">
+          Submit Your Resume
+        </a>
+        <p class="lx-careers-open-app__note">
+          Your profile will be kept in our talent pool for future opportunities.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Life at company -->
+  <section
+    id="life-at-loanex"
+    class="lx-careers-section lx-careers-life"
+    aria-labelledby="lx-life-heading"
+  >
+    <div class="lx-careers-life__panel">
+      <header class="lx-careers-section__header lx-careers-section__header--left">
+        <h2 id="lx-life-heading">Life at LoanEx</h2>
+        <p>
+          We are a product-focused FinTech team building transparent EMI shopping. Expect clear
+          goals, supportive peers, and work that customers actually feel.
+        </p>
+      </header>
+
+      <div class="lx-careers-life__grid">
+        @for (item of culture(); track item.id) {
+          <article class="lx-careers-life__card">
+            <div class="lx-careers-life__icon" aria-hidden="true">
+              <i [class]="item.icon"></i>
+            </div>
+            <div>
+              <h3>{{ item.title }}</h3>
+              <p>{{ item.description }}</p>
+            </div>
+          </article>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section class="lx-careers-cta" aria-labelledby="lx-careers-cta-heading">
+    <div class="lx-careers-cta__inner">
+      <h2 id="lx-careers-cta-heading">Ready to Build Your Future With Us?</h2>
+      <p>Explore open roles and take the next step in your career.</p>
+      <a class="lx-btn lx-btn--secondary" href="#open-positions">Explore Open Positions</a>
+    </div>
+  </section>
+</div>

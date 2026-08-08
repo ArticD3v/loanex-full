@@ -145,15 +145,15 @@ export class EmiPaymentRepository {
     paidAmount: number;
     receiptPath?: string | null;
   }) {
-    jsonDb.update('paymentTransaction', { id: input.paymentId }, {
+    const payment = await jsonDb.updateAwaited('paymentTransaction', { id: input.paymentId }, {
       paymentStatus: PaymentStatus.SUCCESS,
       razorpayPaymentId: input.razorpayPaymentId,
       razorpaySignature: input.razorpaySignature,
+      paidAt: new Date().toISOString(),
       receiptPath: input.receiptPath ?? undefined,
     });
-    const payment = jsonDb.findOne('paymentTransaction', { id: input.paymentId });
 
-    jsonDb.update('emi_schedules', { id: input.emiScheduleId }, {
+    await jsonDb.updateAwaited('emi_schedules', { id: input.emiScheduleId }, {
       paymentStatus: EmiPaymentStatus.PAID,
       paidAmount: input.paidAmount,
       paidAt: new Date().toISOString(),
@@ -172,16 +172,13 @@ export class EmiPaymentRepository {
     );
     const nextDue = remaining[0]?.dueDate ?? null;
 
-    jsonDb.update('loanAccount', { id: input.loanAccountId }, {
+    await jsonDb.updateAwaited('loanAccount', { id: input.loanAccountId }, {
       outstandingAmount,
       paidAmount,
       nextEmiDueDate: nextDue,
       lastPaymentDate: new Date().toISOString(),
+      ...(remaining.length === 0 ? { loanStatus: LoanStatus.CLOSED } : {}),
     });
-
-    if (remaining.length === 0) {
-      jsonDb.update('loanAccount', { id: input.loanAccountId }, { loanStatus: LoanStatus.CLOSED });
-    }
 
     return {
       payment,
@@ -192,14 +189,14 @@ export class EmiPaymentRepository {
     };
   }
 
-  markFailed(paymentId: string) {
-    jsonDb.update('paymentTransaction', { id: paymentId }, { paymentStatus: PaymentStatus.FAILED });
-    return jsonDb.findOne('paymentTransaction', { id: paymentId });
+  async markFailed(paymentId: string) {
+    return jsonDb.updateAwaited('paymentTransaction', { id: paymentId }, {
+      paymentStatus: PaymentStatus.FAILED,
+    });
   }
 
-  updateReceiptPath(paymentId: string, receiptPath: string) {
-    jsonDb.update('paymentTransaction', { id: paymentId }, { receiptPath });
-    return jsonDb.findOne('paymentTransaction', { id: paymentId });
+  async updateReceiptPath(paymentId: string, receiptPath: string) {
+    return jsonDb.updateAwaited('paymentTransaction', { id: paymentId }, { receiptPath });
   }
 }
 

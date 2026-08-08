@@ -1,0 +1,27 @@
+<article class="lx-job-card">
+  <header class="lx-job-card__head">
+    <div>
+      <h3 class="lx-job-card__title">{{ job().title }}</h3>
+      <p class="lx-job-card__dept">{{ job().department }}</p>
+    </div>
+    <span class="lx-job-card__type">{{ job().employmentType }}</span>
+  </header>
+
+  <p class="lx-job-card__desc">{{ job().shortDescription || job().description }}</p>
+
+  <ul class="lx-job-card__meta" aria-label="Job details">
+    <li>
+      <i class="pi pi-map-marker" aria-hidden="true"></i>
+      <span>{{ job().location }}</span>
+    </li>
+    <li>
+      <i class="pi pi-briefcase" aria-hidden="true"></i>
+      <span>{{ job().experience }}</span>
+    </li>
+  </ul>
+
+  <div class="lx-job-card__actions">
+    <a class="lx-btn lx-btn--outline" [routerLink]="['/careers', path()]">View Details</a>
+    <a class="lx-btn lx-btn--primary" [routerLink]="['/careers', path(), 'apply']">Apply Now</a>
+  </div>
+</article>

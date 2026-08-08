@@ -1,5 +1,8 @@
 import { EmiPlanCard, EmiPlanSummary, ProductEmiPlan } from '../models/product-details.models';
 
+/** Platform default reducing-balance annual interest rate (%). */
+export const DEFAULT_ANNUAL_INTEREST_RATE_PERCENT = 12.5;
+
 /** Round money to 2 decimal places (internal currency precision). */
 export function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
@@ -57,7 +60,10 @@ export function calculateEmiBreakdown(input: EmiCalcInput): EmiCalcResult {
   const downPayment = roundMoney(Math.min(Math.max(0, input.downPayment), productPrice));
   const processingFee = roundMoney(Math.max(0, input.processingFee));
   const tenureMonths = Math.max(0, Math.floor(input.tenureMonths));
-  const annualInterestRatePercent = Math.max(0, input.annualInterestRatePercent ?? 0);
+  const annualInterestRatePercent = Math.max(
+    0,
+    input.annualInterestRatePercent ?? DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
+  );
 
   // Fee is never part of the financed principal.
   const loanAmount = roundMoney(productPrice - downPayment);
@@ -126,7 +132,7 @@ export function buildEmiPlans(
   productPrice: number,
   _downPayment: number,
   dbPlans: ProductEmiPlan[] = [],
-  annualInterestRatePercent = 0,
+  annualInterestRatePercent = DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
 ): EmiPlanCard[] {
   if (!dbPlans?.length) return [];
 

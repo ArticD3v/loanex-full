@@ -39,15 +39,18 @@ export class OrderConfirmationComponent implements OnInit {
   ngOnInit(): void {
     this.readPaymentBanner();
 
-    const orderId = this.route.snapshot.queryParamMap.get('orderId') ?? undefined;
+    const orderRef =
+      this.route.snapshot.queryParamMap.get('orderId') ??
+      this.route.snapshot.queryParamMap.get('orderNumber') ??
+      undefined;
 
-    if (orderId === '') {
+    if (orderRef === '') {
       this.loading.set(false);
       this.error.set('Invalid order ID.');
       return;
     }
 
-    const source = orderId ? this.orderApi.getById(orderId) : this.orderApi.getCurrent();
+    const source = orderRef ? this.orderApi.getById(orderRef) : this.orderApi.getCurrent();
 
     source.subscribe({
       next: (data) => {
@@ -128,7 +131,7 @@ export class OrderConfirmationComponent implements OnInit {
 
     this.info.set(null);
     this.error.set(null);
-    void this.router.navigate(['/orders', current.id]);
+    void this.router.navigate(['/orders', current.orderNumber || current.id]);
   }
 
   viewEmiSchedule(): void {

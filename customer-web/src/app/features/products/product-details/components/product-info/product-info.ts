@@ -174,6 +174,7 @@ export class ProductInfoComponent {
   }
 
   selectAttribute(group: VariantAttributeGroup, value: string): void {
+    if (!this.optionAvailable(group, value)) return;
     const variants = this.product().productVariants ?? [];
     const next = { ...this.selectedAttributes(), [group.key]: value };
     this.selectedAttributes.set(next);

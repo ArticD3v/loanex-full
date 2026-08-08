@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import { createRateLimiter } from '../../../common/middleware/rate-limiter';
 import { authenticate } from '../../../common/middleware/authenticate';
+import { optionalAuthenticate } from '../../../common/middleware/optional-authenticate';
 import { requirePermission } from '../../../common/middleware/require-permission';
 
 import { validateRequest } from '../../../common/middleware/validate';
@@ -62,15 +63,14 @@ productRouter.post(
 
 productRouter.get(
   '/slug/:slug',
-
+  optionalAuthenticate,
   validateRequest(productSlugParamSchema, 'params'),
-
   asyncHandler(productController.getBySlug),
-
 );
 
 productRouter.get(
   '/:productId',
+  optionalAuthenticate,
   validateRequest(productIdParamSchema, 'params'),
   asyncHandler(productController.getById),
 );

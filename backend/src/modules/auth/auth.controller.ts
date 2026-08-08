@@ -1,21 +1,32 @@
 import { Request, Response } from 'express';
 import { sendSuccess } from '../../common/utils/api-response';
+import { BadRequestError } from '../../common/errors/app-error';
 import {
   AdminLoginBody,
   ChangePasswordBody,
   CompleteRegistrationBody,
   ForgotPasswordBody,
   LoginBody,
-  LogoutBody,
-  RefreshTokenBody,
   RegisterBody,
   ResetPasswordBody,
   SendOtpBody,
   VerifyOtpBody,
 } from './auth.dto';
 import { authService } from './auth.service';
+import {
+  clearRefreshTokenCookie,
+  readRefreshToken,
+  setRefreshTokenCookie,
+} from './auth-cookies';
 
 import type { AuthenticatedRequest } from '../../common/middleware/authenticate';
+
+function maybeSetRefreshCookie(res: Response, data: Record<string, unknown>): void {
+  const refreshToken = data?.refreshToken;
+  if (typeof refreshToken === 'string' && refreshToken.length > 0) {
+    setRefreshTokenCookie(res, refreshToken);
+  }
+}
 
 export class AuthController {
   getMe = async (req: Request, res: Response): Promise<void> => {
@@ -30,6 +41,7 @@ export class AuthController {
 
   login = async (req: Request, res: Response): Promise<void> => {
     const data = await authService.login(req.body as LoginBody);
+    maybeSetRefreshCookie(res, data as unknown as Record<string, unknown>);
     sendSuccess(res, data, data.message);
   };
 
@@ -38,6 +50,7 @@ export class AuthController {
       ipAddress: req.ip,
       userAgent: req.get('user-agent'),
     });
+    maybeSetRefreshCookie(res, data as unknown as Record<string, unknown>);
     sendSuccess(res, data, data.message);
   };
 
@@ -48,6 +61,7 @@ export class AuthController {
 
   verifyOtp = async (req: Request, res: Response): Promise<void> => {
     const data = await authService.verifyOtp(req.body as VerifyOtpBody);
+    maybeSetRefreshCookie(res, data as unknown as Record<string, unknown>);
     sendSuccess(res, data, data.message);
   };
 
@@ -55,6 +69,7 @@ export class AuthController {
     const data = await authService.completeRegistration(
       req.body as CompleteRegistrationBody,
     );
+    maybeSetRefreshCookie(res, data as unknown as Record<string, unknown>);
     sendSuccess(res, data, data.message, 201);
   };
 
@@ -78,12 +93,21 @@ export class AuthController {
   };
 
   refreshToken = async (req: Request, res: Response): Promise<void> => {
-    const data = await authService.refreshToken(req.body as RefreshTokenBody);
+    const refreshToken = readRefreshToken(req);
+    if (!refreshToken) {
+      throw new BadRequestError('Refresh token is required');
+    }
+    const data = await authService.refreshToken({ refreshToken });
+    maybeSetRefreshCookie(res, data as unknown as Record<string, unknown>);
     sendSuccess(res, data, data.message);
   };
 
   logout = async (req: Request, res: Response): Promise<void> => {
-    const data = await authService.logout(req.body as LogoutBody);
+    const refreshToken = readRefreshToken(req);
+    const data = refreshToken
+      ? await authService.logout({ refreshToken })
+      : { loggedOut: true, message: 'Logged out' };
+    clearRefreshTokenCookie(res);
     sendSuccess(res, data, data.message);
   };
 }

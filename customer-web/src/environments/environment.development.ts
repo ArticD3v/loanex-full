@@ -5,6 +5,7 @@
 export const environment = {
   production: false,
   appName: 'LoanEx Dev',
-  apiBaseUrl: 'http://localhost:4000',
+  // Empty = same-origin /api → proxied to deployed API (avoids CORS).
+  apiBaseUrl: '',
   enableDebug: true,
 };

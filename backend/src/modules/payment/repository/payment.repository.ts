@@ -43,11 +43,12 @@ export class PaymentRepository {
   findUserById(userId: string) {
     const user = jsonDb.findOne('users', { id: userId });
     if (!user) return null;
+    const profile = jsonDb.findOne('profiles', { id: userId });
     return {
       id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      mobile: user.mobile,
+      fullName: profile?.fullName ?? user.fullName ?? '',
+      email: profile?.email ?? user.email ?? '',
+      mobile: user.phone ?? user.mobile ?? profile?.mobile_number ?? '',
     };
   }
 
@@ -58,6 +59,41 @@ export class PaymentRepository {
       paymentStatus: PaymentStatus.SUCCESS,
     }).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return payments.length > 0 ? payments[0] : null;
+  }
+
+  /**
+   * Lifetime KYC fee — any prior SUCCESS KYC_VERIFICATION for this user.
+   * Refreshes from Supabase so serverless instances stay consistent.
+   */
+  async findSuccessKycVerification(userId: string) {
+    await jsonDb.refreshCollection('paymentTransaction');
+    const payments = jsonDb
+      .findMany('paymentTransaction', {
+        userId,
+        paymentType: PaymentType.KYC_VERIFICATION,
+        paymentStatus: PaymentStatus.SUCCESS,
+      })
+      .sort(
+        (a: any, b: any) =>
+          new Date(b.paidAt ?? b.createdAt).getTime() -
+          new Date(a.paidAt ?? a.createdAt).getTime(),
+      );
+    // Also accept purpose field for rows written with explicit purpose.
+    if (payments.length > 0) return payments[0];
+
+    const byPurpose = jsonDb
+      .findMany('paymentTransaction', { userId })
+      .filter(
+        (p: any) =>
+          (p.purpose === 'KYC_VERIFICATION' || p.paymentType === 'KYC_VERIFICATION') &&
+          (p.paymentStatus === PaymentStatus.SUCCESS || p.status === 'SUCCESS'),
+      )
+      .sort(
+        (a: any, b: any) =>
+          new Date(b.paidAt ?? b.createdAt).getTime() -
+          new Date(a.paidAt ?? a.createdAt).getTime(),
+      );
+    return byPurpose.length > 0 ? byPurpose[0] : null;
   }
 
   findByRazorpayOrderId(razorpayOrderId: string) {
@@ -85,6 +121,50 @@ export class PaymentRepository {
       paymentStatus: PaymentStatus.CREATED,
       paymentType: PaymentType.DOWN_PAYMENT,
     });
+  }
+
+  async createKycVerificationTransaction(data: {
+    userId: string;
+    razorpayOrderId: string;
+    amount: number;
+    currency: string;
+  }) {
+    return jsonDb.insertAwaited('paymentTransaction', {
+      applicationId: null,
+      userId: data.userId,
+      razorpayOrderId: data.razorpayOrderId,
+      razorpayPaymentId: null,
+      amount: data.amount,
+      currency: data.currency,
+      paymentStatus: PaymentStatus.CREATED,
+      paymentType: PaymentType.KYC_VERIFICATION,
+      purpose: 'KYC_VERIFICATION',
+      status: PaymentStatus.CREATED,
+      paidAt: null,
+    });
+  }
+
+  async completeKycVerificationPayment(input: {
+    transactionId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+  }) {
+    const paidAt = new Date().toISOString();
+    await jsonDb.updateAwaited(
+      'paymentTransaction',
+      { id: input.transactionId },
+      {
+        razorpayPaymentId: input.razorpayPaymentId,
+        razorpaySignature: input.razorpaySignature,
+        paymentStatus: PaymentStatus.SUCCESS,
+        status: PaymentStatus.SUCCESS,
+        purpose: 'KYC_VERIFICATION',
+        paymentType: PaymentType.KYC_VERIFICATION,
+        paidAt,
+        updatedAt: paidAt,
+      },
+    );
+    return jsonDb.findOne('paymentTransaction', { id: input.transactionId });
   }
 
   markPending(id: string) {

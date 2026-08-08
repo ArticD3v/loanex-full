@@ -134,6 +134,11 @@
   }
 }
 
+.lx-summary__consents {
+  display: grid;
+  gap: 0.75rem;
+}
+
 .lx-summary__consent {
   display: flex;
   align-items: flex-start;

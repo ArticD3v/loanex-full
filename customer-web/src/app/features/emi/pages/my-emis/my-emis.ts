@@ -8,7 +8,6 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TitleCasePipe } from '@angular/common';
-import { environment } from '../../../../../environments/environment';
 import {
   EmiApplicationHistoryItem,
   EmiApplicationHistoryResponse,
@@ -49,7 +48,7 @@ export class MyEmisComponent implements OnInit {
   private readonly emiApi = inject(EmiApplicationService);
 
   readonly formatInr = formatInr;
-  readonly showDevApprove = !environment.production;
+  readonly showDevApprove = false;
   readonly tabs = TAB_ORDER;
   readonly activeTab = signal<TabKey>('pending');
   readonly loading = signal(true);
@@ -95,8 +94,8 @@ export class MyEmisComponent implements OnInit {
       case 'VIEW_LOAN':
         return { label: 'View My EMI', routerLink: '/my-emi' };
       case 'VIEW_ORDER':
-        return item.orderId
-          ? { label: 'Track Order', routerLink: `/orders/${item.orderId}` }
+        return item.orderNumber || item.orderId
+          ? { label: 'Track Order', routerLink: `/orders/${item.orderNumber || item.orderId}` }
           : { label: 'Order Confirmation', routerLink: '/order/confirmation' };
       case 'APPLY_AGAIN':
         return item.status === 'REJECTED'

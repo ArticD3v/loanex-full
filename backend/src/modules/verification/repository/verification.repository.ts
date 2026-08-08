@@ -1,4 +1,5 @@
 import { jsonDb } from '../../../config/json-db';
+import { authRepository } from '../../auth/auth.repository';
 
 export class VerificationRepository {
   // ─── KYC status from customer_kyc ───────────────────────────────────────────
@@ -72,11 +73,12 @@ export class VerificationRepository {
 
   // ─── User helpers ────────────────────────────────────────────────────────────
 
-  findUserById(userId: string) {
-    const user = jsonDb.findOne('users', { id: userId });
-    if (!user) return null;
-    const profile = jsonDb.findOne('profiles', { id: userId });
-    return { ...user, profiles: profile || null };
+  /**
+   * Use auth repository so serverless instances that hydrated before this
+   * user was created still resolve the account from Supabase (same as login).
+   */
+  async findUserById(userId: string) {
+    return authRepository.findById(userId);
   }
 
   findProfileById(userId: string) {
@@ -87,7 +89,7 @@ export class VerificationRepository {
 
   async getStatus(userId: string) {
     const kyc = await this.findKycByUserId(userId);
-    const user = jsonDb.findOne('users', { id: userId });
+    const user = await this.findUserById(userId);
     const customer = jsonDb.findOne('customerVerification', { userId });
 
     const mobileVerified = true; // OTP login = mobile verified

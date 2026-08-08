@@ -165,19 +165,25 @@ function resolveVariant(
   product: any,
   variantId?: string,
 ) {
-  const variants = product.variants ?? [];
+  const variants = Array.isArray(product?.variants) ? product.variants : [];
+  // No sellable variants → checkout the base product. Ignore stale client variantIds
+  // (common when PDP maps wizard variants but product.variants was empty).
   if (variants.length === 0) {
-    if (variantId) {
-      throw new BadRequestError('This product has no variants.', { code: 'INVALID_VARIANT' });
-    }
     return null;
   }
 
-  const variant =
-    (variantId
-      ? product.variants.find((row) => row.id === variantId)
-      : product.variants.find((row) => row.isDefault) ?? product.variants[0]) ?? null;
-
+  const compact = (id: string) => String(id).replace(/-/g, '').toLowerCase();
+  let variant: any = null;
+  if (variantId) {
+    const needle = String(variantId);
+    variant =
+      variants.find((row: any) => String(row.id) === needle) ??
+      variants.find((row: any) => compact(String(row.id)) === compact(needle)) ??
+      null;
+  }
+  if (!variant) {
+    variant = variants.find((row: any) => row.isDefault) ?? variants[0] ?? null;
+  }
   if (!variant) {
     throw new BadRequestError('Invalid product variant.', { code: 'INVALID_VARIANT' });
   }

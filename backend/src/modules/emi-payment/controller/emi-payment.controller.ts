@@ -59,7 +59,8 @@ export class EmiPaymentController {
     );
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${receipt.fileName}"`);
-    return res.sendFile(receipt.absolutePath);
+    res.setHeader('Content-Length', String(receipt.buffer.length));
+    return res.send(receipt.buffer);
   };
 
   listForAdmin = async (req: Request, res: Response) => {

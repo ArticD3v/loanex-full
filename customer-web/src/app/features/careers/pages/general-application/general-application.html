@@ -1,0 +1,216 @@
+<div class="lx-general-app">
+  <a routerLink="/careers" class="lx-general-app__back">
+    <i class="pi pi-arrow-left" aria-hidden="true"></i>
+    Back to Careers
+  </a>
+
+  @if (success()) {
+    <section class="lx-general-app__done" role="status">
+      <i class="pi pi-check-circle" aria-hidden="true"></i>
+      <h1>Application Submitted Successfully!</h1>
+      <p>
+        Thank you for applying. Our team will review your profile and contact you if there is a
+        suitable opportunity.
+      </p>
+      <a routerLink="/careers" class="lx-btn lx-btn--primary">Back to Careers</a>
+    </section>
+  } @else {
+    <form class="lx-general-app__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <header class="lx-general-app__intro">
+        <h1>Submit Your Resume</h1>
+        <p>
+          Share your profile for our talent pool. This is a general application — not tied to a
+          specific open role.
+        </p>
+      </header>
+
+      @if (error(); as errorMsg) {
+        <div class="lx-general-app__banner lx-general-app__banner--error" role="alert">
+          <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
+          <p>{{ errorMsg }}</p>
+        </div>
+      }
+
+      <div class="lx-general-app__grid">
+        <div class="lx-field">
+          <label class="lx-label" for="ga-full-name">Full Name <span aria-hidden="true">*</span></label>
+          <input
+            id="ga-full-name"
+            class="lx-input"
+            type="text"
+            formControlName="fullName"
+            autocomplete="name"
+            placeholder="Your full name"
+          />
+          <app-form-field-error [control]="form.controls.fullName" label="Full name" [submitted]="submittedTick()" />
+        </div>
+
+        <div class="lx-field">
+          <label class="lx-label" for="ga-email">Email Address <span aria-hidden="true">*</span></label>
+          <input
+            id="ga-email"
+            class="lx-input"
+            type="email"
+            formControlName="email"
+            autocomplete="email"
+            placeholder="you@example.com"
+          />
+          <app-form-field-error [control]="form.controls.email" label="Email" [submitted]="submittedTick()" />
+        </div>
+
+        <div class="lx-field">
+          <label class="lx-label" for="ga-phone">Phone Number <span aria-hidden="true">*</span></label>
+          <input
+            id="ga-phone"
+            class="lx-input"
+            type="tel"
+            formControlName="phone"
+            autocomplete="tel"
+            inputmode="numeric"
+            maxlength="10"
+            placeholder="10-digit mobile number"
+          />
+          <app-form-field-error [control]="form.controls.phone" label="Phone number" [submitted]="submittedTick()" />
+        </div>
+
+        <div class="lx-field">
+          <label class="lx-label" for="ga-location">Current Location</label>
+          <input
+            id="ga-location"
+            class="lx-input"
+            type="text"
+            formControlName="location"
+            autocomplete="address-level2"
+            placeholder="City, State"
+          />
+        </div>
+
+        <div class="lx-field">
+          <label class="lx-label" for="ga-experience">Total Experience</label>
+          <input
+            id="ga-experience"
+            class="lx-input"
+            type="text"
+            formControlName="experience"
+            placeholder="e.g. 3 years"
+          />
+        </div>
+
+        <div class="lx-field">
+          <label class="lx-label" for="ga-title">Current / Previous Job Title</label>
+          <input
+            id="ga-title"
+            class="lx-input"
+            type="text"
+            formControlName="currentJobTitle"
+            placeholder="e.g. Frontend Developer"
+          />
+        </div>
+
+        <div class="lx-field lx-general-app__full">
+          <label class="lx-label" for="ga-skills">Skills</label>
+          <input
+            id="ga-skills"
+            class="lx-input"
+            type="text"
+            formControlName="skills"
+            placeholder="e.g. Angular, TypeScript, Figma"
+          />
+        </div>
+
+        <div class="lx-field">
+          <label class="lx-label" for="ga-dept">Preferred Department <span aria-hidden="true">*</span></label>
+          <select id="ga-dept" class="lx-input" formControlName="preferredDepartment">
+            <option value="" disabled>Select a department</option>
+            @for (dept of departments; track dept) {
+              <option [value]="dept">{{ dept }}</option>
+            }
+          </select>
+          <app-form-field-error
+            [control]="form.controls.preferredDepartment"
+            label="Preferred department"
+            [submitted]="submittedTick()"
+          />
+        </div>
+
+        <div class="lx-field">
+          <span class="lx-label" id="ga-resume-label">Resume Upload <span aria-hidden="true">*</span></span>
+          <label class="lx-file-upload" for="ga-resume" [class.is-filled]="!!resumeName()">
+            <span class="lx-file-upload__icon" aria-hidden="true">
+              <i class="pi" [class.pi-upload]="!resumeName()" [class.pi-check]="!!resumeName()"></i>
+            </span>
+            <span class="lx-file-upload__text">
+              @if (resumeName(); as name) {
+                <strong>{{ name }}</strong>
+                <small>Click to replace file</small>
+              } @else {
+                <strong>Choose resume file</strong>
+                <small>PDF, DOC, or DOCX · Max 5MB</small>
+              }
+            </span>
+            <input
+              id="ga-resume"
+              class="lx-file-upload__input"
+              type="file"
+              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              (change)="onResumeSelected($event)"
+              aria-labelledby="ga-resume-label"
+            />
+          </label>
+          @if (resumeError()) {
+            <p class="lx-error-text">{{ resumeError() }}</p>
+          }
+        </div>
+
+        <div class="lx-field">
+          <label class="lx-label" for="ga-linkedin">LinkedIn Profile URL</label>
+          <input
+            id="ga-linkedin"
+            class="lx-input"
+            type="url"
+            formControlName="linkedinUrl"
+            placeholder="https://linkedin.com/in/…"
+          />
+        </div>
+
+        <div class="lx-field">
+          <label class="lx-label" for="ga-portfolio">Portfolio / GitHub URL</label>
+          <input
+            id="ga-portfolio"
+            class="lx-input"
+            type="url"
+            formControlName="portfolioUrl"
+            placeholder="https://…"
+          />
+        </div>
+
+        <div class="lx-field lx-general-app__full">
+          <label class="lx-label" for="ga-about">Tell Us About Yourself <span aria-hidden="true">*</span></label>
+          <textarea
+            id="ga-about"
+            class="lx-input lx-general-app__textarea"
+            formControlName="about"
+            rows="5"
+            placeholder="Tell us about your experience, skills, interests, and the type of opportunities you're looking for."
+          ></textarea>
+          <app-form-field-error
+            [control]="form.controls.about"
+            label="About yourself"
+            [submitted]="submittedTick()"
+          />
+        </div>
+      </div>
+
+      <div class="lx-general-app__actions">
+        <button
+          type="submit"
+          class="lx-btn lx-btn--primary"
+          [class.is-loading]="submitting()"
+          [disabled]="submitting()"
+        >
+          Submit Profile
+        </button>
+      </div>
+    </form>
+  }
+</div>

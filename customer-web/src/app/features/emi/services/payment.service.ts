@@ -76,6 +76,41 @@ export interface OrderConfirmation {
   createdAt: string;
 }
 
+export interface KycFeeStatus {
+  paid: boolean;
+  amount: number;
+  purpose: 'KYC_VERIFICATION';
+  paymentId: string | null;
+  razorpayOrderId: string | null;
+  razorpayPaymentId: string | null;
+  paidAt: string | null;
+}
+
+export interface CreateKycFeeOrderResponse {
+  transactionId: string;
+  razorpayOrderId: string;
+  amount: number;
+  amountPaise: number;
+  currency: string;
+  keyId: string;
+  paymentDevBypass: boolean;
+  purpose: 'KYC_VERIFICATION';
+  customer: { name: string; email: string; contact: string };
+  prefill: { name: string; email: string; contact: string };
+  notes: { purpose: string };
+}
+
+export interface VerifyKycFeeResponse {
+  paymentStatus: string;
+  alreadyProcessed?: boolean;
+  purpose: 'KYC_VERIFICATION';
+  amount: number;
+  transactionId: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  paidAt: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class PaymentService {
   private readonly http = inject(HttpClient);
@@ -106,6 +141,34 @@ export class PaymentService {
   }): Observable<VerifyPaymentResponse> {
     return this.wrap(
       this.http.post<ApiSuccess<VerifyPaymentResponse>>(`${this.baseUrl}/verify`, payload),
+    );
+  }
+
+  getKycFeeStatus(): Observable<KycFeeStatus> {
+    return this.wrap(
+      this.http.get<ApiSuccess<KycFeeStatus>>(`${this.baseUrl}/kyc-fee/status`),
+    );
+  }
+
+  createKycFeeOrder(): Observable<CreateKycFeeOrderResponse> {
+    return this.wrap(
+      this.http.post<ApiSuccess<CreateKycFeeOrderResponse>>(
+        `${this.baseUrl}/kyc-fee/create-order`,
+        {},
+      ),
+    );
+  }
+
+  verifyKycFee(payload: {
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+  }): Observable<VerifyKycFeeResponse> {
+    return this.wrap(
+      this.http.post<ApiSuccess<VerifyKycFeeResponse>>(
+        `${this.baseUrl}/kyc-fee/verify`,
+        payload,
+      ),
     );
   }
 

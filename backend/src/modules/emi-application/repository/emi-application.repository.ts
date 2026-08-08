@@ -4,15 +4,12 @@ import {
 } from '@prisma/client';
 import { jsonDb } from '../../../config/json-db';
 
-const ACTIVE_STATUSES: EmiApplicationStatus[] = [
+const OPEN_APPLICATION_STATUSES: EmiApplicationStatus[] = [
   EmiApplicationStatus.PENDING,
   EmiApplicationStatus.UNDER_REVIEW,
   EmiApplicationStatus.APPROVED,
   EmiApplicationStatus.OFFER_ACCEPTED,
   EmiApplicationStatus.DOWN_PAYMENT_PENDING,
-  EmiApplicationStatus.DOWN_PAYMENT_COMPLETED,
-  EmiApplicationStatus.ORDER_CONFIRMED,
-  EmiApplicationStatus.ACTIVE_EMI,
 ];
 
 export class EmiApplicationRepository {
@@ -45,7 +42,14 @@ export class EmiApplicationRepository {
 
   findActiveByUserId(userId: string) {
     const res = jsonDb.findMany('emi_applications', { userId });
-    return res.filter((r: any) => ACTIVE_STATUSES.includes(r.status)).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
+    return (
+      res
+        .filter((r: any) => OPEN_APPLICATION_STATUSES.includes(r.status))
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        )[0] || null
+    );
   }
 
   findByUserId(userId: string) {
@@ -53,7 +57,8 @@ export class EmiApplicationRepository {
     return res.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
   }
 
-  listAllByUserId(userId: string) {
+  async listAllByUserId(userId: string) {
+    await jsonDb.refreshCollection('emi_applications');
     const res = jsonDb.findMany('emi_applications', { userId });
     return res.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
@@ -85,6 +90,7 @@ export class EmiApplicationRepository {
     requestedDownPayment: number;
     requestedTenure: number;
     estimatedMonthlyEmi: number;
+    interestRate?: number;
   }) {
     return jsonDb.insert('emi_applications', {
       applicationNumber: data.applicationNumber,
@@ -96,6 +102,7 @@ export class EmiApplicationRepository {
       requestedDownPayment: data.requestedDownPayment,
       requestedTenure: data.requestedTenure,
       estimatedMonthlyEmi: data.estimatedMonthlyEmi,
+      interestRate: data.interestRate ?? 12.5,
       status: EmiApplicationStatus.PENDING,
     });
   }

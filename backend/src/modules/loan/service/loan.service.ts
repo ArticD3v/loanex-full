@@ -30,7 +30,13 @@ import {
   loanRepository,
   type LoanWithRelations,
 } from '../repository/loan.repository';
-import { addMonths, buildEmiSchedule, istMidnight } from './emi-calculator.service';
+import {
+  addMonths,
+  buildEmiSchedule,
+  calculateMonthlyEmi,
+  DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
+  istMidnight,
+} from './emi-calculator.service';
 import {
   buildDashboardPayload,
   buildLoanSummary,
@@ -51,12 +57,14 @@ export class LoanService {
     if (!active) {
       throw new NotFoundError('No loan account found for this user');
     }
-    return buildLoanSummary(active);
+    const healed = await this.healUnpaidSchedule(active);
+    return buildLoanSummary(healed);
   }
 
   async listUserLoans(userId: string) {
     const list = await loanRepository.listUserLoans(userId);
-    return list.map(buildLoanSummary);
+    const healed = await Promise.all(list.map((loan) => this.healUnpaidSchedule(loan)));
+    return healed.map(buildLoanSummary);
   }
 
   async getLoanDetails(userId: string, loanId: string) {
@@ -64,7 +72,18 @@ export class LoanService {
     if (!loan) {
       throw new NotFoundError('Loan account not found');
     }
-    return buildLoanSummary(loan);
+    const healed = await this.healUnpaidSchedule(loan);
+    return buildLoanSummary(healed);
+  }
+
+  /** Owner-scoped EMI schedule — never use admin getters on customer routes. */
+  async getEmiScheduleForUser(userId: string, loanId: string) {
+    const loan = await loanRepository.findByIdForUser(loanId, userId);
+    if (!loan) {
+      throw new NotFoundError('Loan account not found');
+    }
+    const healed = await this.healUnpaidSchedule(loan);
+    return buildDashboardPayload(healed).schedule ?? [];
   }
 
   async getDashboard(userId: string, loanId?: string) {
@@ -81,7 +100,8 @@ export class LoanService {
       throw new NotFoundError('Specified loan account not found');
     }
 
-    return buildDashboardPayload(selected);
+    const healed = await this.healUnpaidSchedule(selected);
+    return buildDashboardPayload(healed);
   }
 
   async getPaymentHistory(userId: string, loanId?: string) {
@@ -92,7 +112,8 @@ export class LoanService {
     if (!loan) {
       throw new NotFoundError('Loan account not found');
     }
-    return buildPaymentHistoryPayload(loan);
+    const healed = await this.healUnpaidSchedule(loan);
+    return buildPaymentHistoryPayload(healed);
   }
 
   async getStatement(userId: string) {
@@ -101,7 +122,8 @@ export class LoanService {
     if (!loan) {
       throw new NotFoundError('Loan account not found');
     }
-    const file = await this.generateDocument(userId, loan.id, 'statement');
+    const healed = await this.healUnpaidSchedule(loan);
+    const file = await this.generateDocument(userId, healed.id, 'statement');
     return {
       ...file,
       fileName: path.basename(file.relativePath),
@@ -114,7 +136,8 @@ export class LoanService {
     if (!loan) {
       throw new NotFoundError('Loan account not found');
     }
-    const file = await this.generateDocument(userId, loan.id, 'agreement');
+    const healed = await this.healUnpaidSchedule(loan);
+    const file = await this.generateDocument(userId, healed.id, 'agreement');
     return {
       ...file,
       fileName: path.basename(file.relativePath),
@@ -239,6 +262,53 @@ export class LoanService {
     return created;
   }
 
+  /**
+   * Rebuild schedule for unpaid loans that were created with a stale 0%-style EMI
+   * while interestRate > 0 (unequal last installment).
+   */
+  private async healUnpaidSchedule(loan: LoanWithRelations): Promise<LoanWithRelations> {
+    const paidAmount = toNumber((loan as any).paidAmount);
+    const schedule = loan.schedule ?? [];
+    if (paidAmount > 0 || !schedule.length) return loan;
+
+    const hasPaidRow = schedule.some((row: any) => {
+      const status = String(row.paymentStatus ?? row.payment_status ?? '').toUpperCase();
+      return status === 'PAID' || status === 'PARTIAL';
+    });
+    if (hasPaidRow) return loan;
+
+    const principal = toNumber(loan.loanAmount);
+    const interestRate =
+      toNumber(loan.interestRate) || DEFAULT_ANNUAL_INTEREST_RATE_PERCENT;
+    const tenure = toNumber(loan.loanTenure) || schedule.length;
+    if (principal <= 0 || tenure <= 0) return loan;
+
+    const correctEmi = calculateMonthlyEmi(principal, interestRate, tenure);
+    const storedEmi = toNumber(loan.emiAmount);
+    if (Math.abs(storedEmi - correctEmi) < 1) return loan;
+
+    const startDate = new Date(loan.loanStartDate ?? new Date());
+    startDate.setHours(0, 0, 0, 0);
+
+    const schedulePlan = buildEmiSchedule({
+      principal,
+      annualRatePercent: interestRate,
+      tenureMonths: tenure,
+      startDate,
+    });
+
+    const updated = await loanRepository.replaceUnpaidSchedule(loan.id, {
+      emiAmount: schedulePlan.emiAmount,
+      totalInterest: schedulePlan.totalInterest,
+      totalPayable: schedulePlan.totalPayable,
+      outstandingAmount: schedulePlan.totalPayable,
+      nextEmiDueDate: schedulePlan.rows[0]?.dueDate ?? null,
+      schedule: schedulePlan.rows,
+    });
+
+    return updated ?? loan;
+  }
+
   private async createLoanAccount(application: any) {
     const loanAmount =
       toNumber(application.approvedAmount) ||
@@ -250,7 +320,8 @@ export class LoanService {
       toNumber(application.requestedTenure) ||
       toNumber(application.tenure) ||
       6;
-    const interestRate = toNumber(application.interestRate) || 12.5;
+    const interestRate =
+      toNumber(application.interestRate) || DEFAULT_ANNUAL_INTEREST_RATE_PERCENT;
     const processingFee = toNumber(application.processingFee) || 0;
     const requestedEmi =
       toNumber(application.monthlyEmi) ||
@@ -259,16 +330,30 @@ export class LoanService {
       0;
     const startDate = istMidnight(new Date());
 
+    // Always derive EMI from principal + rate + tenure.
+    // Never reuse estimatedMonthlyEmi (often computed at 0% on the product page).
     const schedulePlan = buildEmiSchedule({
       principal: loanAmount,
       annualRatePercent: interestRate,
       tenureMonths: tenure,
       startDate,
-      emiAmount: requestedEmi || undefined,
     });
 
     const accountNo = `LN-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const loanEndDate = addMonths(startDate, tenure);
+
+    // Keep application.monthlyEmi in sync with the real schedule EMI.
+    if (application.id) {
+      jsonDb.update(
+        'emi_applications',
+        { id: application.id },
+        {
+          monthlyEmi: schedulePlan.emiAmount,
+          interestRate,
+          estimatedMonthlyEmi: schedulePlan.emiAmount,
+        },
+      );
+    }
 
     return loanRepository.createWithSchedule({
       loanAccountNumber: accountNo,
