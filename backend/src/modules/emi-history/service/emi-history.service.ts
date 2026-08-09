@@ -461,19 +461,8 @@ export class EmiHistoryService {
     return absolutePath;
   }
 
-  private buildPaymentReceiptBuffer(payment: {
-    id: string;
-    amount: { toString(): string } | number;
-    paymentStatus: string;
-    razorpayPaymentId?: string | null;
-    razorpayOrderId?: string | null;
-    emiSchedule?: {
-      emiNumber: number;
-      loanAccount?: {
-        loanAccountNumber: string;
-        application?: { id?: string; applicationNumber?: string; productName?: string | null };
-      };
-    } | null;
+  private buildPaymentReceiptBuffer(payment: PaymentTransaction & {
+    emiSchedule?: { emiNumber: number; loanAccount?: { loanAccountNumber: string; application?: { id?: string; applicationNumber?: string; productName?: string | null } } } | null;
   }): Promise<Buffer> {
     return new Promise<Buffer>((resolve, reject) => {
       const emiNumber = payment.emiSchedule?.emiNumber ?? 0;

@@ -235,6 +235,59 @@
   justify-content: center;
 }
 
+.lx-emi-pay__history {
+  padding-top: 0.25rem;
+}
+
+.lx-emi-pay__muted {
+  margin: 0 0 0.75rem;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.lx-emi-pay__payments-wrap {
+  border: 1px solid #e5e9f0;
+  border-radius: 0.65rem;
+  overflow: hidden;
+}
+
+.lx-emi-pay__payments {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+
+  th,
+  td {
+    padding: 0.6rem 0.8rem;
+    text-align: left;
+    border-bottom: 1px solid #eef1f6;
+  }
+
+  th {
+    background: #f6f8fc;
+    color: #0a2e6f;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  td {
+    color: #1f2937;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  .lx-emi-pay__payments-amt {
+    text-align: right;
+    font-weight: 700;
+    color: #0a2e6f;
+    white-space: nowrap;
+  }
+}
+
 @media (max-width: 640px) {
   .lx-emi-pay__actions {
     flex-direction: column;

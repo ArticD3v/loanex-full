@@ -43,7 +43,9 @@ function mapOrderRecord(order: any) {
     ? 'EMI'
     : rawMethod === 'EMI'
       ? 'EMI'
-      : 'FULL PAYMENT';
+      : rawMethod === 'COD' || rawMethod === 'CASH_ON_DELIVERY'
+        ? 'COD'
+        : 'FULL PAYMENT';
   const rawStatus = String(
     order.orderStatus ?? order.status ?? order.payment_status ?? 'CONFIRMED',
   ).toUpperCase();
@@ -86,6 +88,24 @@ function mapOrderRecord(order: any) {
         .find((p: any) => p.paymentStatus === 'SUCCESS') ?? null;
   }
 
+  // Real loan + EMI schedule for EMI orders — drives dynamic amounts,
+  // remaining balance, paid-EMI counts and loan status in order details
+  // and invoices (never static placeholders).
+  const loan =
+    (applicationId
+      ? jsonDb.findOne('loanAccount', { applicationId }) ??
+        jsonDb.findOne('loan_accounts', { applicationId }) ??
+        jsonDb.findOne('loanaccount', { applicationId })
+      : null) ?? null;
+  const emiSchedules = loan?.id
+    ? jsonDb
+        .findMany('emi_schedules', { loanAccountId: loan.id })
+        .sort(
+          (a: any, b: any) =>
+            Number(a.emiNumber ?? 0) - Number(b.emiNumber ?? 0),
+        )
+    : [];
+
   const populatedItems = items.map(item => {
     const p = jsonDb.findOne('products', { id: item.productId });
     return {
@@ -124,8 +144,11 @@ function mapOrderRecord(order: any) {
           ? jsonDb.findOne('emi_applications', { id: order.applicationId })
           : null);
       if (linked) return linked;
+      // Non-EMI (COD/DIRECT) orders have no application — keep the fallback
+      // payload for invoice display, but never leak the order's own id as an
+      // application number.
       return {
-        id: order.id,
+        id: null,
         sellingPrice: order.totalAmount ?? order.total_amount ?? order.total ?? 0,
         productName: productName,
         productImage: productImage,
@@ -135,6 +158,8 @@ function mapOrderRecord(order: any) {
     })(),
     deliveryAddress,
     paymentTransaction,
+    loan,
+    emiSchedules,
     trackingEvents: [],
     user: profile
       ? {
@@ -148,10 +173,21 @@ function mapOrderRecord(order: any) {
 }
 
 export class OrderRepository {
+  /**
+   * A row without an orderNumber is a checkout *session* (created at the start
+   * of a DIRECT checkout), not a real order. It only becomes an order when
+   * payment succeeds (orderNumber is assigned) or the COD/EMI order is placed.
+   * Showing these as orders duplicates the product in My Orders / the admin
+   * list with a misleading PENDING status, so they are excluded here.
+   */
+  private isRealOrder(o: any): boolean {
+    return Boolean(o && o.orderNumber);
+  }
+
   async listForUser(userId: string) {
     await jsonDb.refreshCollection('orders');
     const orders = jsonDb.findMany('orders');
-    const filtered = orders.filter((o: any) => orderOwnedBy(o, userId));
+    const filtered = orders.filter((o: any) => orderOwnedBy(o, userId) && this.isRealOrder(o));
     filtered.sort((a, b) => new Date(b.createdAt ?? b.created_at).getTime() - new Date(a.createdAt ?? a.created_at).getTime());
     return filtered.map(mapOrderRecord);
   }
@@ -159,8 +195,9 @@ export class OrderRepository {
   async adminListAll() {
     await jsonDb.refreshCollection('orders');
     const orders = jsonDb.findMany('orders');
-    orders.sort((a, b) => new Date(b.createdAt ?? b.created_at).getTime() - new Date(a.createdAt ?? a.created_at).getTime());
-    return orders.map(mapOrderRecord);
+    const real = orders.filter((o: any) => this.isRealOrder(o));
+    real.sort((a, b) => new Date(b.createdAt ?? b.created_at).getTime() - new Date(a.createdAt ?? a.created_at).getTime());
+    return real.map(mapOrderRecord);
   }
 
   async findLatestForUser(userId: string) {
@@ -227,6 +264,22 @@ export class OrderRepository {
     productBrand?: string | null;
     deliveryAddress: string;
   }) {
+    // Real amounts: the EMI order's total is the product's selling price from
+    // the approved application (not ₹0). Previously this insert carried no
+    // totals, so sanitizeOrdersRow fell back to 0 and every EMI order showed
+    // ₹0 in My Orders, the admin list and receipts.
+    const app = jsonDb.findOne('emi_applications', { id: input.applicationId });
+    const product = jsonDb.findOne('products', { id: input.productId });
+    const total = Number(
+      app?.sellingPrice ??
+        app?.approvedLoanAmount ??
+        app?.approvedAmount ??
+        app?.requestedAmount ??
+        product?.price ??
+        product?.sellingPrice ??
+        0,
+    );
+
     const created = await jsonDb.insertAwaited('orders', {
       userId: input.userId,
       profileId: input.userId,
@@ -237,6 +290,11 @@ export class OrderRepository {
       status: OrderStatus.ORDER_CONFIRMED,
       orderStatus: OrderStatus.ORDER_CONFIRMED,
       paymentMethod: 'EMI',
+      payment_status: 'PENDING',
+      quantity: 1,
+      totalAmount: total,
+      subtotal: total,
+      total,
       items: [{ productId: input.productId, quantity: 1 }],
     });
     return mapOrderRecord(created);

@@ -10,7 +10,7 @@ import { useTheme } from '../../theme/useTheme';
 import { spacing } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 
-const logoSource = require('../../../assets/logo-loanex.png');
+const logoSource = require('../../../assets/logo-loanex.jpg');
 
 interface DashboardAppBarProps {
   onProfilePress?: () => void;

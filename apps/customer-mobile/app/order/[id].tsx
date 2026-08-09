@@ -342,6 +342,8 @@ export default function OrderDetailScreen() {
               <Text style={st.payTagTxt}>
                 {order.paymentMethod === 'emi'
                   ? `EMI · ${order.emiDetails?.months} months · ${APP_CONFIG.currency}${order.emiDetails?.monthlyAmount?.toLocaleString()}/month`
+                  : order.paymentMethod === 'online'
+                  ? 'Full Payment (Online)'
                   : 'Cash on Delivery'}
               </Text>
             </View>
@@ -403,6 +405,85 @@ export default function OrderDetailScreen() {
                 <View style={{ marginTop: Spacing.md, backgroundColor: Colors.primaryLight, padding: Spacing.md, borderRadius: Radius.md }}>
                   <Text style={{ fontSize: Fonts.xs, fontWeight: Fonts.bold, color: Colors.primary, marginBottom: 4 }}>Admin Proposal Notes</Text>
                   <Text style={{ fontSize: Fonts.sm, color: Colors.textSecondary }}>{order.emiDetails.adminProposal.notes || 'No notes'}</Text>
+                </View>
+              )}
+
+              {/* ── Payment History (paid EMIs, live from the loan ledger) ── */}
+              {order.emiDetails.schedule.filter((s) => s.status === 'paid').length > 0 && (
+                <View style={{ marginTop: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.borderLight, paddingTop: Spacing.md }}>
+                  <Text style={st.cardTitle}>Payment History</Text>
+                  {order.emiDetails.schedule
+                    .filter((s) => s.status === 'paid')
+                    .map((row) => (
+                      <View
+                        key={`paid-${row.installmentNumber}`}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          paddingVertical: Spacing.sm,
+                          borderBottomWidth: 1,
+                          borderBottomColor: Colors.borderLight,
+                        }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: Fonts.sm, fontWeight: Fonts.bold, color: Colors.textPrimary }}>
+                            EMI #{row.installmentNumber}
+                          </Text>
+                          <Text style={{ fontSize: Fonts.xs, color: Colors.textSecondary, marginTop: 2 }}>
+                            Paid{' '}
+                            {new Date(row.paidAt || row.dueDate).toLocaleDateString('en-IN', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                          </Text>
+                        </View>
+                        <Text style={{ fontSize: Fonts.sm, fontWeight: Fonts.bold, color: Colors.success }}>
+                          {APP_CONFIG.currency}{row.amount.toLocaleString('en-IN')}
+                        </Text>
+                      </View>
+                    ))}
+                </View>
+              )}
+
+              {/* ── Upcoming Installments ────────────── */}
+              {order.emiDetails.schedule.filter((s) => s.status !== 'paid').length > 0 && (
+                <View style={{ marginTop: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.borderLight, paddingTop: Spacing.md }}>
+                  <Text style={st.cardTitle}>Upcoming Installments</Text>
+                  {order.emiDetails.schedule
+                    .filter((s) => s.status !== 'paid')
+                    .map((row) => (
+                      <View
+                        key={row.installmentNumber}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          paddingVertical: Spacing.sm,
+                          borderBottomWidth: 1,
+                          borderBottomColor: Colors.borderLight,
+                        }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: Fonts.sm, fontWeight: Fonts.bold, color: Colors.textPrimary }}>
+                            EMI #{row.installmentNumber}
+                          </Text>
+                          <Text style={{ fontSize: Fonts.xs, color: Colors.textSecondary, marginTop: 2 }}>
+                            Due {row.dueDate
+                              ? new Date(row.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                              : '—'}{' '}
+                            ·{' '}
+                            <Text style={{ color: row.status === 'overdue' ? Colors.error : Colors.textTertiary }}>
+                              {row.status === 'overdue' ? 'Overdue' : 'Pending'}
+                            </Text>
+                          </Text>
+                        </View>
+                        <Text style={{ fontSize: Fonts.sm, fontWeight: Fonts.bold, color: Colors.textPrimary }}>
+                          {APP_CONFIG.currency}{row.amount.toLocaleString('en-IN')}
+                        </Text>
+                      </View>
+                    ))}
                 </View>
               )}
             </View>

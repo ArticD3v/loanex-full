@@ -11,6 +11,10 @@ export interface VerifiedKYCData {
   aadhaarNumber: string;
   address: { fullAddress: string; city: string; state: string; pincode: string };
   raw: any;
+  /** Optional identity fields some providers return alongside the Aadhaar number. */
+  dob?: string;
+  gender?: string;
+  idNumber?: string;
 }
 
 interface DigiLockerAuthProps {

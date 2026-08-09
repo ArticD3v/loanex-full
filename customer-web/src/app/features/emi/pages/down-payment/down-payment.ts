@@ -14,6 +14,8 @@ import {
   PaymentService,
 } from '../../services/payment.service';
 import { openRazorpayCheckout } from '../../utils/razorpay-checkout';
+import { CartService } from '../../../cart/services/cart.service';
+import { PendingCheckoutService } from '../../../checkout/services/pending-checkout.service';
 
 @Component({
   selector: 'app-down-payment',
@@ -25,10 +27,16 @@ export class DownPaymentComponent implements OnInit {
   private readonly paymentApi = inject(PaymentService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly cartService = inject(CartService);
+  private readonly pendingCheckout = inject(PendingCheckoutService);
 
   readonly loading = signal(true);
   readonly paying = signal(false);
   readonly error = signal<string | null>(null);
+  /** True once the Razorpay modal was dismissed or payment failed — shows the
+   *  "Your items are still in your cart" panel with a Back to Cart action. */
+  readonly paymentFailed = signal(false);
+  readonly cartItemCount = signal(0);
   readonly context = signal<DownPaymentContext | null>(null);
   private applicationId: string | undefined;
 
@@ -53,6 +61,7 @@ export class DownPaymentComponent implements OnInit {
     if (this.paying()) return;
     this.paying.set(true);
     this.error.set(null);
+    this.paymentFailed.set(false);
 
     this.paymentApi.createOrder(this.applicationId).subscribe({
       next: (order) => {
@@ -118,15 +127,48 @@ export class DownPaymentComponent implements OnInit {
         },
         modal: {
           ondismiss: () => {
+            // The customer closed the checkout without paying — remember the
+            // application so the cart can offer a "Resume checkout" prompt
+            // that jumps straight back to the down-payment page.
+            this.rememberPending();
             this.paying.set(false);
-            this.error.set('Payment was cancelled. You can try again when ready.');
+            this.paymentFailed.set(true);
+            this.trackCartCount();
           },
         },
       });
     } catch {
+      this.rememberPending();
       this.paying.set(false);
-      this.error.set('Unable to open Razorpay checkout. Please try again.');
+      this.paymentFailed.set(true);
+      this.trackCartCount();
     }
+  }
+
+  /** Failure panel CTA — the cart is preserved until the down payment lands. */
+  backToCart(): void {
+    void this.router.navigateByUrl('/cart');
+  }
+
+  /** Re-open the Razorpay checkout from the failure panel. */
+  retryPayment(): void {
+    this.pay();
+  }
+
+  private rememberPending(): void {
+    if (this.applicationId) {
+      this.pendingCheckout.save({
+        kind: 'EMI_DOWN_PAYMENT',
+        applicationId: this.applicationId,
+      });
+    }
+  }
+
+  private trackCartCount(): void {
+    this.cartService.getCart().subscribe({
+      next: (cart) => this.cartItemCount.set(cart.summary.totalItems),
+      error: () => this.cartItemCount.set(0),
+    });
   }
 
   private verifyAndNavigate(payload: {
@@ -137,6 +179,8 @@ export class DownPaymentComponent implements OnInit {
     this.paymentApi.verify(payload).subscribe({
       next: (result) => {
         this.paying.set(false);
+        // Down payment landed — no unfinished checkout left to resume.
+        this.pendingCheckout.clear();
         const orderRef = result.orderNumber || result.orderId;
         if (orderRef) {
           void this.router.navigate(['/orders', orderRef], {
@@ -182,6 +226,8 @@ export class DownPaymentComponent implements OnInit {
     const q = this.applicationId ? { applicationId: this.applicationId } : undefined;
 
     if (code === 'PAYMENT_ALREADY_COMPLETED' || next === 'ORDER_CONFIRMATION') {
+      // Already paid — nothing left to resume.
+      this.pendingCheckout.clear();
       if (orderNumber || orderId) {
         void this.router.navigate(['/order/confirmation'], {
           queryParams: {

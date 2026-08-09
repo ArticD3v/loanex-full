@@ -99,7 +99,34 @@
               <small>Pay the full amount now and complete your order.</small>
             </span>
           </label>
+          <label
+            class="lx-co__option"
+            [class.is-active]="form.controls.purchaseType.value === 'COD'"
+            [class.is-disabled]="codRestricted()"
+          >
+            <input
+              type="radio"
+              formControlName="purchaseType"
+              value="COD"
+              [attr.disabled]="codRestricted() || null"
+            />
+            <span>
+              <strong>Cash on Delivery</strong>
+              <small>Pay in cash when your order arrives.</small>
+            </span>
+          </label>
         </div>
+
+        @if (codRestricted()) {
+          <div class="lx-co__info-badge lx-co__cod-restricted" role="status">
+            <i class="pi pi-exclamation-triangle"></i>
+            <span>
+              Cash on Delivery is not available for orders above
+              {{ formatInr(summary()?.codRules?.maxAmount ?? 0) }}.
+              Please use full payment or EMI instead.
+            </span>
+          </div>
+        }
 
         <div class="lx-co__actions">
           <button type="button" class="lx-btn lx-btn--outline" (click)="goBack()">Back</button>

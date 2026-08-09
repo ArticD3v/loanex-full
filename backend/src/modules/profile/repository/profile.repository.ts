@@ -136,7 +136,15 @@ export class ProfileRepository {
       }
       return createdAtOf(a) - createdAtOf(b);
     });
-    return unique.map((r: any) => ({
+    // Self-heal: legacy/imported data can mark several rows default for one
+    // user. Only the first (newest) default row is reported as default so the
+    // UI never shows two "Default" badges for the same account.
+    let defaultSeen = false;
+    return unique.map((r: any) => {
+      const isDefault = Boolean(r.is_default ?? r.isDefault);
+      const effectiveDefault = isDefault && !defaultSeen;
+      if (isDefault) defaultSeen = true;
+      return {
       id: r.id,
       addressLine1: r.house_number ?? r.addressLine1 ?? r.fullAddress?.split(',')[0] ?? r.full_address?.split(',')[0] ?? '',
       addressLine2: r.street ?? r.addressLine2 ?? r.area ?? '',
@@ -145,11 +153,12 @@ export class ProfileRepository {
       state: r.state ?? '',
       pincode: r.pincode ?? '',
       country: 'India',
-      isDefault: Boolean(r.is_default),
+      isDefault: effectiveDefault,
       addressType: resolveAddressType(r),
       createdAt: r.createdAt ?? r.created_at ?? new Date().toISOString(),
       updatedAt: r.updatedAt ?? r.updated_at ?? new Date().toISOString(),
-    }));
+    };
+    });
   }
 
   async findAddressByType(userId: string, addressType: string) {

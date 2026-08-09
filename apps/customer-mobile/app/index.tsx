@@ -8,11 +8,11 @@ export default function Index() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
 
+  // The customer app has no admin console — every authenticated user lands on
+  // the customer home. Admins manage the store from the separate admin-app.
   useEffect(() => {
     if (isLoading) return;
-    if (user?.role === 'admin') router.replace('/admin');
-    else if (user?.role === 'customer') router.replace('/(tabs)');
-    else router.replace('/(tabs)');
+    router.replace('/(tabs)');
   }, [user, isLoading]);
 
   return (

@@ -58,7 +58,15 @@ export default function ProductDetailScreen() {
         const def = vars.find((v: any) => v.isDefault) || vars[0];
         setSelectedVariantId(def.id);
         if (def.attributes) {
-          setSelectedAttributes(def.attributes);
+          // Only keep selectable attribute-group keys — variant payloads also
+          // carry display-only extras (e.g. colorHex) that would otherwise
+          // break exact-attribute matching for other variants.
+          const selectable = new Set((p?.attributeGroups ?? []).map((g: any) => g.key));
+          const attrs: Record<string, string> = {};
+          for (const [k, v] of Object.entries(def.attributes)) {
+            if (selectable.has(k)) attrs[k] = v;
+          }
+          setSelectedAttributes(attrs);
         }
       }
       if (p?.emiPlans?.length) {
@@ -170,7 +178,13 @@ export default function ProductDetailScreen() {
   );
 
   const handleAttributeSelect = (groupKey: string, optionValue: string) => {
-    const nextAttrs = { ...selectedAttributes, [groupKey]: optionValue };
+    // Drop display-only attributes (e.g. colorHex) so exact-attribute matching
+    // against other variants works.
+    const selectable = new Set((product?.attributeGroups ?? []).map((g: any) => g.key));
+    const nextAttrs: Record<string, string> = {};
+    for (const [k, v] of Object.entries({ ...selectedAttributes, [groupKey]: optionValue })) {
+      if (selectable.has(k)) nextAttrs[k] = v;
+    }
     setSelectedAttributes(nextAttrs);
     const match = productVariantsList.find((v: any) =>
       Object.entries(nextAttrs).every(([k, val]) => v.attributes?.[k] === val)
@@ -557,7 +571,10 @@ export default function ProductDetailScreen() {
       {/* Sticky Bottom Bar */}
       <View style={[s.bottomBar, { paddingBottom: insets.bottom + Spacing.xs }]}>
         <Pressable style={s.cartBtn}
-          onPress={() => { addItem(product, 1); router.push('/(tabs)/cart' as any); }}>
+          onPress={() => {
+            addItem(product, 1, undefined, selectedVariant?.id, selectedVariant?.sellingPrice);
+            router.push('/(tabs)/cart' as any);
+          }}>
           <MaterialIcons name="shopping-cart" size={18} color={Colors.primary} />
           <Text style={s.cartBtnTxt}>Cart</Text>
         </Pressable>
@@ -637,7 +654,7 @@ const s = StyleSheet.create({
   keySpecLabel: { fontSize: 10, color: Colors.textTertiary, textTransform: 'uppercase' },
   keySpecValue: { fontSize: Fonts.sm, fontWeight: Fonts.bold, color: Colors.textPrimary },
   // Trust Section
-  trustSection: { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: Colors.surface, padding: Spacing.md, marginBottom: 8, gap: Spacing.md, borderVertical: 1, borderColor: Colors.borderLight },
+  trustSection: { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: Colors.surface, padding: Spacing.md, marginBottom: 8, gap: Spacing.md, borderTopWidth: 1, borderBottomWidth: 1, borderColor: Colors.borderLight },
   trustItem: { width: (W - 48) / 2, flexDirection: 'row', alignItems: 'center', gap: 8 },
   trustTitle: { fontSize: Fonts.xs, fontWeight: Fonts.bold, color: Colors.textPrimary },
   trustSub: { fontSize: 10, color: Colors.textTertiary },

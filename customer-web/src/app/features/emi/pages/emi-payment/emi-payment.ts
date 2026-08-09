@@ -13,6 +13,7 @@ import {
   EmiPaymentDetails,
   EmiPaymentService,
 } from '../../services/emi-payment.service';
+import { LoanPaymentHistory, LoanService } from '../../services/loan.service';
 import { openRazorpayCheckout } from '../../utils/razorpay-checkout';
 
 @Component({
@@ -24,6 +25,7 @@ import { openRazorpayCheckout } from '../../utils/razorpay-checkout';
 })
 export class EmiPaymentComponent implements OnInit {
   private readonly paymentApi = inject(EmiPaymentService);
+  private readonly loanApi = inject(LoanService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -33,6 +35,8 @@ export class EmiPaymentComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly info = signal<string | null>(null);
   readonly details = signal<EmiPaymentDetails | null>(null);
+  /** Live paid-EMI ledger — identical to the invoice / order-details table. */
+  readonly history = signal<LoanPaymentHistory | null>(null);
 
   private emiId = '';
 
@@ -50,6 +54,7 @@ export class EmiPaymentComponent implements OnInit {
       return;
     }
     this.load();
+    this.loadHistory();
   }
 
   payNow(): void {
@@ -132,6 +137,14 @@ export class EmiPaymentComponent implements OnInit {
         this.loading.set(false);
         this.error.set(this.paymentApi.error() ?? 'Unable to load EMI payment details.');
       },
+    });
+  }
+
+  /** Secondary read — the ledger is never allowed to block the payment action. */
+  private loadHistory(): void {
+    this.loanApi.getPaymentHistory().subscribe({
+      next: (data) => this.history.set(data),
+      error: () => {},
     });
   }
 

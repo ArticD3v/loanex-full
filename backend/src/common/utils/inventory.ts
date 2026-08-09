@@ -1,14 +1,5 @@
 import { jsonDb } from '../../config/json-db';
-import { supabase } from '../../config/supabase';
-import { env } from '../../config/env';
-import { getMongoDb, isMongoConfigured } from '../../config/mongo';
-
-function useMongoPrimary(): boolean {
-  return (
-    env.DATA_PRIMARY === 'mongodb' ||
-    (env.DATA_PRIMARY === 'auto' && isMongoConfigured())
-  );
-}
+import { getMongoDb } from '../../config/mongo';
 
 /** Quantity at or below which a product reads as "Low Stock". */
 export const LOW_STOCK_THRESHOLD = 5;
@@ -36,7 +27,7 @@ export interface StockDecrementResult {
   variantId?: string | null;
   variantBefore?: number;
   variantAfter?: number;
-  /** True when the product-level stock change was persisted to Supabase. */
+  /** True when the product-level stock change was persisted durably to MongoDB. */
   persisted?: boolean;
 }
 
@@ -118,41 +109,101 @@ function toResult(c: ComputedDecrement): StockDecrementResult {
   };
 }
 
-const looksLikeMissingColumn = (message: string) =>
-  /PGRST204|could not find the .*column|column .* does not exist/i.test(message);
+/**
+ * Restore stock after an order is cancelled. Mirror of decrementStockDurable
+ * with opposite sign: product + variant stock are incremented in-memory and
+ * persisted durably to MongoDB ($inc).
+ */
+export async function restoreStockDurable(
+  items: StockDecrementItem[],
+): Promise<StockDecrementResult[]> {
+  const results: StockDecrementResult[] = [];
+
+  for (const item of items) {
+    const c = computeDecrement(item); // before/after of the ORIGINAL decrement
+    if (!c) continue;
+    const restored = Math.max(0, Math.floor(toNumber(item.quantity)));
+    if (restored === 0) continue;
+
+    const product = jsonDb.findOne('products', { id: item.productId });
+    const current = Math.max(0, Math.floor(toNumber(product?.stock)));
+    const after = current + restored;
+    const variants =
+      item.variantId && c.variantBefore !== undefined && Array.isArray(product?.variants)
+        ? product.variants.map((row: any) =>
+            String(row.id) === String(item.variantId)
+              ? { ...row, stock: Math.max(0, Math.floor(toNumber(row.stock)) + restored) }
+              : row,
+          )
+        : undefined;
+
+    const payload: Record<string, any> = {
+      stock: after,
+      ...(variants ? { variants } : {}),
+    };
+    jsonDb.updateLocal('products', { id: item.productId }, payload);
+
+    const now = new Date().toISOString();
+    let stockPersisted = false;
+
+    try {
+      const db = await getMongoDb();
+      const result = await db.collection('products').findOneAndUpdate(
+        { _id: item.productId as any },
+        {
+          $inc: { stock: restored },
+          $set: {
+            updatedAt: now,
+            ...(variants ? { variants } : {}),
+          },
+        },
+        { returnDocument: 'after' },
+      );
+      stockPersisted = Boolean(result);
+    } catch (e) {
+      console.error(
+        `[Inventory] Mongo durable stock restore FAILED for ${item.productId}: ${String(e)}`,
+      );
+    }
+    results.push({
+      productId: item.productId,
+      quantity: restored,
+      before: current,
+      after,
+      variantId: item.variantId ?? null,
+      ...(stockPersisted ? { persisted: true as const } : {}),
+    });
+    continue;
+  }
+
+  return results;
+}
 
 /**
  * Durable decrement — the same math, but the stock change is written DIRECTLY
- * to Supabase and awaited, so it survives cold starts, other serverless
- * instances, and the source-mode catalog refresh that re-hydrates products
- * from Supabase (which would otherwise wipe an in-memory-only decrement).
+ * to MongoDB and awaited, so it survives cold starts, other serverless
+ * instances, and the catalog refresh that re-hydrates products from Mongo
+ * (which would otherwise wipe an in-memory-only decrement).
  *
  * Steps per line:
  *  1. `jsonDb.updateLocal` — update the in-memory copy immediately (no mirror,
  *     avoiding a second fire-and-forget write).
- *  2. `products.stock` — atomic server-side decrement via the
- *     `decrement_product_stock` PostgREST RPC (defined in
- *     backend/inventory-durability.sql). Atomicity prevents the lost-update
- *     race where two concurrent purchases on different instances both read
- *     the same stock and both write the same reduced value (oversell). If the
- *     RPC has not been deployed yet (PGRST202), fall back to an absolute
- *     read-modify-write of `stock`. The write is retried once on error;
- *     failure is logged loudly but does NOT throw, because a paid order must
- *     never be stranded by an inventory hiccup.
- *  3. Variant sub-stock — best-effort write of the `variants` JSONB column.
- *     That column only exists once inventory-durability.sql has been applied;
- *     when it is missing (PGRST204) we log once and continue — product-level
- *     stock is still durable.
+ *  2. `products.stock` — atomic server-side decrement via Mongo
+ *     `findOneAndUpdate` with `$inc`. Atomicity prevents the lost-update race
+ *     where two concurrent purchases on different instances both read the
+ *     same stock and both write the same reduced value (oversell). Failure is
+ *     logged loudly but does NOT throw, because a paid order must never be
+ *     stranded by an inventory hiccup.
+ *  3. Variant sub-stock — updated in the same `$set` when a variant matched.
  *
  * Exactly-once responsibility stays with the callers (the DIRECT/EMI payment
  * completion paths short-circuit on SUCCESS before reaching here).
  *
  * Tradeoffs (documented for posterity):
  *  - If the durable write fails, the in-memory copy was already decremented;
- *    the next source-mode catalog refresh re-hydrates the pre-decrement value
- *    from Supabase, silently reverting it. Logged loudly; the atomic RPC makes
- *    a partial/racy write impossible, so this only matters while the RPC is
- *    absent.
+ *    the next catalog refresh re-hydrates the pre-decrement value from Mongo,
+ *    silently reverting it. Logged loudly; the atomic $inc makes a partial/
+ *    racy write impossible, so this only matters if Mongo is unreachable.
  *  - Callers decrement BEFORE marking the transaction SUCCESS. If the process
  *    dies mid-request after the decrement but before the SUCCESS write, a
  *    client replay would decrement again. This ordering predates the durable
@@ -173,96 +224,38 @@ export async function decrementStockDurable(
     const now = new Date().toISOString();
     let stockPersisted = false;
 
-    if (useMongoPrimary()) {
-      try {
-        const db = await getMongoDb();
-        const result = await db.collection('products').findOneAndUpdate(
-          { _id: item.productId as any },
-          {
-            $inc: { stock: -c.quantity },
-            $set: {
-              updatedAt: now,
-              ...(item.variantId && c.variantBefore !== undefined
-                ? { variants: c.variants }
-                : {}),
-            },
+    try {
+      const db = await getMongoDb();
+      const result = await db.collection('products').findOneAndUpdate(
+        { _id: item.productId as any },
+        {
+          $inc: { stock: -c.quantity },
+          $set: {
+            updatedAt: now,
+            ...(item.variantId && c.variantBefore !== undefined
+              ? { variants: c.variants }
+              : {}),
           },
-          { returnDocument: 'after' },
-        );
-        stockPersisted = Boolean(result);
-        if (result && typeof (result as any).stock === 'number' && (result as any).stock < 0) {
-          await db.collection('products').updateOne(
-            { _id: item.productId as any },
-            { $set: { stock: 0, updatedAt: now } },
-          );
-        }
-      } catch (e) {
-        console.error(
-          `[Inventory] Mongo durable stock update FAILED for ${item.productId} (${c.before}->${c.after}): ${String(e)}`,
-        );
-      }
-      results.push({
-        ...toResult(c),
-        ...(stockPersisted ? { persisted: true as const } : {}),
-      });
-      continue;
-    }
-
-    // Legacy Supabase path (PostgreSQL kept intact; used only when Mongo is not primary)
-    const viaRpc = async () =>
-      supabase.rpc('decrement_product_stock', {
-        p_product_id: item.productId,
-        p_qty: c.quantity,
-      });
-
-    let rpc = await viaRpc();
-    if (rpc.error) {
-      console.error(
-        `[Inventory] durable stock RPC failed for ${item.productId} (${c.before}->${c.after}): ${rpc.error.message} — falling back to absolute write`,
+        },
+        { returnDocument: 'after' },
       );
-      const writeAbs = async () =>
-        supabase.from('products').update({ stock: c.after, updatedAt: now }).eq('id', item.productId);
-      let { error } = await writeAbs();
-      if (error) {
-        const retried = await writeAbs();
-        error = retried.error;
-      }
-      if (error) {
-        console.error(
-          `[Inventory] durable stock update FAILED for ${item.productId} (${c.before}->${c.after}): ${error.message}`,
+      stockPersisted = Boolean(result);
+      if (result && typeof (result as any).stock === 'number' && (result as any).stock < 0) {
+        await db.collection('products').updateOne(
+          { _id: item.productId as any },
+          { $set: { stock: 0, updatedAt: now } },
         );
-      } else {
-        stockPersisted = true;
       }
-    } else {
-      stockPersisted = rpc.data != null;
+    } catch (e) {
+      console.error(
+        `[Inventory] Mongo durable stock update FAILED for ${item.productId} (${c.before}->${c.after}): ${String(e)}`,
+      );
     }
-
-    if (item.variantId && c.variantBefore !== undefined) {
-      try {
-        const { error: variantError } = await supabase
-          .from('products')
-          .update({ variants: c.variants, updatedAt: now })
-          .eq('id', item.productId);
-        if (variantError) {
-          if (looksLikeMissingColumn(variantError.message)) {
-            console.warn(
-              '[Inventory] products.variants column missing in Supabase — variant sub-stock not mirrored ' +
-                '(product stock is still durable). Apply inventory-durability.sql to enable variant durability.',
-            );
-          } else {
-            console.warn('[Inventory] variant stock mirror failed:', variantError.message);
-          }
-        }
-      } catch (e) {
-        console.warn('[Inventory] variant stock mirror threw:', e);
-      }
-    }
-
     results.push({
       ...toResult(c),
       ...(stockPersisted ? { persisted: true as const } : {}),
     });
+    continue;
   }
 
   return results;

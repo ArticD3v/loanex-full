@@ -57,8 +57,8 @@ export default function EMIScreen() {
   const fetchApplications = useCallback(async () => {
     if (!user) return;
     try {
-      const res = await api.get(`/legacy/emi-applications?userId=${user.id}`);
-      setApplications(res.data || []);
+      const res = await api.get(`/emi/applications/history`);
+      setApplications(res.data?.items ?? res.data ?? []);
     } catch {
       setApplications([]);
     } finally {

@@ -35,6 +35,26 @@ function formatAmount(amount: number) {
   return `₹${amount.toLocaleString('en-IN')}`;
 }
 
+/**
+ * Loan-health badges shown on EMI order rows so approvers can see loan
+ * status, installments paid and outstanding balance without opening the order.
+ */
+const LOAN_STATUS_STYLE: Record<string, { label: string; bg: string; text: string }> = {
+  ACTIVE: { label: 'EMI Active', bg: '#0596691A', text: '#059669' },
+  CLOSED: { label: 'Loan Closed', bg: '#6B72801A', text: '#6B7280' },
+  OVERDUE: { label: 'Overdue', bg: '#DC26261A', text: '#DC2626' },
+  PENDING: { label: 'Pending', bg: '#D977061A', text: '#D97706' },
+};
+
+function loanStatusStyle(status?: string | null) {
+  const key = String(status ?? '').toUpperCase();
+  return LOAN_STATUS_STYLE[key] ?? {
+    label: key ? key.charAt(0) + key.slice(1).toLowerCase() : 'Loan',
+    bg: colors.primaryLight,
+    text: colors.primaryDark,
+  };
+}
+
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString('en-IN', {
     day: '2-digit',
@@ -88,6 +108,36 @@ export function OrderCard({ order, onView }: OrderCardProps) {
             <Text style={styles.amount}>{formatAmount(order.orderAmount)}</Text>
             <Text style={styles.paymentType}>{PAYMENT_TYPE_LABEL[order.paymentType]}</Text>
           </View>
+
+          {/* ── Loan health (EMI orders) ─────────────────────────────── */}
+          {(order.loanStatus || (order.paidEmiCount ?? 0) > 0 || (order.totalEmiCount ?? 0) > 0) && (
+            <View style={styles.loanRow}>
+              {order.loanStatus && (
+                <View
+                  style={[
+                    styles.loanBadge,
+                    { backgroundColor: loanStatusStyle(order.loanStatus).bg },
+                  ]}
+                >
+                  <Text style={[styles.loanBadgeText, { color: loanStatusStyle(order.loanStatus).text }]}>
+                    {loanStatusStyle(order.loanStatus).label}
+                  </Text>
+                </View>
+              )}
+              {order.totalEmiCount ? (
+                <Text style={styles.loanMeta}>
+                  {order.paidEmiCount ?? 0}/{order.totalEmiCount} installments paid
+                </Text>
+              ) : null}
+              {typeof order.outstandingAmount === 'number' && order.outstandingAmount > 0 ? (
+                <Text style={[styles.loanMeta, styles.loanOutstanding]}>
+                  {formatAmount(order.outstandingAmount)} outstanding
+                </Text>
+              ) : order.loanStatus === 'CLOSED' ? (
+                <Text style={[styles.loanMeta, styles.loanClosed]}>Fully paid</Text>
+              ) : null}
+            </View>
+          )}
         </View>
       </View>
 
@@ -226,6 +276,35 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     textAlign: 'right',
     flexShrink: 1,
+  },
+  loanRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  loanBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+  },
+  loanBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  loanMeta: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  loanOutstanding: {
+    color: colors.warning,
+  },
+  loanClosed: {
+    color: colors.success,
   },
   actions: {
     flexDirection: 'row',

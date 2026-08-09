@@ -71,6 +71,8 @@ export interface ProductVariant {
   weight: number; length: number; width: number; height: number;
   status: 'active' | 'inactive'; createdAt: string;
   attributeValues?: { attributeId: string; attributeName: string; valueId: string; value: string }[];
+  /** Selected attribute map as returned by the backend (e.g. { Color: 'Black' }). */
+  attributes?: Record<string, string>;
 }
 
 export interface Product {
@@ -82,6 +84,13 @@ export interface Product {
   manufacturerId?: string; features: string[]; boxContents: string[];
   usageInstructions: string; stock: number; status: 'active' | 'inactive' | 'draft';
   emiAvailable: boolean; emiPlanMode: EMIPlanMode; tenureOptions: number[];
+  /** Variants/EMI plans as returned by the backend catalog (field names vary by endpoint). */
+  variants?: ProductVariant[];
+  productVariants?: ProductVariant[];
+  product_variants?: ProductVariant[];
+  /** Selectable attribute groups (Color/Storage/RAM) used to pick a variant. */
+  attributeGroups?: Array<{ key: string; label: string; type: string; options: Array<{ value: string; label: string; hex?: string | null; inStock?: boolean; disabled?: boolean }> }>;
+  emiPlans?: EMIPlan[];
   downPayment: number; minDownPayment: number; maxDownPayment: number;
   downPaymentType: DownPaymentType; firstPaymentRule: FirstPaymentRule;
   serviceCharge: number; deliveryCharge: number; processingCharge: number;
@@ -106,7 +115,15 @@ export interface Product {
   createdAt: string; updatedAt?: string;
 }
 
-export interface CartItem { product: Product; quantity: number; selectedTenure?: number; }
+export interface CartItem {
+  product: Product;
+  quantity: number;
+  selectedTenure?: number;
+  /** Selected product variant (color/size/storage) — drives per-variant stock decrement on the backend. */
+  variantId?: string;
+  /** Selling price of the selected variant, when it differs from the base product price. */
+  variantPrice?: number;
+}
 
 export type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
 export type EMIStatus = 'pending_approval' | 'proposal_sent' | 'accepted' | 'rejected' | 'downpayment_paid' | 'active' | 'completed';
@@ -128,6 +145,8 @@ export interface OrderDealerSnapshot {
 
 export interface EMIInstallment {
   installmentNumber: number; amount: number; dueDate: string;
+  /** When the EMI was actually collected (paid rows only). */
+  paidAt?: string;
   status: 'upcoming' | 'paid' | 'overdue';
 }
 
@@ -145,8 +164,10 @@ export interface EMIDetails {
 }
 
 export interface Order {
-  id: string; userId: string; items: OrderItem[];
-  subtotal: number; total: number; status: OrderStatus; paymentMethod: 'cod' | 'emi';
+  id: string; orderNumber?: string; userId: string; items: OrderItem[];
+  subtotal: number; total: number; status: OrderStatus;
+  /** 'cod' | 'emi' | 'online' (full payment via Razorpay) */
+  paymentMethod: 'cod' | 'emi' | 'online';
   emiDetails?: EMIDetails; addressId?: string;
   addressSnapshot?: AddressSnapshot; address: string; phone: string; notes?: string;
   createdAt: string; updatedAt?: string;

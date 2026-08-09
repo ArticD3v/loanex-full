@@ -13,6 +13,8 @@ import {
   CreateDirectPaymentOrderResponse,
   RazorpayVerifyPayload,
 } from '../../services/checkout-api.service';
+import { CartService } from '../../../cart/services/cart.service';
+import { PendingCheckoutService } from '../../services/pending-checkout.service';
 import { openRazorpayCheckout } from '../../../emi/utils/razorpay-checkout';
 
 @Component({
@@ -26,11 +28,17 @@ export class DirectPaymentComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly checkoutApi = inject(CheckoutApiService);
+  private readonly cartService = inject(CartService);
+  private readonly pendingCheckout = inject(PendingCheckoutService);
 
   readonly formatInr = formatInr;
   readonly loading = signal(true);
   readonly processing = signal(false);
   readonly error = signal<string | null>(null);
+  /** True once the Razorpay modal was dismissed or payment failed — shows the
+   *  "Your items are still in your cart" panel with a Back to Cart action. */
+  readonly paymentFailed = signal(false);
+  readonly cartItemCount = signal(0);
   readonly data = signal<CheckoutSessionResponse | null>(null);
 
   private sessionId = '';
@@ -67,6 +75,7 @@ export class DirectPaymentComponent implements OnInit {
     if (this.processing()) return;
     this.processing.set(true);
     this.error.set(null);
+    this.paymentFailed.set(false);
 
     // Create the Razorpay order server-side — never construct the checkout
     // with a hardcoded key or client-computed amount.
@@ -89,6 +98,24 @@ export class DirectPaymentComponent implements OnInit {
       return;
     }
     void this.router.navigateByUrl('/checkout');
+  }
+
+  /** Failure panel CTA — the cart is preserved server-side until payment
+   *  succeeds, so send the customer straight back to it. */
+  backToCart(): void {
+    void this.router.navigateByUrl('/cart');
+  }
+
+  /** Re-open the Razorpay checkout from the failure panel. */
+  retryPayment(): void {
+    this.payNow();
+  }
+
+  private trackCartCount(): void {
+    this.cartService.getCart().subscribe({
+      next: (cart) => this.cartItemCount.set(cart.summary.totalItems),
+      error: () => this.cartItemCount.set(0),
+    });
   }
 
   /** Dev-only path: fabricate a signature via the backend and verify it. */
@@ -121,14 +148,21 @@ export class DirectPaymentComponent implements OnInit {
         },
         modal: {
           ondismiss: () => {
+            // The customer closed the checkout without paying — remember the
+            // session so the cart can offer a "Resume checkout" prompt. The
+            // session and cart stay intact until payment actually succeeds.
+            this.pendingCheckout.save({ kind: 'DIRECT', sessionId: this.sessionId });
             this.processing.set(false);
-            this.error.set('Payment was cancelled. You can try again when ready.');
+            this.paymentFailed.set(true);
+            this.trackCartCount();
           },
         },
       });
     } catch {
+      this.pendingCheckout.save({ kind: 'DIRECT', sessionId: this.sessionId });
       this.processing.set(false);
-      this.error.set('Unable to open Razorpay checkout. Please try again.');
+      this.paymentFailed.set(true);
+      this.trackCartCount();
     }
   }
 
@@ -137,6 +171,8 @@ export class DirectPaymentComponent implements OnInit {
     this.checkoutApi.verifyPayment(this.sessionId, payload).subscribe({
       next: (result) => {
         this.processing.set(false);
+        // Payment landed — no unfinished checkout left to resume.
+        this.pendingCheckout.clear();
         this.goToOrder(result, payload.razorpayPaymentId);
       },
       error: () => this.handlePaymentError('Payment verification failed.'),
@@ -152,6 +188,8 @@ export class DirectPaymentComponent implements OnInit {
       };
       const orderRef =
         details.errorDetails?.orderNumber || details.errorDetails?.orderId;
+      // Already paid — nothing left to resume.
+      this.pendingCheckout.clear();
       if (orderRef) {
         void this.router.navigate(['/orders', orderRef], {
           queryParams: { paymentSuccess: 'true', alreadyProcessed: 'true' },

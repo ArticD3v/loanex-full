@@ -3,53 +3,29 @@
   "dbName": "loanex",
   "collectionsCreated": 57,
   "tablesInspected": 76,
-  "sourcesRead": 52,
-  "recordsRead": 117,
-  "recordsMigrated": 115,
+  "sourcesRead": 43,
+  "recordsRead": 1079,
+  "recordsMigrated": 1075,
   "recordsMerged": 0,
-  "recordsSkipped": 0,
-  "recordsFailed": 7,
+  "recordsSkipped": 6,
+  "recordsFailed": 3,
   "conflicts": [
     {
-      "collection": "products",
-      "id": "6d3650c1-a09a-40a0-b4b4-fc80d289ae81",
-      "error": "E11000 duplicate key error collection: loanex.products index: slug_1 dup key: { slug: null }",
+      "collection": "brands",
+      "id": "brand-apple",
+      "error": "E11000 duplicate key error collection: loanex.brands index: name_1 dup key: { name: \"Apple\" }",
       "type": "WRITE_FAILED"
     },
     {
-      "collection": "products",
-      "id": "32a2456f-d5c0-4fc9-92ad-a4ebc7f21c42",
-      "error": "E11000 duplicate key error collection: loanex.products index: slug_1 dup key: { slug: null }",
+      "collection": "brands",
+      "id": "brand-samsung",
+      "error": "E11000 duplicate key error collection: loanex.brands index: name_1 dup key: { name: \"Samsung\" }",
       "type": "WRITE_FAILED"
     },
     {
-      "collection": "products",
-      "id": "ae471262-2c0f-447f-b48d-6ed241409868",
-      "error": "E11000 duplicate key error collection: loanex.products index: slug_1 dup key: { slug: null }",
-      "type": "WRITE_FAILED"
-    },
-    {
-      "collection": "orders",
-      "id": "d6e40b78-e70c-4470-9fb2-52f78ea70760",
-      "error": "E11000 duplicate key error collection: loanex.orders index: orderNumber_1 dup key: { orderNumber: null }",
-      "type": "WRITE_FAILED"
-    },
-    {
-      "collection": "orders",
-      "id": "1dc1de97-3534-4378-bef3-8e98c30ff524",
-      "error": "E11000 duplicate key error collection: loanex.orders index: orderNumber_1 dup key: { orderNumber: null }",
-      "type": "WRITE_FAILED"
-    },
-    {
-      "collection": "orders",
-      "id": "a34d5bc1-e2c3-4641-adb6-c5f647982d04",
-      "error": "E11000 duplicate key error collection: loanex.orders index: orderNumber_1 dup key: { orderNumber: null }",
-      "type": "WRITE_FAILED"
-    },
-    {
-      "collection": "orders",
-      "id": "4ea9d2de-1988-4054-a934-77e3963131bd",
-      "error": "E11000 duplicate key error collection: loanex.orders index: orderNumber_1 dup key: { orderNumber: null }",
+      "collection": "brands",
+      "id": "brand-sony",
+      "error": "E11000 duplicate key error collection: loanex.brands index: name_1 dup key: { name: \"Sony\" }",
       "type": "WRITE_FAILED"
     }
   ],
@@ -116,23 +92,23 @@
     {
       "collection": "users",
       "sourceCounts": {
-        "users": 0
+        "users": 20
       },
-      "mongoCount": 0,
-      "migrated": 0,
+      "mongoCount": 21,
+      "migrated": 14,
       "failed": 0,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "collection": "profiles",
       "sourceCounts": {
-        "profiles": 1,
+        "profiles": 56,
         "user_profiles": 0
       },
-      "mongoCount": 1,
-      "migrated": 1,
+      "mongoCount": 48,
+      "migrated": 56,
       "failed": 0,
-      "status": "MATCHED"
+      "status": "MISSING"
     },
     {
       "collection": "roles",
@@ -149,7 +125,7 @@
       "sourceCounts": {
         "otps": 0
       },
-      "mongoCount": 0,
+      "mongoCount": 4,
       "migrated": 0,
       "failed": 0,
       "status": "MATCHED"
@@ -159,7 +135,7 @@
       "sourceCounts": {
         "refresh_tokens": 0
       },
-      "mongoCount": 0,
+      "mongoCount": 18,
       "migrated": 0,
       "failed": 0,
       "status": "MATCHED"
@@ -167,82 +143,82 @@
     {
       "collection": "addresses",
       "sourceCounts": {
-        "addresses": 6,
+        "addresses": 23,
         "user_addresses": 0,
-        "userAddress": 0
+        "userAddress": 1
       },
-      "mongoCount": 6,
-      "migrated": 6,
+      "mongoCount": 26,
+      "migrated": 24,
       "failed": 0,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "collection": "products",
       "sourceCounts": {
-        "products": 4
+        "products": 1
       },
-      "mongoCount": 1,
+      "mongoCount": 3,
       "migrated": 1,
-      "failed": 3,
-      "status": "MISSING"
+      "failed": 0,
+      "status": "DUPLICATE"
     },
     {
       "collection": "product_emi_plans",
       "sourceCounts": {
-        "product_emi_plans": 0
+        "product_emi_plans": 3
       },
-      "mongoCount": 0,
-      "migrated": 0,
+      "mongoCount": 7,
+      "migrated": 3,
       "failed": 0,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "collection": "categories",
       "sourceCounts": {
-        "categories": 3
+        "categories": 6
       },
-      "mongoCount": 3,
-      "migrated": 3,
+      "mongoCount": 9,
+      "migrated": 6,
       "failed": 0,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "collection": "sub_categories",
       "sourceCounts": {
-        "sub_categories": 9
+        "sub_categories": 0
       },
       "mongoCount": 9,
-      "migrated": 9,
+      "migrated": 0,
       "failed": 0,
       "status": "MATCHED"
     },
     {
       "collection": "brands",
       "sourceCounts": {
-        "brands": 11
+        "brands": 4
       },
-      "mongoCount": 11,
-      "migrated": 11,
-      "failed": 0,
-      "status": "MATCHED"
+      "mongoCount": 12,
+      "migrated": 1,
+      "failed": 3,
+      "status": "DUPLICATE"
     },
     {
       "collection": "banners",
       "sourceCounts": {
-        "banners": 2
+        "banners": 4
       },
-      "mongoCount": 2,
-      "migrated": 2,
+      "mongoCount": 6,
+      "migrated": 4,
       "failed": 0,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "collection": "cart_items",
       "sourceCounts": {
-        "cart_items": 0
+        "cart_items": 2
       },
-      "mongoCount": 0,
-      "migrated": 0,
+      "mongoCount": 2,
+      "migrated": 2,
       "failed": 0,
       "status": "MATCHED"
     },
@@ -270,12 +246,12 @@
     {
       "collection": "orders",
       "sourceCounts": {
-        "orders": 5
+        "orders": 38
       },
-      "mongoCount": 1,
-      "migrated": 1,
-      "failed": 4,
-      "status": "MISSING"
+      "mongoCount": 38,
+      "migrated": 38,
+      "failed": 0,
+      "status": "MATCHED"
     },
     {
       "collection": "order_items",
@@ -290,42 +266,42 @@
     {
       "collection": "orderTracking",
       "sourceCounts": {
-        "orderTracking": 0,
+        "orderTracking": 8,
         "order_tracking": 0
       },
-      "mongoCount": 0,
-      "migrated": 0,
+      "mongoCount": 10,
+      "migrated": 8,
       "failed": 0,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "collection": "paymentTransaction",
       "sourceCounts": {
-        "paymentTransaction": 0,
+        "paymentTransaction": 5,
         "payment_transactions": 0
       },
-      "mongoCount": 0,
-      "migrated": 0,
+      "mongoCount": 7,
+      "migrated": 5,
       "failed": 0,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "collection": "emi_applications",
       "sourceCounts": {
-        "emi_applications": 0
+        "emi_applications": 2
       },
-      "mongoCount": 0,
-      "migrated": 0,
+      "mongoCount": 2,
+      "migrated": 2,
       "failed": 0,
       "status": "MATCHED"
     },
     {
       "collection": "emi_details",
       "sourceCounts": {
-        "emi_details": 2
+        "emi_details": 0
       },
-      "mongoCount": 2,
-      "migrated": 2,
+      "mongoCount": 0,
+      "migrated": 0,
       "failed": 0,
       "status": "MATCHED"
     },
@@ -342,66 +318,66 @@
     {
       "collection": "loanAccount",
       "sourceCounts": {
-        "loanAccount": 0,
+        "loanAccount": 3,
         "loan_accounts": 0
       },
-      "mongoCount": 0,
-      "migrated": 0,
+      "mongoCount": 3,
+      "migrated": 3,
       "failed": 0,
       "status": "MATCHED"
     },
     {
       "collection": "emi_schedules",
       "sourceCounts": {
-        "emi_schedules": 0,
+        "emi_schedules": 22,
         "emi_schedule": 0
       },
-      "mongoCount": 0,
-      "migrated": 0,
+      "mongoCount": 22,
+      "migrated": 22,
       "failed": 0,
       "status": "MATCHED"
     },
     {
       "collection": "customer_kyc",
       "sourceCounts": {
-        "customer_kyc": 1,
+        "customer_kyc": 5,
         "kyc": 0
       },
-      "mongoCount": 1,
-      "migrated": 1,
+      "mongoCount": 7,
+      "migrated": 5,
       "failed": 0,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "collection": "customerVerification",
       "sourceCounts": {
-        "customerVerification": 0,
+        "customerVerification": 5,
         "customer_verifications": 0
       },
-      "mongoCount": 0,
-      "migrated": 0,
+      "mongoCount": 6,
+      "migrated": 5,
       "failed": 0,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "collection": "aadhaarVerification",
       "sourceCounts": {
-        "aadhaarVerification": 0,
+        "aadhaarVerification": 2,
         "aadhaar_verifications": 0
       },
-      "mongoCount": 0,
-      "migrated": 0,
+      "mongoCount": 2,
+      "migrated": 2,
       "failed": 0,
       "status": "MATCHED"
     },
     {
       "collection": "panVerification",
       "sourceCounts": {
-        "panVerification": 0,
+        "panVerification": 2,
         "pan_verifications": 0
       },
-      "mongoCount": 0,
-      "migrated": 0,
+      "mongoCount": 2,
+      "migrated": 2,
       "failed": 0,
       "status": "MATCHED"
     },
@@ -419,23 +395,23 @@
     {
       "collection": "mobileVerification",
       "sourceCounts": {
-        "mobileVerification": 0,
+        "mobileVerification": 2,
         "mobile_verifications": 0
       },
-      "mongoCount": 0,
-      "migrated": 0,
+      "mongoCount": 2,
+      "migrated": 2,
       "failed": 0,
       "status": "MATCHED"
     },
     {
       "collection": "digilocker_reports",
       "sourceCounts": {
-        "digilocker_reports": 2
+        "digilocker_reports": 10
       },
-      "mongoCount": 2,
-      "migrated": 2,
+      "mongoCount": 12,
+      "migrated": 10,
       "failed": 0,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "collection": "experian_reports",
@@ -450,33 +426,33 @@
     {
       "collection": "notification",
       "sourceCounts": {
-        "notification": 0,
-        "notifications": 6
+        "notification": 77,
+        "notifications": 0
       },
-      "mongoCount": 6,
-      "migrated": 6,
+      "mongoCount": 90,
+      "migrated": 77,
       "failed": 0,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "collection": "audit_log",
       "sourceCounts": {
-        "audit_log": 0,
+        "audit_log": 766,
         "audit_logs": 0
       },
-      "mongoCount": 0,
-      "migrated": 0,
+      "mongoCount": 841,
+      "migrated": 766,
       "failed": 0,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "collection": "autopayMandate",
       "sourceCounts": {
-        "autopayMandate": 0,
+        "autopayMandate": 2,
         "autopay_mandates": 0
       },
-      "mongoCount": 0,
-      "migrated": 0,
+      "mongoCount": 2,
+      "migrated": 2,
       "failed": 0,
       "status": "MATCHED"
     },
@@ -505,12 +481,12 @@
     {
       "collection": "fi_cases",
       "sourceCounts": {
-        "fi_cases": 0
+        "fi_cases": 3
       },
-      "mongoCount": 0,
-      "migrated": 0,
+      "mongoCount": 4,
+      "migrated": 3,
       "failed": 0,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "collection": "job_openings",
@@ -545,60 +521,60 @@
     {
       "collection": "dealers",
       "sourceCounts": {
-        "dealers": 4
+        "dealers": 2
       },
-      "mongoCount": 4,
-      "migrated": 4,
+      "mongoCount": 6,
+      "migrated": 2,
       "failed": 0,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "collection": "suppliers",
       "sourceCounts": {
-        "suppliers": 3
+        "suppliers": 2
       },
-      "mongoCount": 3,
-      "migrated": 3,
+      "mongoCount": 5,
+      "migrated": 2,
       "failed": 0,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "collection": "manufacturers",
       "sourceCounts": {
-        "manufacturers": 4
+        "manufacturers": 0
       },
       "mongoCount": 4,
-      "migrated": 4,
+      "migrated": 0,
       "failed": 0,
       "status": "MATCHED"
     },
     {
       "collection": "warehouses",
       "sourceCounts": {
-        "warehouses": 4
+        "warehouses": 2
       },
-      "mongoCount": 4,
-      "migrated": 4,
+      "mongoCount": 6,
+      "migrated": 2,
       "failed": 0,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "collection": "product_attributes",
       "sourceCounts": {
-        "product_attributes": 6
+        "product_attributes": 0
       },
       "mongoCount": 6,
-      "migrated": 6,
+      "migrated": 0,
       "failed": 0,
       "status": "MATCHED"
     },
     {
       "collection": "product_attribute_values",
       "sourceCounts": {
-        "product_attribute_values": 35
+        "product_attribute_values": 0
       },
       "mongoCount": 35,
-      "migrated": 35,
+      "migrated": 0,
       "failed": 0,
       "status": "MATCHED"
     },
@@ -625,20 +601,20 @@
     {
       "collection": "product_dealers",
       "sourceCounts": {
-        "product_dealers": 3
+        "product_dealers": 0
       },
-      "mongoCount": 3,
-      "migrated": 3,
+      "mongoCount": 0,
+      "migrated": 0,
       "failed": 0,
       "status": "MATCHED"
     },
     {
       "collection": "product_suppliers",
       "sourceCounts": {
-        "product_suppliers": 5
+        "product_suppliers": 0
       },
-      "mongoCount": 5,
-      "migrated": 5,
+      "mongoCount": 0,
+      "migrated": 0,
       "failed": 0,
       "status": "MATCHED"
     },
@@ -711,7 +687,7 @@
         "user_profiles"
       ],
       "sourceCounts": {
-        "profiles": 1,
+        "profiles": 56,
         "user_profiles": 0
       },
       "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -725,9 +701,9 @@
         "userAddress"
       ],
       "sourceCounts": {
-        "addresses": 6,
+        "addresses": 23,
         "user_addresses": 0,
-        "userAddress": 0
+        "userAddress": 1
       },
       "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
       "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
@@ -752,7 +728,7 @@
         "order_tracking"
       ],
       "sourceCounts": {
-        "orderTracking": 0,
+        "orderTracking": 8,
         "order_tracking": 0
       },
       "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -765,7 +741,7 @@
         "payment_transactions"
       ],
       "sourceCounts": {
-        "paymentTransaction": 0,
+        "paymentTransaction": 5,
         "payment_transactions": 0
       },
       "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -778,7 +754,7 @@
         "loan_accounts"
       ],
       "sourceCounts": {
-        "loanAccount": 0,
+        "loanAccount": 3,
         "loan_accounts": 0
       },
       "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -791,7 +767,7 @@
         "emi_schedule"
       ],
       "sourceCounts": {
-        "emi_schedules": 0,
+        "emi_schedules": 22,
         "emi_schedule": 0
       },
       "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -804,7 +780,7 @@
         "kyc"
       ],
       "sourceCounts": {
-        "customer_kyc": 1,
+        "customer_kyc": 5,
         "kyc": 0
       },
       "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -817,7 +793,7 @@
         "customer_verifications"
       ],
       "sourceCounts": {
-        "customerVerification": 0,
+        "customerVerification": 5,
         "customer_verifications": 0
       },
       "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -830,7 +806,7 @@
         "aadhaar_verifications"
       ],
       "sourceCounts": {
-        "aadhaarVerification": 0,
+        "aadhaarVerification": 2,
         "aadhaar_verifications": 0
       },
       "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -843,7 +819,7 @@
         "pan_verifications"
       ],
       "sourceCounts": {
-        "panVerification": 0,
+        "panVerification": 2,
         "pan_verifications": 0
       },
       "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -869,7 +845,7 @@
         "mobile_verifications"
       ],
       "sourceCounts": {
-        "mobileVerification": 0,
+        "mobileVerification": 2,
         "mobile_verifications": 0
       },
       "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -882,8 +858,8 @@
         "notifications"
       ],
       "sourceCounts": {
-        "notification": 0,
-        "notifications": 6
+        "notification": 77,
+        "notifications": 0
       },
       "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
       "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
@@ -895,7 +871,7 @@
         "audit_logs"
       ],
       "sourceCounts": {
-        "audit_log": 0,
+        "audit_log": 766,
         "audit_logs": 0
       },
       "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -908,7 +884,7 @@
         "autopay_mandates"
       ],
       "sourceCounts": {
-        "autopayMandate": 0,
+        "autopayMandate": 2,
         "autopay_mandates": 0
       },
       "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -961,7 +937,7 @@
     "checkout_sessions",
     "support_tickets"
   ],
-  "kycSuccessPayments": 0,
+  "kycSuccessPayments": 1,
   "duplicateTablesFound": 18,
   "tablesMerged": 18
 }

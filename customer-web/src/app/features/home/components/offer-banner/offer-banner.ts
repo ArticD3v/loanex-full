@@ -29,6 +29,10 @@ export class OfferBanner {
   readonly content = signal<OfferBannerContent | null>(null);
   readonly loading = signal(true);
 
+  // toObservable must be created in an injection context (field initializer),
+  // not inside afterNextRender — calling it there throws NG0203.
+  private readonly loaded$ = toObservable(this.bannersApi.loaded);
+
   constructor() {
     afterNextRender(() => {
       if (!isPlatformBrowser(this.platformId)) {
@@ -46,7 +50,7 @@ export class OfferBanner {
       //   });
 
       // Reuse banners already loaded into BannersApiService by the Hero request.
-      toObservable(this.bannersApi.loaded)
+      this.loaded$
         .pipe(
           filter((loaded) => loaded),
           take(1),

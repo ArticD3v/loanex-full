@@ -9,6 +9,10 @@ import { Router, RouterLink } from '@angular/router';
 import { formatInr } from '../../../../shared/utils/currency';
 import { AuthService } from '../../../../core/services/auth.service';
 import { CheckoutIntentService } from '../../../checkout/services/checkout-intent.service';
+import {
+  PendingCheckout,
+  PendingCheckoutService,
+} from '../../../checkout/services/pending-checkout.service';
 import { CartItem, CartResponse, CartService } from '../../services/cart.service';
 
 @Component({
@@ -23,6 +27,7 @@ export class CartComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   private readonly checkoutIntent = inject(CheckoutIntentService);
+  private readonly pendingCheckout = inject(PendingCheckoutService);
 
   readonly formatInr = formatInr;
   readonly loading = signal(true);
@@ -30,6 +35,8 @@ export class CartComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly info = signal<string | null>(null);
   readonly cart = signal<CartResponse | null>(null);
+  /** An unfinished checkout (payment modal dismissed) that can be resumed. */
+  readonly resumable = signal<PendingCheckout | null>(null);
 
   ngOnInit(): void {
     this.load();
@@ -97,6 +104,27 @@ export class CartComponent implements OnInit {
     });
   }
 
+  /** Resume an abandoned payment — the session/cart are intact server-side. */
+  resumeCheckout(): void {
+    const pending = this.resumable();
+    if (!pending) return;
+    if (pending.kind === 'DIRECT') {
+      void this.router.navigate(['/checkout/payment'], {
+        queryParams: { sessionId: pending.sessionId },
+      });
+      return;
+    }
+    void this.router.navigate(['/application/down-payment'], {
+      queryParams: { applicationId: pending.applicationId },
+    });
+  }
+
+  /** Dismiss the prompt without resuming — the pending record is forgotten. */
+  dismissResumePrompt(): void {
+    this.pendingCheckout.clear();
+    this.resumable.set(null);
+  }
+
   proceedToCheckout(): void {
     const data = this.cart();
     if (!data?.items.length) {
@@ -109,6 +137,10 @@ export class CartComponent implements OnInit {
       this.error.set('Remove out-of-stock items before checkout.');
       return;
     }
+
+    // A fresh checkout supersedes any previously abandoned one.
+    this.pendingCheckout.clear();
+    this.resumable.set(null);
 
     this.checkoutIntent.save({
       productId: 'CART',
@@ -163,6 +195,8 @@ export class CartComponent implements OnInit {
       next: (data) => {
         this.loading.set(false);
         this.cart.set(data);
+        // Show the resume prompt only when there is a real checkout to continue.
+        this.resumable.set(this.pendingCheckout.get());
       },
       error: () => {
         this.loading.set(false);

@@ -9,21 +9,27 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
 import { useKYC } from '../hooks/useKYC';
 import * as ImagePicker from 'expo-image-picker';
-import { saveKYC, fetchExperianReport } from '../services/kycService';
+import { fetchExperianReport } from '../services/kycService';
 import { matchFace } from '../services/faceService';
 import { createNotification } from '../services/notificationService';
-import { generateDigiLockerToken, saveDigiLockerReport } from '../services/digilockerService';
+import { generateDigiLockerToken } from '../services/digilockerService';
 import DigiLockerAuth, { VerifiedKYCData } from '../components/feature/DigiLockerAuth';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors, Fonts, Spacing, Radius, Shadow } from '../constants/theme';
-import { APP_CONFIG } from '../constants/config';
 
-const STEPS = ['Basic Details', 'Aadhaar', 'Face ID'];
+const STEPS = ['Aadhaar', 'Basic Details', 'Summary'];
 const W = Dimensions.get('window').width;
 
+/**
+ * KYC flow — mirrors the website: DigiLocker Aadhaar verification FIRST,
+ * then basic details (PAN) which fetches the CIBIL credit score, then a
+ * summary showing the verified details. Face verification is included as the
+ * final confirmation (app-only), and also re-triggers on every EMI
+ * application via FaceVerificationModal.
+ */
 export default function KYCVerificationScreen() {
   const { user } = useAuth();
-  const { kyc, kycLoading, isKYCComplete } = useKYC();
+  const { kyc, kycLoading, isKYCComplete, refresh } = useKYC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
@@ -32,18 +38,41 @@ export default function KYCVerificationScreen() {
   const [digilockerVisible, setDigilockerVisible] = useState(false);
   const [digilockerUrl, setDigilockerUrl] = useState('');
   const [digilockerClientId, setDigilockerClientId] = useState('');
-  
-  // Aadhar
-  const [manualAadhar, setManualAadhar] = useState('');
+
+  // Aadhaar (from DigiLocker)
   const [aadharVerified, setAadharVerified] = useState(false);
   const [aadharLoading, setAadharLoading] = useState(false);
   const [verifiedName, setVerifiedName] = useState('');
   const [verifiedDob, setVerifiedDob] = useState('');
   const [verifiedGender, setVerifiedGender] = useState('');
   const [verifiedAadharNumber, setVerifiedAadharNumber] = useState('');
-  const [verifiedRaw, setVerifiedRaw] = useState<any>(null);
+  const [verifiedAddress, setVerifiedAddress] = useState('');
   const [digilockerData, setDigilockerData] = useState<any>(null);
-  const [matchStatus, setMatchStatus] = useState<'pending' | 'verified' | ''>('');
+
+  // Step state (declared unconditionally — React hooks must never sit after
+  // an early return, or the verified read-only branch crashes on re-render).
+  const [step, setStep] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Step 2: Basic Details
+  const [mobile, setMobile] = useState(user?.phone || '');
+  const [pan, setPan] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [dob, setDob] = useState('');
+  const [email, setEmail] = useState(user?.email || '');
+  const [basicDetailsVerified, setBasicDetailsVerified] = useState(false);
+  const [experianData, setExperianData] = useState<any>(null);
+  const [cibilScore, setCibilScore] = useState<number>(0);
+
+  // Face
+  const [faceVerified, setFaceVerified] = useState(false);
+  const [faceLoading, setFaceLoading] = useState(false);
+
+  // DatePicker state
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dateObj, setDateObj] = useState(new Date(2000, 0, 1));
 
   // If KYC already completed, show read-only summary
   if (!kycLoading && isKYCComplete && kyc) {
@@ -70,20 +99,16 @@ export default function KYCVerificationScreen() {
               <Text style={styles.roValue}>{kyc.fullName}</Text>
             </View>
             <View style={styles.readonlyRow}>
-              <Text style={styles.roLabel}>Aadhar Number</Text>
+              <Text style={styles.roLabel}>Aadhaar Number</Text>
               <Text style={styles.roValue}>{kyc.aadharNumber}</Text>
             </View>
             <View style={styles.readonlyRow}>
-              <Text style={styles.roLabel}>PAN & Credit</Text>
-              <Text style={styles.roValue}>✅ Verified</Text>
+              <Text style={styles.roLabel}>PAN</Text>
+              <Text style={styles.roValue}>{kyc.panNumber || 'Verified'}</Text>
             </View>
             <View style={styles.readonlyRow}>
               <Text style={styles.roLabel}>CIBIL Score</Text>
               <Text style={[styles.roValue, { fontWeight: Fonts.bold, color: Colors.primary }]}>{kyc.cibilScore}</Text>
-            </View>
-            <View style={styles.readonlyRow}>
-              <Text style={styles.roLabel}>Face ID</Text>
-              <Text style={styles.roValue}>✅ Verified</Text>
             </View>
           </View>
 
@@ -96,32 +121,6 @@ export default function KYCVerificationScreen() {
       </View>
     );
   }
-
-  const [step, setStep] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  // Step 1: Basic Details
-  const [mobile, setMobile] = useState(user?.phone || '');
-  const [pan, setPan] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [dob, setDob] = useState('');
-  const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpVerified, setOtpVerified] = useState(false);
-  const [email, setEmail] = useState(user?.email || '');
-  const [basicDetailsVerified, setBasicDetailsVerified] = useState(false);
-  const [experianData, setExperianData] = useState<any>(null);
-  const [cibilScore, setCibilScore] = useState<number>(0);
-
-  // Step 3: Face
-  const [faceVerified, setFaceVerified] = useState(false);
-  const [faceLoading, setFaceLoading] = useState(false);
-
-  // DatePicker state
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [dateObj, setDateObj] = useState(new Date(2000, 0, 1));
 
   const onChangeDate = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
@@ -139,117 +138,7 @@ export default function KYCVerificationScreen() {
     scrollRef.current?.scrollTo({ x: index * W, animated: true });
   };
 
-  const handleDevSkip = (stepName: string) => {
-    switch (stepName) {
-      case 'Basic':
-        setBasicDetailsVerified(true);
-        setCibilScore(750);
-        goToStep(1);
-        break;
-      case 'Aadhar':
-        setAadharVerified(true);
-        setVerifiedAadharNumber('123412341234');
-        setVerifiedName(firstName + ' ' + lastName);
-        goToStep(2);
-        break;
-      case 'Face':
-        setFaceVerified(true);
-        break;
-    }
-  };
-
-  const handleDevMockData = (stepName: string) => {
-    switch (stepName) {
-      case 'Basic':
-        setOtpVerified(true);
-        setBasicDetailsVerified(true);
-        setCibilScore(820);
-        setExperianData({
-          first_name: firstName || 'John',
-          last_name: lastName || 'Doe',
-          date_of_birth_applicant: dob || '1990-01-01',
-          mobile_phone_number: mobile || '9876543210',
-          income_tax_pan: pan || 'ABCDE1234F',
-          email_id: email || 'johndoe@example.com',
-          bureau_score: 820,
-        });
-        break;
-      case 'Aadhar':
-        setAadharVerified(true);
-        setMatchStatus('verified');
-        setVerifiedAadharNumber('1234 5678 9012');
-        setVerifiedName((firstName + ' ' + lastName).trim() || 'John Doe');
-        setVerifiedDob(dob || '1990-01-01');
-        setVerifiedGender('M');
-        setDigilockerData({
-          aadhaar_xml_data: {
-            full_name: (firstName + ' ' + lastName).trim() || 'John Doe',
-            dob: dob || '1990-01-01',
-            gender: 'M',
-            full_address: '123 Fake Street, Mock City, MD 12345',
-          }
-        });
-        break;
-      case 'Face':
-        setFaceVerified(true);
-        break;
-    }
-  };
-
-  const handleSendOtp = () => {
-    if (!mobile || mobile.length < 10) {
-      Alert.alert('Invalid Mobile', 'Please enter a valid 10-digit mobile number.');
-      return;
-    }
-    setOtpSent(true);
-    Alert.alert('OTP Sent', 'A demo OTP (1111) has been sent to your mobile number.');
-  };
-
-  const handleVerifyOtp = () => {
-    if (otp === '1111') {
-      setOtpVerified(true);
-      Alert.alert('Verified', 'Mobile number verified successfully.');
-    } else {
-      Alert.alert('Invalid OTP', 'Please enter the correct OTP (1111).');
-    }
-  };
-
-  // ─── Step 1: Basic Details / Experian ──────────────────────────────────────
-  const handleVerifyBasicDetails = async () => {
-    if (!otpVerified) {
-      Alert.alert('Incomplete', 'Please verify your mobile number first.');
-      return;
-    }
-    if (!mobile || !pan || !firstName || !lastName || !dob) {
-      Alert.alert('Incomplete', 'Please fill all details');
-      return;
-    }
-    
-    const formattedPan = pan.toUpperCase();
-    if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formattedPan)) {
-      Alert.alert('Invalid PAN', 'PAN must be 10 characters (e.g. ABCDE1234F).');
-      return;
-    }
-
-    if (!user) return;
-
-    setLoading(true);
-    const res = await fetchExperianReport({
-      mobile, pan: formattedPan, firstName, lastName, dob, email, userId: user.id
-    });
-    setLoading(false);
-
-    if (res.success) {
-      setBasicDetailsVerified(true);
-      setExperianData(res.data);
-      setCibilScore(res.data?.bureau_score || 0);
-      // Removed the alert so it just reveals the details inline
-    } else {
-      Alert.alert('Verification Failed', res.error || 'Failed to verify details');
-    }
-  };
-
-  // ─── Step 2: Aadhaar (DigiLocker) ────────────────────────────────────
+  // ─── Step 1: Aadhaar (DigiLocker) — mirrors the website ────────────────
   const handleAadharVerify = async () => {
     setAadharLoading(true);
     try {
@@ -269,29 +158,20 @@ export default function KYCVerificationScreen() {
     setVerifiedDob(data.dob || '');
     setVerifiedGender(data.gender || '');
     setVerifiedAadharNumber(data.aadhaarNumber || data.idNumber || 'XXXXXXXXXXXX');
-    setVerifiedRaw(data.raw);
-    
-    // Attempt to save to database via backend
-    if (user && data.raw) {
-      saveDigiLockerReport(user.id, data.raw);
-      setDigilockerData(data.raw);
+    setVerifiedAddress(
+      data.address?.fullAddress ||
+      data.raw?.aadhaar_xml_data?.full_address ||
+      '',
+    );
+    setDigilockerData(data.raw);
+    // The backend already upserted customer_kyc (aadharVerified) in the fetch
+    // call made by DigiLockerAuth — pre-fill the form from Aadhaar.
+    if (data.name) {
+      const parts = data.name.trim().split(/\s+/);
+      setFirstName(parts[0] || '');
+      setLastName(parts.slice(1).join(' ') || '');
     }
-    
-    // Strict Name Match validation between Basic Details (Experian) Name and Aadhaar Name
-    const enteredName = (firstName + " " + lastName).toLowerCase();
-    const aadhaarName = (data.name || '').toLowerCase();
-    
-    const officialParts = aadhaarName.split(' ').filter((p: string) => p.length > 2);
-    const enteredParts = enteredName.split(' ').filter((p: string) => p.length > 2);
-    const hasMatch = officialParts.some((p: string) => enteredParts.includes(p)) || enteredParts.some((p: string) => officialParts.includes(p));
-    
-    if (aadhaarName && enteredName && !hasMatch) {
-      setMatchStatus('pending');
-      // No longer blocking progression
-    } else {
-      setMatchStatus('verified');
-    }
-    
+    if (data.dob) setDob(data.dob);
     setAadharVerified(true);
   };
 
@@ -301,7 +181,44 @@ export default function KYCVerificationScreen() {
     Alert.alert('Verification Failed', err);
   };
 
-  // ─── Step 3: Face verification ────────────────────────────────────
+  // ─── Step 2: Basic details + PAN + CIBIL (Experian) ────────────────────
+  const handleVerifyBasicDetails = async () => {
+    if (!aadharVerified) {
+      Alert.alert('Incomplete', 'Please verify your Aadhaar first via DigiLocker.');
+      return;
+    }
+    if (!pan || !firstName || !lastName || !dob) {
+      Alert.alert('Incomplete', 'Please fill in your PAN, name and DOB.');
+      return;
+    }
+    const formattedPan = pan.toUpperCase();
+    if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formattedPan)) {
+      Alert.alert('Invalid PAN', 'PAN must be 10 characters (e.g. ABCDE1234F).');
+      return;
+    }
+    if (!user) return;
+
+    setLoading(true);
+    // Live Experian credit report — the backend gates it on Aadhaar being
+    // verified first (same as the web flow, and Aadhaar is step 1 here).
+    const res = await fetchExperianReport({
+      mobile, pan: formattedPan, firstName, lastName, dob, email, userId: user.id,
+    });
+    setLoading(false);
+
+    if (res.success && res.data) {
+      setExperianData(res.data);
+      setCibilScore(res.data.bureau_score || 0);
+      setBasicDetailsVerified(true);
+    } else {
+      Alert.alert(
+        'Verification Failed',
+        res.error || 'Unable to fetch your credit profile. Please check the details and try again.',
+      );
+    }
+  };
+
+  // ─── Step 3: Face verification (app-only) + Complete ───────────────────
   const handleFaceVerify = async () => {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -317,36 +234,21 @@ export default function KYCVerificationScreen() {
       });
 
       if (result.canceled || !result.assets?.[0]?.base64) {
-        return; // User cancelled
+        return; // user cancelled
       }
 
       setFaceLoading(true);
-
-      const personBase64 = result.assets[0].base64;
-      
-      // Attempt to extract Aadhaar profile image
-      const cardBase64 = 
-        digilockerData?.aadhaar_xml_data?.profile_image ||
-        digilockerData?.profile_image ||
-        digilockerData?.data?.profile_image;
-
-      if (!cardBase64) {
-        Alert.alert('Error', 'Could not find Aadhaar profile image to match against. Please complete Aadhaar verification again.');
-        setFaceLoading(false);
-        return;
-      }
-
-      // Call our backend API
-      const matchResult = await matchFace(personBase64, cardBase64);
-      
-      // Ensure match is successful based on the API response structure
-      if (matchResult?.data?.match_status === true || matchResult?.status?.code === 200) {
+      const matchResult = await matchFace(result.assets[0].base64);
+      if (
+        matchResult?.data?.match_status === true ||
+        matchResult?.verified === true ||
+        matchResult?.status?.code === 200
+      ) {
         setFaceVerified(true);
       } else {
         Alert.alert('Match Failed', 'Face match could not be confirmed. Please try again in better lighting.');
         setFaceVerified(false);
       }
-      
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Face verification failed');
       setFaceVerified(false);
@@ -355,28 +257,17 @@ export default function KYCVerificationScreen() {
     }
   };
 
-  // ─── Final submit ─────────────────────────────────────────────────
   const handleComplete = async () => {
     if (!user) return;
-    if (!basicDetailsVerified || !aadharVerified || !faceVerified) {
-      Alert.alert('Incomplete', 'Please complete all verification steps.');
+    if (!aadharVerified || !basicDetailsVerified) {
+      Alert.alert('Incomplete', 'Please complete Aadhaar and basic details verification first.');
       return;
     }
-
     setSaving(true);
     try {
-      await saveKYC(user.id, {
-        fullName: `${firstName} ${lastName}`,
-        aadharNumber: verifiedAadharNumber,
-        dob: dob || verifiedDob,
-        gender: verifiedGender,
-        address: experianData?.flat_no_plot_no_house_no || null,
-        rawKycData: verifiedRaw,
-        panNumber: pan.toUpperCase(),
-        cibilScore,
-        faceVerified,
-      });
-
+      // The backend persisted aadharVerified (digilocker fetch) and
+      // pan_verified + cibil_score (experian) — refresh to confirm completion.
+      await refresh();
       createNotification({
         userId: user.id,
         title: 'KYC Verified',
@@ -384,21 +275,20 @@ export default function KYCVerificationScreen() {
         type: 'kyc',
         route: '/(tabs)',
       });
-
       Alert.alert(
         'KYC Completed!',
-        `Welcome, ${firstName}! Your account is fully verified.\n\n• Aadhar: ✅ Verified\n• PAN & Credit: ✅ Verified\n• Score: ${cibilScore}\n• Face ID: ✅ Verified\n\nYou can now shop and use EMI options.`,
-        [{ text: 'Start Shopping', onPress: () => router.replace('/(tabs)') }]
+        `Welcome, ${firstName}! Your account is fully verified.\n\n• Aadhaar: ✅ Verified\n• PAN & Credit: ✅ Verified\n• Score: ${cibilScore}\n• Face: ✅ Verified\n\nYou can now shop and use EMI options.`,
+        [{ text: 'Start Shopping', onPress: () => router.replace('/(tabs)') }],
       );
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to save KYC data');
+      Alert.alert('Error', e.message || 'Failed to complete KYC. Please try again.');
     }
     setSaving(false);
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={[styles.container, { paddingTop: insets.top }]} 
+    <KeyboardAvoidingView
+      style={[styles.container, { paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.header}>
@@ -432,46 +322,72 @@ export default function KYCVerificationScreen() {
         showsHorizontalScrollIndicator={false}
         style={{ flex: 1 }}
       >
-        {/* Step 1: Basic Details */}
+        {/* Step 1: Aadhaar (DigiLocker) */}
+        <View style={styles.step}>
+          <View style={styles.stepIcon}>
+            <MaterialIcons name="badge" size={36} color={Colors.primary} />
+          </View>
+          <Text style={styles.stepTitle}>Aadhaar Verification</Text>
+          <Text style={styles.stepSub}>Verify your Aadhaar securely via DigiLocker — same as the website.</Text>
+
+          {aadharVerified ? (
+            <View style={{ width: '100%' }}>
+              <View style={[styles.verifiedBox, { width: '100%' }]}>
+                <MaterialIcons name="check-circle" size={24} color={Colors.success} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.verifiedTxt, { fontSize: Fonts.md }]}>Aadhaar Verified</Text>
+                  <Text style={{ fontFamily: 'Inter-Medium', color: Colors.textPrimary, fontSize: Fonts.lg, marginTop: 4 }}>{verifiedAadharNumber}</Text>
+                  <Text style={styles.verifiedSub}>{verifiedName}</Text>
+                </View>
+              </View>
+
+              <View style={styles.experianBox}>
+                <Text style={styles.experianTitle}>Aadhaar Profile Details</Text>
+                <View style={styles.experianRow}><Text style={styles.experianLabel}>Name</Text><Text style={styles.experianValue}>{digilockerData?.aadhaar_xml_data?.full_name || verifiedName}</Text></View>
+                <View style={styles.experianRow}><Text style={styles.experianLabel}>DOB</Text><Text style={styles.experianValue}>{digilockerData?.aadhaar_xml_data?.dob || verifiedDob}</Text></View>
+                <View style={styles.experianRow}><Text style={styles.experianLabel}>Gender</Text><Text style={styles.experianValue}>{digilockerData?.aadhaar_xml_data?.gender || verifiedGender}</Text></View>
+                {verifiedAddress ? (
+                  <View style={styles.experianRow}><Text style={styles.experianLabel}>Address</Text><Text style={[styles.experianValue, { flex: 1, textAlign: 'right', marginLeft: 16 }]}>{verifiedAddress}</Text></View>
+                ) : null}
+              </View>
+
+              <Pressable style={styles.nextBtn} onPress={() => goToStep(1)}>
+                <Text style={styles.nextBtnTxt}>Continue to Basic Details</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              <Pressable style={styles.verifyBtn} onPress={handleAadharVerify} disabled={aadharLoading}>
+                {aadharLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.verifyBtnTxt}>Verify Aadhaar via DigiLocker</Text>}
+              </Pressable>
+              <Text style={styles.stepNote}>
+                You'll be redirected to DigiLocker to log in and share your Aadhaar.
+              </Text>
+            </>
+          )}
+        </View>
+
+        {/* Step 2: Basic Details + CIBIL */}
         <View style={styles.step}>
           <View style={styles.stepIcon}>
             <MaterialIcons name="person" size={36} color={Colors.primary} />
           </View>
           <Text style={styles.stepTitle}>Basic Details</Text>
-          <Text style={styles.stepSub}>We will fetch your PAN and Credit Profile securely.</Text>
-          
+          <Text style={styles.stepSub}>We'll verify your PAN and fetch your CIBIL credit score securely.</Text>
+
           <ScrollView style={{ width: "100%" }} showsVerticalScrollIndicator={false}>
             <Text style={styles.stepFieldLabel}>Mobile No *</Text>
-            <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-              <TextInput style={[styles.input, { flex: 1 }]} value={mobile} onChangeText={setMobile} placeholder="Mobile No" keyboardType="phone-pad" editable={!otpVerified} />
-              {!otpVerified && (
-                <Pressable style={styles.otpBtn} onPress={handleSendOtp}>
-                  <Text style={styles.otpBtnTxt}>{otpSent ? 'Resend' : 'Send OTP'}</Text>
-                </Pressable>
-              )}
-            </View>
-            
-            {otpSent && !otpVerified && (
-              <View style={{ marginTop: Spacing.sm, marginBottom: Spacing.md }}>
-                <Text style={styles.stepFieldLabel}>Enter OTP *</Text>
-                <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                  <TextInput style={[styles.input, { flex: 1 }]} value={otp} onChangeText={setOtp} placeholder="1111" keyboardType="number-pad" maxLength={4} />
-                  <Pressable style={styles.otpVerifyBtn} onPress={handleVerifyOtp}>
-                    <Text style={styles.otpVerifyBtnTxt}>Verify</Text>
-                  </Pressable>
-                </View>
-              </View>
-            )}
+            <TextInput style={[styles.input, { flex: 1 }]} value={mobile} onChangeText={setMobile} placeholder="Mobile No" keyboardType="phone-pad" editable={false} />
 
             <Text style={styles.stepFieldLabel}>PAN Number *</Text>
             <TextInput style={styles.input} value={pan} onChangeText={t => setPan(t.toUpperCase())} placeholder="ABCDE1234F" autoCapitalize="characters" maxLength={10} />
-            
+
             <Text style={styles.stepFieldLabel}>First Name *</Text>
             <TextInput style={styles.input} value={firstName} onChangeText={setFirstName} placeholder="First Name" />
-            
+
             <Text style={styles.stepFieldLabel}>Last Name *</Text>
             <TextInput style={styles.input} value={lastName} onChangeText={setLastName} placeholder="Last Name" />
-            
+
             <Text style={styles.stepFieldLabel}>DOB *</Text>
             <Pressable onPress={() => setShowDatePicker(true)}>
               <View pointerEvents="none">
@@ -491,145 +407,74 @@ export default function KYCVerificationScreen() {
             <Text style={styles.stepFieldLabel}>Email Address (Optional)</Text>
             <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email" keyboardType="email-address" autoCapitalize="none" />
 
-            <Pressable style={[styles.verifyBtn, basicDetailsVerified && { backgroundColor: Colors.success }, !otpVerified && styles.btnDisabled]} onPress={handleVerifyBasicDetails} disabled={loading || basicDetailsVerified || !otpVerified}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.verifyBtnTxt}>{basicDetailsVerified ? 'Verified' : 'Verify Details'}</Text>}
+            <Pressable
+              style={[styles.verifyBtn, basicDetailsVerified && { backgroundColor: Colors.success }, !aadharVerified && styles.btnDisabled]}
+              onPress={handleVerifyBasicDetails}
+              disabled={loading || basicDetailsVerified || !aadharVerified}
+            >
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.verifyBtnTxt}>{basicDetailsVerified ? 'Verified' : 'Verify PAN & Fetch CIBIL'}</Text>}
             </Pressable>
-
-            {__DEV__ && !basicDetailsVerified && (
-              <View style={{ flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md }}>
-                <Pressable style={[styles.devSkipBtn, { flex: 1, marginTop: 0 }]} onPress={() => handleDevSkip('Basic')}>
-                  <Text style={styles.devSkipTxt}>Skip (Dev)</Text>
-                </Pressable>
-                <Pressable style={[styles.devSkipBtn, { flex: 1, marginTop: 0 }]} onPress={() => handleDevMockData('Basic')}>
-                  <Text style={styles.devSkipTxt}>Mock Data (Dev)</Text>
-                </Pressable>
-              </View>
-            )}
 
             {basicDetailsVerified && experianData && (
               <View style={styles.experianBox}>
                 <Text style={styles.experianTitle}>Credit Profile Details</Text>
                 <View style={styles.experianRow}><Text style={styles.experianLabel}>Name</Text><Text style={styles.experianValue}>{experianData.first_name} {experianData.last_name}</Text></View>
                 <View style={styles.experianRow}><Text style={styles.experianLabel}>DOB</Text><Text style={styles.experianValue}>{experianData.date_of_birth_applicant}</Text></View>
-                <View style={styles.experianRow}><Text style={styles.experianLabel}>Mobile</Text><Text style={styles.experianValue}>{experianData.mobile_phone_number}</Text></View>
                 <View style={styles.experianRow}><Text style={styles.experianLabel}>PAN</Text><Text style={styles.experianValue}>{experianData.income_tax_pan}</Text></View>
-                {experianData.email_id && <View style={styles.experianRow}><Text style={styles.experianLabel}>Email</Text><Text style={styles.experianValue}>{experianData.email_id}</Text></View>}
                 <View style={styles.experianRow}><Text style={styles.experianLabel}>Credit Score</Text><Text style={[styles.experianValue, { color: Colors.success, fontWeight: '700' }]}>{experianData.bureau_score || 'N/A'}</Text></View>
               </View>
             )}
 
             {basicDetailsVerified && (
-              <Pressable style={styles.nextBtn} onPress={() => goToStep(1)}>
-                <Text style={styles.nextBtnTxt}>Confirm & Continue to Aadhaar</Text>
+              <Pressable style={styles.nextBtn} onPress={() => goToStep(2)}>
+                <Text style={styles.nextBtnTxt}>Continue to Summary</Text>
               </Pressable>
             )}
-            <View style={{height: 100}} />
+            <View style={{ height: 100 }} />
           </ScrollView>
         </View>
 
-        {/* Step 2: Aadhar */}
+        {/* Step 3: Summary + Face Verification */}
         <View style={styles.step}>
           <View style={styles.stepIcon}>
-            <MaterialIcons name="badge" size={36} color={Colors.primary} />
+            <MaterialIcons name="verified" size={36} color={Colors.primary} />
           </View>
-          <Text style={styles.stepTitle}>Aadhaar Verification</Text>
-          <Text style={styles.stepSub}>Fetch your Aadhaar details securely.</Text>
+          <Text style={styles.stepTitle}>Summary & Face Verification</Text>
+          <Text style={styles.stepSub}>Review your verified details and confirm with a face scan.</Text>
 
-          {aadharVerified ? (
-            <View>
-              <View style={[styles.verifiedBox, matchStatus === 'pending' && { backgroundColor: Colors.warningLight }]}>
-                <MaterialIcons name={matchStatus === 'pending' ? "pending-actions" : "check-circle"} size={24} color={matchStatus === 'pending' ? Colors.warning : Colors.success} style={{ marginRight: Spacing.md }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.verifiedTxt, { fontSize: Fonts.md }, matchStatus === 'pending' && { color: Colors.warning }]}>
-                    {matchStatus === 'pending' ? 'Pending Status (Name Mismatch)' : 'Aadhaar Verified'}
-                  </Text>
-                  <Text style={{ fontFamily: 'Inter-Medium', color: Colors.textPrimary, fontSize: Fonts.lg, marginTop: 4 }}>{verifiedAadharNumber}</Text>
-                  <Text style={styles.verifiedSub}>{verifiedName}</Text>
-                </View>
-              </View>
-
-              {digilockerData && (
-                <View style={styles.experianBox}>
-                  <Text style={styles.experianTitle}>Aadhaar Profile Details</Text>
-                  <View style={styles.experianRow}><Text style={styles.experianLabel}>Name</Text><Text style={styles.experianValue}>{digilockerData.aadhaar_xml_data?.full_name || verifiedName}</Text></View>
-                  <View style={styles.experianRow}><Text style={styles.experianLabel}>DOB</Text><Text style={styles.experianValue}>{digilockerData.aadhaar_xml_data?.dob || verifiedDob}</Text></View>
-                  <View style={styles.experianRow}><Text style={styles.experianLabel}>Gender</Text><Text style={styles.experianValue}>{digilockerData.aadhaar_xml_data?.gender || verifiedGender}</Text></View>
-                  <View style={styles.experianRow}><Text style={styles.experianLabel}>Address</Text><Text style={[styles.experianValue, { flex: 1, textAlign: 'right', marginLeft: 16 }]}>{digilockerData.aadhaar_xml_data?.full_address || 'N/A'}</Text></View>
-                </View>
-              )}
-            </View>
-          ) : (
-            <>
-              <Pressable style={styles.verifyBtn} onPress={handleAadharVerify} disabled={aadharLoading}>
-                {aadharLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.verifyBtnTxt}>Verify Aadhaar via DigiLocker</Text>}
-              </Pressable>
-              
-              {__DEV__ && (
-                <View style={{ flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md }}>
-                  <Pressable style={[styles.devSkipBtn, { flex: 1, marginTop: 0 }]} onPress={() => handleDevSkip('Aadhar')}>
-                    <Text style={styles.devSkipTxt}>Skip (Dev)</Text>
-                  </Pressable>
-                  <Pressable style={[styles.devSkipBtn, { flex: 1, marginTop: 0 }]} onPress={() => handleDevMockData('Aadhar')}>
-                    <Text style={styles.devSkipTxt}>Mock Data (Dev)</Text>
-                  </Pressable>
-                </View>
-              )}
-            </>
-          )}
-
-          {aadharVerified && (
-            <Pressable style={styles.nextBtn} onPress={() => goToStep(2)}>
-              <Text style={styles.nextBtnTxt}>Continue to Face ID</Text>
-            </Pressable>
-          )}
-        </View>
-
-        {/* Step 3: Face Verification */}
-        <View style={styles.step}>
-          <View style={styles.stepIcon}>
-            <MaterialIcons name="face" size={36} color={Colors.primary} />
+          <View style={styles.experianBox}>
+            <Text style={styles.experianTitle}>Verified Details</Text>
+            <View style={styles.experianRow}><Text style={styles.experianLabel}>Name</Text><Text style={styles.experianValue}>{verifiedName || `${firstName} ${lastName}`}</Text></View>
+            <View style={styles.experianRow}><Text style={styles.experianLabel}>Aadhaar</Text><Text style={styles.experianValue}>{verifiedAadharNumber}</Text></View>
+            <View style={styles.experianRow}><Text style={styles.experianLabel}>PAN</Text><Text style={styles.experianValue}>{pan.toUpperCase()}</Text></View>
+            <View style={styles.experianRow}><Text style={styles.experianLabel}>CIBIL Score</Text><Text style={[styles.experianValue, { color: Colors.success, fontWeight: '700' }]}>{cibilScore || 'N/A'}</Text></View>
           </View>
-          <Text style={styles.stepTitle}>Face Verification</Text>
-          <Text style={styles.stepSub}>For security purposes, verify your identity</Text>
 
           {faceVerified ? (
-            <>
-              <View style={styles.verifiedBox}>
-                <MaterialIcons name="check-circle" size={20} color={Colors.success} />
-                <Text style={styles.verifiedTxt}>Face verified successfully</Text>
-              </View>
-              <Pressable style={styles.nextBtn} onPress={handleComplete} disabled={saving}>
-                {saving ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.nextBtnTxt}>Complete KYC & Start Shopping</Text>
-                )}
-              </Pressable>
-            </>
+            <View style={[styles.verifiedBox, { width: '100%' }]}>
+              <MaterialIcons name="check-circle" size={20} color={Colors.success} />
+              <Text style={styles.verifiedTxt}>Face verified successfully</Text>
+            </View>
           ) : (
-            <>
-              <Pressable style={styles.faceBtn} onPress={handleFaceVerify} disabled={faceLoading}>
-                {faceLoading ? (
-                  <ActivityIndicator color={Colors.primary} size="large" />
-                ) : (
-                  <>
-                    <MaterialIcons name="camera-alt" size={48} color={Colors.primary} />
-                    <Text style={styles.faceBtnTxt}>Tap to scan your face</Text>
-                  </>
-                )}
-              </Pressable>
-              {__DEV__ && (
-                <View style={{ flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md }}>
-                  <Pressable style={[styles.devSkipBtn, { flex: 1, marginTop: 0 }]} onPress={() => handleDevSkip('Face')}>
-                    <Text style={styles.devSkipTxt}>Skip (Dev)</Text>
-                  </Pressable>
-                  <Pressable style={[styles.devSkipBtn, { flex: 1, marginTop: 0 }]} onPress={() => handleDevMockData('Face')}>
-                    <Text style={styles.devSkipTxt}>Mock Data (Dev)</Text>
-                  </Pressable>
-                </View>
+            <Pressable style={styles.faceBtn} onPress={handleFaceVerify} disabled={faceLoading}>
+              {faceLoading ? (
+                <ActivityIndicator color={Colors.primary} size="large" />
+              ) : (
+                <>
+                  <MaterialIcons name="camera-alt" size={48} color={Colors.primary} />
+                  <Text style={styles.faceBtnTxt}>Tap to scan your face</Text>
+                </>
               )}
-            </>
+            </Pressable>
           )}
+
+          <Pressable
+            style={[styles.nextBtn, (!faceVerified || saving) && styles.btnDisabled]}
+            onPress={handleComplete}
+            disabled={!faceVerified || saving}
+          >
+            {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.nextBtnTxt}>Complete KYC & Start Shopping</Text>}
+          </Pressable>
         </View>
       </ScrollView>
 
@@ -638,7 +483,6 @@ export default function KYCVerificationScreen() {
         visible={digilockerVisible}
         authUrl={digilockerUrl}
         clientId={digilockerClientId}
-        prefillAadhaar={manualAadhar}
         onSuccess={handleDigiLockerSuccess}
         onCancel={handleDigiLockerCancel}
         onError={handleDigiLockerError}
@@ -662,6 +506,7 @@ const styles = StyleSheet.create({
   stepIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xl, marginTop: Spacing.lg },
   stepTitle: { fontSize: Fonts.xxl, fontWeight: Fonts.bold, color: Colors.textPrimary, textAlign: 'center' },
   stepSub: { fontSize: Fonts.md, color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.sm, marginBottom: Spacing.xxl, lineHeight: 20 },
+  stepNote: { fontSize: Fonts.sm, color: Colors.textTertiary, textAlign: 'center', marginTop: Spacing.md, lineHeight: 18 },
   input: { width: '100%', backgroundColor: Colors.surfaceAlt, borderWidth: 1.5, borderColor: Colors.border, borderRadius: Radius.md, padding: Spacing.md, fontSize: Fonts.md, color: Colors.textPrimary, marginBottom: Spacing.md },
   stepFieldLabel: { width: '100%', fontSize: Fonts.xs, color: Colors.textTertiary, fontWeight: Fonts.medium, marginBottom: 4, marginTop: 4 },
   verifiedSub: { fontSize: Fonts.xs, color: Colors.success, marginTop: 2 },
@@ -683,15 +528,9 @@ const styles = StyleSheet.create({
   roLabel: { fontSize: Fonts.md, color: Colors.textSecondary },
   roValue: { fontSize: Fonts.md, fontWeight: Fonts.semiBold, color: Colors.textPrimary },
   readonlyNote: { fontSize: Fonts.sm, color: Colors.textTertiary, textAlign: 'center', marginBottom: Spacing.lg, lineHeight: 20 },
-  devSkipBtn: { marginTop: Spacing.md, padding: Spacing.sm, backgroundColor: '#F3F4F6', borderRadius: Radius.md, alignItems: 'center', borderWidth: 1, borderColor: '#D1D5DB', borderStyle: 'dashed' },
-  devSkipTxt: { color: '#4B5563', fontFamily: 'Inter-SemiBold', fontSize: Fonts.sm },
   experianBox: { marginTop: Spacing.xl, padding: Spacing.lg, backgroundColor: '#ffffff', borderRadius: Radius.xl, borderWidth: 1, borderColor: '#E2E8F0', width: '100%', ...Shadow.sm },
   experianTitle: { fontSize: Fonts.md, fontFamily: 'Inter-Bold', color: '#0F172A', marginBottom: Spacing.md, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: Spacing.sm },
   experianRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
   experianLabel: { fontSize: Fonts.sm, color: Colors.textSecondary, width: 80 },
   experianValue: { fontSize: Fonts.sm, color: Colors.textPrimary, fontFamily: 'Inter-SemiBold', flex: 1, textAlign: 'right' },
-  otpBtn: { backgroundColor: Colors.primary, paddingHorizontal: Spacing.md, justifyContent: 'center', borderRadius: Radius.md },
-  otpBtnTxt: { color: '#fff', fontSize: Fonts.sm, fontFamily: 'Inter-SemiBold' },
-  otpVerifyBtn: { backgroundColor: Colors.success, paddingHorizontal: Spacing.md, justifyContent: 'center', borderRadius: Radius.md },
-  otpVerifyBtnTxt: { color: '#fff', fontSize: Fonts.sm, fontFamily: 'Inter-SemiBold' },
 });

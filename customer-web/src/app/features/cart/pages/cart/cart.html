@@ -24,6 +24,35 @@
       <div class="lx-cart__info" role="status">{{ message }}</div>
     }
 
+    @if (resumable(); as pending) {
+      <div class="lx-cart__resume" role="status">
+        <div class="lx-cart__resume-icon" aria-hidden="true">
+          <i class="pi pi-clock"></i>
+        </div>
+        <div class="lx-cart__resume-body">
+          <h2>You have an unfinished checkout</h2>
+          <p>Your items are safe in your cart — nothing was charged. Resume where you left off.</p>
+        </div>
+        <div class="lx-cart__resume-actions">
+          <button
+            type="button"
+            class="lx-btn lx-btn--primary"
+            (click)="resumeCheckout()"
+          >
+            Resume Checkout
+          </button>
+          <button
+            type="button"
+            class="lx-cart__resume-dismiss"
+            (click)="dismissResumePrompt()"
+            aria-label="Dismiss resume prompt"
+          >
+            <i class="pi pi-times" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+    }
+
     @if (loading()) {
       <p class="lx-cart__loading" aria-live="polite">Loading cart…</p>
     } @else if (!cart()?.items?.length) {

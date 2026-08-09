@@ -1,1 +1,1 @@
-export { createCheckoutBodySchema } from '../dto/checkout.dto';
+export { createCheckoutBodySchema, placeOrderBodySchema } from '../dto/checkout.dto';

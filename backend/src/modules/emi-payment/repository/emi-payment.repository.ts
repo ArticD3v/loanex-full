@@ -180,6 +180,34 @@ export class EmiPaymentRepository {
       ...(remaining.length === 0 ? { loanStatus: LoanStatus.CLOSED } : {}),
     });
 
+    // Mirror cumulative collections onto the order row (durable + admin-visible).
+    // Display amounts are derived live from the ledger, but the row keeps a
+    // denormalized paidAmount so cold starts / list views never show stale ₹0.
+    try {
+      const loanRow = jsonDb.findOne('loanAccount', { id: input.loanAccountId });
+      const orderRow = loanRow?.applicationId
+        ? jsonDb.findMany('orders', { applicationId: loanRow.applicationId })[0]
+        : null;
+      if (orderRow) {
+        const dpTx = orderRow.paymentTransactionId
+          ? jsonDb.findOne('paymentTransaction', { id: orderRow.paymentTransactionId })
+          : null;
+        const dpCollected =
+          dpTx && String(dpTx.paymentStatus).toUpperCase() === 'SUCCESS'
+            ? Number(dpTx.amount ?? 0)
+            : 0;
+        await jsonDb.updateAwaited('orders', { id: orderRow.id }, {
+          paidAmount: Math.round((dpCollected + paidAmount) * 100) / 100,
+          payment_status:
+            remaining.length === 0 ? 'SUCCESS' : orderRow.payment_status ?? 'SUCCESS',
+          loanStatus: remaining.length === 0 ? LoanStatus.CLOSED : LoanStatus.ACTIVE,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    } catch (e) {
+      console.error('[EMI] failed to mirror paid amount onto order:', e);
+    }
+
     return {
       payment,
       unpaidCount: remaining.length,

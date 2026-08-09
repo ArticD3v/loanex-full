@@ -28,5 +28,6 @@ orderRouter.get('/', asyncHandler(orderController.list));
 orderRouter.get('/current', asyncHandler(orderController.getCurrent));
 orderRouter.get('/:orderId/tracking', asyncHandler(orderController.getTracking));
 orderRouter.get('/:orderId/receipt', asyncHandler(orderController.getReceipt));
+orderRouter.post('/:orderId/cancel', asyncHandler(orderController.cancelOrder));
 orderRouter.get('/:orderId/invoice', asyncHandler(orderController.getInvoice));
 orderRouter.get('/:orderId', asyncHandler(orderController.getById));

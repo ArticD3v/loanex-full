@@ -10,7 +10,7 @@ import { getMongoDb, isMongoConfigured } from '../../config/mongo';
  * not consulted for user credential reads.
  *
  * OTP helpers still use jsonDb (ephemeral). Refresh tokens still persist via
- * jsonDb.insertAwaited which mirrors to Mongo when DATA_PRIMARY is Mongo.
+ * jsonDb.insertAwaited, which writes durably to MongoDB.
  */
 export class AuthRepository {
   private assertMongoForAuth(): void {

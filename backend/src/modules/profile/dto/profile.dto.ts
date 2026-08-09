@@ -4,7 +4,9 @@ export const genderSchema = z.enum(['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SA
 
 export const addressBodySchema = z.object({
   addressLine1: z.string().trim().min(1, 'House / Flat No. is required').max(120),
-  addressLine2: z.string().trim().min(1, 'Street / Area is required').max(200),
+  // Optional: single-line address forms (e.g. the mobile app) may not split
+  // street/area into a separate line.
+  addressLine2: z.string().trim().max(200).optional().default(''),
   landmark: z.string().trim().max(150).optional().nullable(),
   city: z.string().trim().min(1, 'City is required').max(80),
   state: z.string().trim().min(1, 'State is required').max(80),

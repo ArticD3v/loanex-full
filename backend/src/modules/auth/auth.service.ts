@@ -37,7 +37,6 @@ import { authkeySmsService } from '../../common/services/authkey-sms.service';
 import { authRepository } from './auth.repository';
 import { jsonDb } from '../../config/json-db';
 import { auditLogService } from '../verification/service/audit-log.service';
-import { supabase } from '../../config/supabase';
 import { rolePermissions, SUPER_ADMIN_PERMISSIONS } from '../rbac/permissions';
 
 /**
@@ -63,8 +62,9 @@ function resolveRbacInfo(user: any) {
 }
 
 /**
- * Same as resolveRbacInfo but async — also probes Supabase for a role that is
- * not yet cached locally (role created on another serverless instance).
+ * Same as resolveRbacInfo but async — also re-reads the roles collection from
+ * MongoDB when a role is not yet cached locally (role created on another
+ * serverless instance).
  */
 async function resolveLoginRbacInfo(user: any) {
   const roleId = user?.role_id ?? user?.roleId ?? null;
@@ -72,12 +72,8 @@ async function resolveLoginRbacInfo(user: any) {
     let role = jsonDb.findOne('roles', { id: roleId });
     if (!role) {
       try {
-        const { data, error } = await supabase
-          .from('roles')
-          .select('*')
-          .eq('id', roleId)
-          .limit(1);
-        if (!error && data && data.length > 0) role = data[0];
+        await jsonDb.refreshCollection('roles');
+        role = jsonDb.findOne('roles', { id: roleId });
       } catch {
         /* keep local state */
       }

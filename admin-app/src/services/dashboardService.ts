@@ -44,8 +44,27 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
       (e: any) => e.status === 'pending' || e.status === 'under_review'
     );
 
+    // Revenue = value of paid orders, regardless of delivery stage. An order
+    // counts once its payment is successful (Razorpay/EMI/COD paid), not only
+    // after it is marked delivered — otherwise the dashboard shows ₹0 until
+    // the parcel ships. The backend admin list emits paymentStatus
+    // ('SUCCESS'/'PENDING'), which mapBackendOrderToFrontend carries onto
+    // Order.paymentStatus. (For EMI orders this is the full order value even
+    // when only the down payment has been collected — GMV of paid orders.)
+    const isPaid = (o: any) => {
+      const ps = String(o.paymentStatus ?? o.payment_status ?? '').toUpperCase();
+      return ps === 'SUCCESS' || ps === 'PAID';
+    };
+    // Dedupe by order id first — mirror/retry artifacts can leave duplicate
+    // rows for the same order, which would otherwise inflate the total.
+    const seen = new Set<string>();
     const totalRevenue = orderList
-      .filter((o: any) => o.status === 'delivered')
+      .filter((o: any) => {
+        if (!isPaid(o)) return false;
+        if (seen.has(o.id)) return false;
+        seen.add(o.id);
+        return true;
+      })
       .reduce((sum: number, o: any) => sum + (o.totalAmount || o.orderAmount || 0), 0);
 
     // Get recent orders (last 10, sorted by date)

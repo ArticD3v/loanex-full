@@ -38,6 +38,15 @@ export class OrderController {
     return sendSuccess(res, data, 'Order fetched');
   };
 
+  cancelOrder = async (req: Request, res: Response) => {
+    const orderId = String(req.params.orderId ?? '');
+    const data = await orderService.cancelOrder(
+      requireUserId(req as AuthenticatedRequest),
+      orderId,
+    );
+    return sendSuccess(res, data, 'Order cancelled');
+  };
+
   getTracking = async (req: Request, res: Response) => {
     const orderId = String(req.params.orderId ?? '');
     const data = await orderService.getTracking(

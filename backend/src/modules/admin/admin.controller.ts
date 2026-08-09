@@ -7,13 +7,16 @@ import { hashPassword } from '../../common/utils/password';
 import { rolePermissions, SUPER_ADMIN_PERMISSIONS } from '../rbac/permissions';
 
 /** Resolve role + effective permissions for a user row (sync, in-memory). */
-function resolveRbacForUser(user: any) {
+export function resolveRbacForUser(user: any) {
   const roleId = user?.role_id ?? user?.roleId ?? null;
   const role = roleId ? jsonDb.findOne('roles', { id: roleId }) : null;
   let permissions: string[] = [];
   if (role) {
     permissions = rolePermissions(role);
-  } else if (String(user?.role ?? '') === 'admin') {
+  } else if (!roleId && String(user?.role ?? '') === 'admin') {
+    // Legacy admins WITHOUT a role_id keep full access. If role_id IS set but
+    // the role cannot be found (deleted / not yet synced), deny — matching
+    // rolesService.resolveUserPermissions. Never escalate to Super Admin.
     permissions = [...SUPER_ADMIN_PERMISSIONS];
   }
   return {
@@ -31,7 +34,7 @@ function resolveRbacForUser(user: any) {
  *  - role = 'admin' with no roleId → Super Admin (legacy behaviour)
  *  - unknown role string → BadRequestError (fail closed, never escalate)
  */
-function resolveRoleAssignment(body: any): { role: string; roleId: string | null } {
+export function resolveRoleAssignment(body: any): { role: string; roleId: string | null } {
   if (body.roleId) {
     const role = jsonDb.findOne('roles', { id: String(body.roleId) });
     if (!role) {

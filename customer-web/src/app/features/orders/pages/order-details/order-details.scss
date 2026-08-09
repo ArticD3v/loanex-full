@@ -152,6 +152,15 @@
   }
 }
 
+.lx-od__paid-at-delivery {
+  display: inline-block;
+  margin-left: 0.35rem;
+  color: #166534;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .lx-od__badge {
   display: inline-flex;
   padding: 0.22rem 0.6rem;
@@ -166,6 +175,17 @@
     background: #fef3c7;
     color: #92400e;
   }
+
+  &--overdue {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+}
+
+.lx-od__section-note {
+  margin: 0 0 0.65rem;
+  color: #6b7280;
+  font-size: 0.82rem;
 }
 
 .lx-od__section {
@@ -208,6 +228,52 @@
     font-size: 0.88rem;
     text-align: right;
     max-width: 60%;
+  }
+}
+
+.lx-od__payments-wrap {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 0.85rem;
+  border: 1px solid #e5e9f0;
+  background: #f8fafc;
+  overflow-x: auto;
+}
+
+.lx-od__payments {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+
+  th {
+    text-align: left;
+    color: #6b7280;
+    font-weight: 700;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.35rem 0.5rem 0.6rem;
+    border-bottom: 1px solid #e5e9f0;
+  }
+
+  td {
+    padding: 0.6rem 0.5rem;
+    color: #0a2e6f;
+    font-weight: 600;
+    border-bottom: 1px solid #edf1f7;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .lx-od__payments-amt {
+    text-align: right;
+    font-weight: 800;
   }
 }
 

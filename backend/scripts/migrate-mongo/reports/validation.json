@@ -3,65 +3,65 @@
     {
       "pg": "products",
       "mongo": "products",
-      "pgCount": 4,
-      "mongoCount": 4,
-      "status": "MATCHED"
+      "pgCount": 1,
+      "mongoCount": 3,
+      "status": "DUPLICATE"
     },
     {
       "pg": "orders",
       "mongo": "orders",
-      "pgCount": 5,
-      "mongoCount": 5,
+      "pgCount": 38,
+      "mongoCount": 38,
       "status": "MATCHED"
     },
     {
       "pg": "categories",
       "mongo": "categories",
-      "pgCount": 3,
-      "mongoCount": 3,
-      "status": "MATCHED"
+      "pgCount": 6,
+      "mongoCount": 9,
+      "status": "DUPLICATE"
     },
     {
       "pg": "brands",
       "mongo": "brands",
-      "pgCount": 11,
-      "mongoCount": 11,
-      "status": "MATCHED"
+      "pgCount": 4,
+      "mongoCount": 12,
+      "status": "DUPLICATE"
     },
     {
       "pg": "banners",
       "mongo": "banners",
-      "pgCount": 2,
-      "mongoCount": 2,
-      "status": "MATCHED"
+      "pgCount": 4,
+      "mongoCount": 6,
+      "status": "DUPLICATE"
     },
     {
       "pg": "addresses",
       "mongo": "addresses",
-      "pgCount": 6,
-      "mongoCount": 6,
-      "status": "MATCHED"
+      "pgCount": 23,
+      "mongoCount": 26,
+      "status": "DUPLICATE"
     },
     {
       "pg": "profiles",
       "mongo": "profiles",
-      "pgCount": 1,
-      "mongoCount": 1,
-      "status": "MATCHED"
+      "pgCount": 56,
+      "mongoCount": 48,
+      "status": "MISSING"
     },
     {
       "pg": "customer_kyc",
       "mongo": "customer_kyc",
-      "pgCount": 1,
-      "mongoCount": 1,
-      "status": "MATCHED"
+      "pgCount": 5,
+      "mongoCount": 7,
+      "status": "DUPLICATE"
     },
     {
       "pg": "notifications",
       "mongo": "notification",
-      "pgCount": 6,
-      "mongoCount": 6,
-      "status": "MATCHED"
+      "pgCount": 0,
+      "mongoCount": 90,
+      "status": "DUPLICATE"
     },
     {
       "pg": "wishlist_items",
@@ -73,97 +73,225 @@
     {
       "pg": "sub_categories",
       "mongo": "sub_categories",
-      "pgCount": 9,
+      "pgCount": 0,
       "mongoCount": 9,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "pg": "dealers",
       "mongo": "dealers",
-      "pgCount": 4,
-      "mongoCount": 4,
-      "status": "MATCHED"
+      "pgCount": 2,
+      "mongoCount": 6,
+      "status": "DUPLICATE"
     },
     {
       "pg": "warehouses",
       "mongo": "warehouses",
-      "pgCount": 4,
-      "mongoCount": 4,
-      "status": "MATCHED"
+      "pgCount": 2,
+      "mongoCount": 6,
+      "status": "DUPLICATE"
     },
     {
       "pg": "suppliers",
       "mongo": "suppliers",
-      "pgCount": 3,
-      "mongoCount": 3,
-      "status": "MATCHED"
+      "pgCount": 2,
+      "mongoCount": 5,
+      "status": "DUPLICATE"
     },
     {
       "pg": "manufacturers",
       "mongo": "manufacturers",
-      "pgCount": 4,
+      "pgCount": 0,
       "mongoCount": 4,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "pg": "product_attributes",
       "mongo": "product_attributes",
-      "pgCount": 6,
+      "pgCount": 0,
       "mongoCount": 6,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "pg": "product_attribute_values",
       "mongo": "product_attribute_values",
-      "pgCount": 35,
+      "pgCount": 0,
       "mongoCount": 35,
-      "status": "MATCHED"
+      "status": "DUPLICATE"
     },
     {
       "pg": "emi_details",
       "mongo": "emi_details",
-      "pgCount": 2,
-      "mongoCount": 2,
+      "pgCount": 0,
+      "mongoCount": 0,
       "status": "MATCHED"
     },
     {
       "pg": "digilocker_reports",
       "mongo": "digilocker_reports",
-      "pgCount": 2,
-      "mongoCount": 2,
-      "status": "MATCHED"
+      "pgCount": 10,
+      "mongoCount": 12,
+      "status": "DUPLICATE"
     },
     {
       "pg": "product_dealers",
       "mongo": "product_dealers",
-      "pgCount": 3,
-      "mongoCount": 3,
+      "pgCount": 0,
+      "mongoCount": 0,
       "status": "MATCHED"
     },
     {
       "pg": "product_suppliers",
       "mongo": "product_suppliers",
-      "pgCount": 5,
-      "mongoCount": 5,
+      "pgCount": 0,
+      "mongoCount": 0,
       "status": "MATCHED"
     },
     {
       "pg": "payment_transactions",
       "mongo": "paymentTransaction",
       "pgCount": 0,
-      "mongoCount": 0,
-      "status": "MATCHED"
+      "mongoCount": 7,
+      "status": "DUPLICATE"
     },
     {
       "pg": "users",
       "mongo": "users",
-      "pgCount": 0,
-      "mongoCount": 0,
-      "status": "MATCHED"
+      "pgCount": 20,
+      "mongoCount": 21,
+      "status": "DUPLICATE"
     }
   ],
-  "matched": 23,
-  "missing": [],
-  "dup": [],
+  "matched": 5,
+  "missing": [
+    {
+      "pg": "profiles",
+      "mongo": "profiles",
+      "pgCount": 56,
+      "mongoCount": 48,
+      "status": "MISSING"
+    }
+  ],
+  "dup": [
+    {
+      "pg": "products",
+      "mongo": "products",
+      "pgCount": 1,
+      "mongoCount": 3,
+      "status": "DUPLICATE"
+    },
+    {
+      "pg": "categories",
+      "mongo": "categories",
+      "pgCount": 6,
+      "mongoCount": 9,
+      "status": "DUPLICATE"
+    },
+    {
+      "pg": "brands",
+      "mongo": "brands",
+      "pgCount": 4,
+      "mongoCount": 12,
+      "status": "DUPLICATE"
+    },
+    {
+      "pg": "banners",
+      "mongo": "banners",
+      "pgCount": 4,
+      "mongoCount": 6,
+      "status": "DUPLICATE"
+    },
+    {
+      "pg": "addresses",
+      "mongo": "addresses",
+      "pgCount": 23,
+      "mongoCount": 26,
+      "status": "DUPLICATE"
+    },
+    {
+      "pg": "customer_kyc",
+      "mongo": "customer_kyc",
+      "pgCount": 5,
+      "mongoCount": 7,
+      "status": "DUPLICATE"
+    },
+    {
+      "pg": "notifications",
+      "mongo": "notification",
+      "pgCount": 0,
+      "mongoCount": 90,
+      "status": "DUPLICATE"
+    },
+    {
+      "pg": "sub_categories",
+      "mongo": "sub_categories",
+      "pgCount": 0,
+      "mongoCount": 9,
+      "status": "DUPLICATE"
+    },
+    {
+      "pg": "dealers",
+      "mongo": "dealers",
+      "pgCount": 2,
+      "mongoCount": 6,
+      "status": "DUPLICATE"
+    },
+    {
+      "pg": "warehouses",
+      "mongo": "warehouses",
+      "pgCount": 2,
+      "mongoCount": 6,
+      "status": "DUPLICATE"
+    },
+    {
+      "pg": "suppliers",
+      "mongo": "suppliers",
+      "pgCount": 2,
+      "mongoCount": 5,
+      "status": "DUPLICATE"
+    },
+    {
+      "pg": "manufacturers",
+      "mongo": "manufacturers",
+      "pgCount": 0,
+      "mongoCount": 4,
+      "status": "DUPLICATE"
+    },
+    {
+      "pg": "product_attributes",
+      "mongo": "product_attributes",
+      "pgCount": 0,
+      "mongoCount": 6,
+      "status": "DUPLICATE"
+    },
+    {
+      "pg": "product_attribute_values",
+      "mongo": "product_attribute_values",
+      "pgCount": 0,
+      "mongoCount": 35,
+      "status": "DUPLICATE"
+    },
+    {
+      "pg": "digilocker_reports",
+      "mongo": "digilocker_reports",
+      "pgCount": 10,
+      "mongoCount": 12,
+      "status": "DUPLICATE"
+    },
+    {
+      "pg": "payment_transactions",
+      "mongo": "paymentTransaction",
+      "pgCount": 0,
+      "mongoCount": 7,
+      "status": "DUPLICATE"
+    },
+    {
+      "pg": "users",
+      "mongo": "users",
+      "pgCount": 20,
+      "mongoCount": 21,
+      "status": "DUPLICATE"
+    }
+  ],
   "failed": []
 }

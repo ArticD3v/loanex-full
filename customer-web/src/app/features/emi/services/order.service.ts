@@ -45,6 +45,8 @@ export interface OrderConfirmationDetails {
   transactionDate: string;
   paymentType?: string;
   paymentMethod?: string;
+  paymentStatus?: string | null;
+  paidAtDelivery?: string | null;
   productId?: string;
   productName?: string | null;
   productBrand?: string;
@@ -65,6 +67,28 @@ export interface OrderConfirmationDetails {
   approvedDownPayment: number;
   canPayDownPayment?: boolean;
   downPaymentPaid?: boolean;
+  downPaymentCollected?: number;
+  emiPayments?: {
+    emiNumber: number;
+    dueDate: string | null;
+    paidAt: string | null;
+    principalAmount: number;
+    interestAmount: number;
+    amount: number;
+  }[];
+  /**
+   * Full loan schedule — paid rows carry PAID + paidAt, upcoming rows stay
+   * PENDING/OVERDUE with their due dates and amounts.
+   */
+  emiSchedule?: {
+    emiNumber: number;
+    dueDate: string | null;
+    paidAt: string | null;
+    principalAmount: number;
+    interestAmount: number;
+    amount: number;
+    paymentStatus: string;
+  }[];
   shippingAddress?: string | null;
   billingAddress?: string | null;
   customer?: {
@@ -79,6 +103,13 @@ export interface OrderConfirmationDetails {
     monthlyEmi?: number;
     interestRate?: number;
     processingFee?: number;
+    loanStatus?: string | null;
+    loanAccountNumber?: string | null;
+    paidEmiCount?: number;
+    totalEmiCount?: number;
+    nextEmiDueDate?: string | null;
+    remainingLoanAmount?: number;
+    downPaymentCollected?: number;
   };
   estimatedDeliveryDate: string | null;
   createdAt: string;

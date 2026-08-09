@@ -30,8 +30,7 @@ export default function AddAddressScreen() {
 
     setSaving(true);
     try {
-      await addAddress({
-        userId: user.id,
+      await addAddress(user.id, {
         label,
         fullAddress: fullAddress.trim(),
         city: city.trim(),

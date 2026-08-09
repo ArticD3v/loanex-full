@@ -8,6 +8,7 @@ import {
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
 import { formatInr } from '../../../../shared/utils/currency';
+import { paymentTypeLabel } from '../../../../shared/utils/payment-labels';
 import {
   OrderListItem,
   OrderListResponse,
@@ -28,6 +29,7 @@ export class MyOrdersComponent implements OnInit {
   private readonly router = inject(Router);
 
   readonly formatInr = formatInr;
+  readonly paymentTypeLabel = paymentTypeLabel;
   readonly loading = signal(true);
   readonly downloadingId = signal<string | null>(null);
   readonly error = signal<string | null>(null);

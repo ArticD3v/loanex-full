@@ -17,8 +17,13 @@ import {
   signDevPayment,
   verifyRazorpaySignature,
 } from '../../payment/service/razorpay.service';
-import type { CreateCheckoutBody } from '../dto/checkout.dto';
+import type { CreateCheckoutBody, PlaceOrderBody } from '../dto/checkout.dto';
 import { checkoutRepository } from '../repository/checkout.repository';
+import { generateSequentialOrderNumber } from '../../../common/utils/order-number';
+import { decrementStockDurable } from '../../../common/utils/inventory';
+import { jsonDb } from '../../../config/json-db';
+import { emiApplicationService } from '../../emi-application/service/emi-application.service';
+import { settingsService } from '../../settings/settings.service';
 
 function toNumber(value: { toNumber?: () => number } | number | string | null | undefined): number {
   if (value === null || value === undefined) return 0;
@@ -26,6 +31,21 @@ function toNumber(value: { toNumber?: () => number } | number | string | null | 
   if (typeof value === 'string') return Number(value);
   if (value && typeof value.toNumber === 'function') return value.toNumber();
   return Number(value);
+}
+
+/**
+ * The single source of truth for COD availability — the web summary endpoint
+ * and the mobile cod-rules endpoint both derive from this.
+ */
+function resolveCodRules(totalAmount: number) {
+  // Persisted admin setting wins; env.COD_MAX_AMOUNT is the default. This is a
+  // sync in-memory read, so a settings change is live without a restart.
+  const maxAmount = settingsService.getCodMaxAmount();
+  return {
+    maxAmount,
+    codAllowed: !(maxAmount > 0 && totalAmount > maxAmount),
+    totalAmount,
+  };
 }
 
 function parseImages(images: unknown): string[] {
@@ -194,6 +214,11 @@ function resolveVariant(
 import { cartRepository } from '../../cart/repository/cart.repository';
 
 export class CheckoutService {
+  /** COD cap for a given cart total — used by the mobile app's checkout. */
+  getCodRules(totalAmount: number) {
+    return resolveCodRules(Number.isFinite(totalAmount) ? totalAmount : 0);
+  }
+
   async getSummary(userId: string, productId: string, quantity = 1, variantId?: string, mode: 'BUY_NOW' | 'CART' = 'BUY_NOW') {
     let checkoutItems: { product: Product; quantity: number; variant?: ProductVariant | null }[] = [];
 
@@ -250,6 +275,7 @@ export class CheckoutService {
         { code: 'EMI', label: 'Buy with EMI', description: 'Pay in easy monthly instalments.' },
         { code: 'DIRECT', label: 'Buy Direct', description: 'Pay the full amount now.' },
       ],
+      codRules: resolveCodRules(summary.pricing.totalAmount),
     };
   }
 
@@ -278,8 +304,28 @@ export class CheckoutService {
     }
 
     let checkoutItems: { product: Product; quantity: number; variant?: ProductVariant | null }[] = [];
-    
-    if (input.mode === 'CART') {
+
+    // Clients with a client-side cart (the mobile app) pass explicit items —
+    // resolve them server-side with the same authoritative price/stock rules
+    // used by place-order.
+    if (input.items && input.items.length > 0) {
+      for (const item of input.items) {
+        const product = await checkoutRepository.findProductById(item.productId);
+        if (!product) throw new NotFoundError(`Product ${item.productId} not found.`);
+        const variant = item.variantId
+          ? checkoutRepository.findVariantForProduct(product.id, item.variantId)
+          : null;
+        const variantStock = variant ? Number(variant.stock ?? 0) : null;
+        const stock = variantStock ?? Number(product.stock ?? 0);
+        if (stock < item.quantity) {
+          throw new BadRequestError(
+            `"${product.name}" is out of stock or has insufficient quantity.`,
+            { code: 'OUT_OF_STOCK' },
+          );
+        }
+        checkoutItems.push({ product, quantity: item.quantity, variant });
+      }
+    } else if (input.mode === 'CART') {
       const cartRows = await cartRepository.listForUser(userId);
       if (cartRows.length === 0) throw new BadRequestError('Your cart is empty.');
       checkoutItems = cartRows.map(row => ({
@@ -369,6 +415,241 @@ export class CheckoutService {
    * Create a Razorpay payment order for a DIRECT (full-payment) checkout
    * session. Idempotent: reuses an existing pending transaction's order id.
    */
+  /**
+   * One-shot order placement for clients that bypass the session-based flow
+   * (the mobile app).
+   *  - COD: creates the order immediately, payment pending (pay on delivery).
+   *  - DIRECT: NOT supported here — full-payment orders must go through the
+   *    session flow (POST /checkout → /:sessionId/payment/order → /verify)
+   *    so the Razorpay payment is verified server-side. Accepting a client-
+   *    supplied razorpayPaymentId here would mint paid orders with zero
+   *    verification (and the old mobile "demo_" fallback abused exactly that).
+   *  - emiApplication: creates a real EMI application (no order yet — admin
+   *    approval creates the fulfillment order, same as the web flow).
+   */
+  async placeOrder(userId: string, input: PlaceOrderBody) {
+    const method = String(input.paymentMethod ?? '').toUpperCase();
+    if (method === 'DIRECT' || method === 'FULL_PAYMENT') {
+      throw new BadRequestError(
+        'Full-payment orders must be paid through the secure checkout flow (session → payment order → verify). Please retry from checkout.',
+        { code: 'DIRECT_REQUIRES_SESSION' },
+      );
+    }
+    const profile = checkoutRepository.findProfile(userId);
+    if (!profile) {
+      throw new BadRequestError('Complete personal information before checkout.', {
+        code: 'PROFILE_REQUIRED',
+      });
+    }
+
+    let address: any = null;
+    if (input.addressId) {
+      address = checkoutRepository.findShippingAddressForUser(input.addressId, userId);
+      if (!address) {
+        throw new BadRequestError('Selected shipping address was not found.', {
+          code: 'ADDRESS_NOT_FOUND',
+        });
+      }
+    } else {
+      address = checkoutRepository.findDefaultShippingAddress(userId);
+    }
+    const snap = input.addressSnapshot ?? null;
+    const deliveryAddress =
+      address?.fullAddress ??
+      (snap
+        ? String(
+            snap.fullAddress ??
+              [snap.address, snap.city, snap.state, snap.pincode]
+                .filter((v) => v != null && String(v).trim() !== '')
+                .join(', '),
+          )
+        : null) ??
+      null;
+    if (!deliveryAddress) {
+      throw new BadRequestError('Add a shipping address before placing the order.', {
+        code: 'ADDRESS_REQUIRED',
+      });
+    }
+
+    // Validate items + stock (server-authoritative pricing).
+    const lines: Array<{
+      productId: string;
+      quantity: number;
+      variantId: string | null;
+      unitPrice: number;
+      productName: string;
+      productImage: string;
+    }> = [];
+    for (const item of input.items) {
+      const product = checkoutRepository.findProductById(item.productId);
+      if (!product) throw new NotFoundError(`Product ${item.productId} not found.`);
+      const variant = item.variantId
+        ? checkoutRepository.findVariantForProduct(product.id, item.variantId)
+        : null;
+      // Server-authoritative price: the selected variant's selling price when
+      // one is chosen, else the base product price.
+      const unitPrice = variant
+        ? toNumber(variant.sellingPrice ?? variant.price ?? product.sellingPrice ?? product.price ?? 0)
+        : toNumber(product.sellingPrice ?? product.price ?? 0);
+      const variantStock = variant ? Number(variant.stock ?? 0) : null;
+      const stock = variantStock ?? Number(product.stock ?? 0);
+      if (stock < item.quantity) {
+        throw new BadRequestError(
+          `"${product.name}" is out of stock or has insufficient quantity.`,
+          { code: 'OUT_OF_STOCK' },
+        );
+      }
+      lines.push({
+        productId: product.id,
+        quantity: item.quantity,
+        variantId: variant?.id ?? null,
+        unitPrice,
+        productName: product.name,
+        productImage: product.image ?? product.galleryImages?.[0] ?? '',
+      });
+    }
+    const totalAmount =
+      Math.round(lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0) * 100) / 100;
+
+    // ── COD rules: block cash-on-delivery above the configurable cap ───────
+    const codMax = settingsService.getCodMaxAmount();
+    if (input.paymentMethod !== 'DIRECT' && codMax > 0 && totalAmount > codMax) {
+      const formatted = new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 0,
+      }).format(codMax);
+      throw new BadRequestError(
+        `Cash on Delivery is not available for orders above ${formatted}. Use full payment or EMI instead.`,
+        { code: 'COD_UNAVAILABLE', maxAmount: codMax },
+      );
+    }
+
+    // ── EMI application (no order yet — admin approval creates it) ──────────
+    if (input.emiApplication) {
+      const first = lines[0];
+      const application = await emiApplicationService.create(userId, {
+        productId: first.productId,
+        productName: input.emiApplication.productName ?? first.productName,
+        sellingPrice: first.unitPrice,
+        requestedAmount: input.emiApplication.requestedAmount,
+        requestedDownPayment: input.emiApplication.requestedDownPayment,
+        requestedTenure: input.emiApplication.requestedTenure,
+        estimatedMonthlyEmi: input.emiApplication.estimatedMonthlyEmi,
+      });
+      return {
+        kind: 'EMI_APPLICATION' as const,
+        application: {
+          id: application.id,
+          applicationNumber: application.applicationNumber,
+          status: application.status,
+        },
+        items: lines,
+      };
+    }
+
+    // ── COD / DIRECT order ─────────────────────────────────────────────────
+    const orderNumber = generateSequentialOrderNumber();
+    const estimatedDeliveryDate = new Date();
+    estimatedDeliveryDate.setDate(estimatedDeliveryDate.getDate() + 7);
+    const isDirect = input.paymentMethod === 'DIRECT';
+
+    let paymentTransactionId: string | null = null;
+    if (isDirect) {
+      const txn = await jsonDb.insertAwaited('paymentTransaction', {
+        userId,
+        orderId: null, // back-filled with the order id below
+        razorpayPaymentId: input.razorpayPaymentId ?? null,
+        amount: totalAmount,
+        currency: 'INR',
+        paymentStatus: 'SUCCESS',
+        paymentType: 'FULL_PAYMENT',
+      });
+      paymentTransactionId = txn.id;
+    }
+
+    const storedItems = lines.map(({ productName: _pn, productImage: _pi, ...rest }) => rest);
+    let order: any;
+    try {
+      order = await jsonDb.insertAwaited('orders', {
+        orderNumber,
+        userId,
+        profileId: userId,
+        addressId: address?.id ?? null,
+        productId: lines[0].productId,
+        quantity: lines[0].quantity,
+        paymentTransactionId,
+        orderStatus: 'ORDER_CONFIRMED',
+        status: 'ORDER_CONFIRMED',
+        paymentMethod: isDirect ? 'FULL_PAYMENT' : 'COD',
+        payment_status: isDirect ? 'SUCCESS' : 'PENDING',
+        estimatedDeliveryDate,
+        deliveryAddress,
+        notes: input.notes ?? null,
+        items: storedItems,
+        totalAmount,
+        subtotal: totalAmount,
+        total: totalAmount,
+        phone: profile.mobileNumber ?? profile.mobile ?? profile.phone ?? '',
+      });
+    } catch (err: any) {
+      // Concurrent placement can race on the unique orderNumber index.
+      const message = String(err?.message || err || '');
+      if (!(err?.code === 11000 || /E11000|duplicate key/i.test(message))) throw err;
+      await jsonDb.refreshCollection('orders');
+      const existing = jsonDb.findOne('orders', { orderNumber });
+      if (!existing) throw err;
+      order = existing;
+    }
+
+    if (paymentTransactionId && order) {
+      await jsonDb.updateAwaited('paymentTransaction', { id: paymentTransactionId }, { orderId: order.id });
+    }
+
+    await decrementStockDurable(
+      lines.map((l) => ({
+        productId: l.productId,
+        quantity: l.quantity,
+        variantId: l.variantId,
+      })),
+    );
+
+    // Order placed — take the purchased quantities out of the cart. Partial
+    // purchases (fewer units than the cart line holds) reduce the line
+    // quantity rather than deleting the line.
+    await cartRepository.removeProducts(
+      userId,
+      lines.map((l) => ({ productId: l.productId, quantity: l.quantity })),
+    );
+
+    await auditLogService.log({
+      userId,
+      action: isDirect ? 'PAYMENT_SUCCESS' : 'ORDER_PLACED',
+      entity: 'orders',
+      metadata: {
+        orderId: order.id,
+        orderNumber,
+        paymentMethod: input.paymentMethod,
+        amount: totalAmount,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    return {
+      kind: 'ORDER' as const,
+      order: {
+        id: order.id,
+        orderNumber,
+        paymentMethod: input.paymentMethod,
+        paymentStatus: order.payment_status,
+        orderStatus: order.orderStatus,
+        totalAmount,
+        estimatedDeliveryDate,
+      },
+      items: lines,
+    };
+  }
+
   async createPaymentOrder(userId: string, sessionId: string) {
     const session = await checkoutRepository.findSessionForUser(sessionId, userId);
     if (!session) throw new NotFoundError('Checkout session not found.');
@@ -545,11 +826,15 @@ export class CheckoutService {
       },
     });
 
-    // Payment succeeded — remove the purchased lines from the cart so the
-    // checkout session's items are not re-bought from a stale cart.
+    // Payment succeeded — remove the purchased quantities from the cart so the
+    // checkout session's items are not re-bought from a stale cart. Partial
+    // purchases reduce the line quantity instead of deleting the whole line.
     await cartRepository.removeProducts(
       userId,
-      session.items?.map((i: any) => i.productId) ?? [],
+      (session.items ?? []).map((i: any) => ({
+        productId: i.productId,
+        quantity: i.quantity ?? 1,
+      })),
     );
 
     return {
@@ -606,14 +891,8 @@ export class CheckoutService {
     };
   }
 
-  private async generateOrderNumber(): Promise<string> {
-    const now = new Date();
-    const yyyy = now.getUTCFullYear();
-    const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
-    const dd = String(now.getUTCDate()).padStart(2, '0');
-    const prefix = `LX-ORD-${yyyy}${mm}${dd}-`;
-    const count = checkoutRepository.countOrdersToday(prefix);
-    return `${prefix}${String(count + 1).padStart(4, '0')}`;
+  private generateOrderNumber(): Promise<string> {
+    return Promise.resolve(generateSequentialOrderNumber());
   }
 
   async getSession(userId: string, sessionId: string) {

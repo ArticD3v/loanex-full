@@ -45,12 +45,51 @@ export function ensureRazorpayScript(): Promise<void> {
   });
 }
 
+/** Remove any leftover Razorpay checkout overlay elements from the DOM.
+ *  Razorpay normally tears down its container when the checkout closes, but in
+ *  some browsers/edge cases (abrupt dismiss, failed iframe load) the
+ *  full-screen .razorpay-container can linger and silently block the page
+ *  behind the failure panel. Safe to call any time — no-ops when nothing is
+ *  present. */
+export function removeRazorpayOverlay(): void {
+  const selectors = [
+    '.razorpay-container',
+    '.razorpay-backdrop',
+    '.razorpay-checkout-frame',
+    '#__rzp-meta',
+  ];
+  for (const selector of selectors) {
+    document.querySelectorAll(selector).forEach((el) => el.remove());
+  }
+}
+
 export async function openRazorpayCheckout(options: RazorpayCheckoutOptions): Promise<void> {
   await ensureRazorpayScript();
   if (!window.Razorpay) {
     throw new Error('Razorpay SDK failed to load');
   }
 
-  const rzp = new window.Razorpay(options);
-  rzp.open();
+  // Wrap the dismiss handler so every consumer gets the stale-overlay cleanup
+  // automatically — the checkout may have closed without tearing down its DOM.
+  const userOnDismiss = options.modal?.ondismiss;
+  const checkoutOptions: RazorpayCheckoutOptions = {
+    ...options,
+    modal: {
+      ...options.modal,
+      ondismiss: () => {
+        removeRazorpayOverlay();
+        userOnDismiss?.();
+      },
+    },
+  };
+
+  const rzp = new window.Razorpay(checkoutOptions);
+  try {
+    rzp.open();
+  } catch (error) {
+    // The checkout failed partway through opening — drop any partial overlay
+    // it created before rethrowing so the failure panel stays usable.
+    removeRazorpayOverlay();
+    throw error;
+  }
 }

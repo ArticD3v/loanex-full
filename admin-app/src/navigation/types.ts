@@ -29,6 +29,7 @@ export type RootStackParamList = {
   RoleList: undefined;
   RoleForm: { mode?: 'add' | 'edit'; roleId?: string } | undefined;
   SettingsHome: undefined;
+  CodSettings: undefined;
   MastersHome: undefined;
   MasterList: { entity: MasterListEntityKey };
   CategoriesMaster: undefined;

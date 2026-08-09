@@ -11,19 +11,28 @@ import { Colors, Fonts, Spacing, Radius, Shadow } from '../../constants/theme';
 export default function LoginScreen() {
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { login } = useAuth();
+  const { passwordLogin } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  async function handleSend() {
-    if (phone.length < 10) { setError('Enter a valid 10-digit number'); return; }
+  function afterLogin(returnToValue?: string) {
+    if (returnToValue) router.replace(returnToValue as any);
+    else router.replace('/(tabs)' as any);
+  }
+
+  async function handlePasswordLogin() {
+    const identifier = phone.replace(/\D/g, '');
+    if (identifier.length < 10) { setError('Enter your registered 10-digit mobile number'); return; }
+    if (!password) { setError('Enter your password'); return; }
     setError(''); setLoading(true);
     try {
-      await login(phone);
-      router.replace({ pathname: '/auth/otp', params: { phone, returnTo } });
-    } catch { setError('Failed to send OTP. Try again.'); }
+      const res = await passwordLogin(identifier, password);
+      if (res.user) { afterLogin(returnTo); }
+      else setError(res.error || 'Invalid credentials');
+    } catch { setError('Login failed. Try again.'); }
     finally { setLoading(false); }
   }
 
@@ -41,7 +50,7 @@ export default function LoginScreen() {
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.form, { paddingBottom: insets.bottom + Spacing.xl }]} keyboardShouldPersistTaps="handled">
         <Text style={styles.formTitle}>Enter Mobile Number</Text>
-        <Text style={styles.formSub}>We will send you a 4-digit verification code</Text>
+        <Text style={styles.formSub}>Sign in with your registered mobile number and password</Text>
         <View style={styles.phoneRow}>
           <View style={styles.code}><Text style={styles.codeText}>🇮🇳 +91</Text></View>
           <TextInput
@@ -53,11 +62,23 @@ export default function LoginScreen() {
             onChangeText={t => { setPhone(t); setError(''); }}
           />
         </View>
+        <TextInput
+          style={styles.passwordInput}
+          placeholder="Password"
+          placeholderTextColor={Colors.textTertiary}
+          secureTextEntry
+          value={password}
+          onChangeText={t => { setPassword(t); setError(''); }}
+        />
         {!!error && <Text style={styles.errorText}>{error}</Text>}
-        <Button title="Send OTP" onPress={handleSend} loading={loading} disabled={phone.length < 10} fullWidth size="lg" style={styles.sendBtn} />
-        <View style={styles.hintBox}>
-          <Text style={styles.hintTitle}>🔑 Dev Login</Text>
-          <Text style={styles.hintSub}>Any phone + OTP: 1111 → Customer</Text>
+        <Button title="Sign In" onPress={handlePasswordLogin} loading={loading} disabled={phone.replace(/\D/g, '').length < 10 || !password} fullWidth size="lg" style={styles.sendBtn} />
+        <View style={styles.linksRow}>
+          <Pressable onPress={() => router.push('/auth/signup' as any)}>
+            <Text style={styles.linkText}>Create account</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push('/auth/forgot-password' as any)}>
+            <Text style={styles.linkText}>Forgot password?</Text>
+          </Pressable>
         </View>
         <Text style={styles.terms}>
           By continuing you agree to our{' '}
@@ -87,12 +108,15 @@ const styles = StyleSheet.create({
   code: { backgroundColor: Colors.surfaceAlt, borderRadius: Radius.md, paddingHorizontal: Spacing.md, justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
   codeText: { fontSize: Fonts.md, color: Colors.textPrimary, fontWeight: Fonts.medium },
   phoneInput: { flex: 1, backgroundColor: Colors.surfaceAlt, borderRadius: Radius.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, fontSize: Fonts.base, color: Colors.textPrimary, borderWidth: 1, borderColor: Colors.border },
+  passwordInput: { backgroundColor: Colors.surfaceAlt, borderRadius: Radius.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, fontSize: Fonts.base, color: Colors.textPrimary, borderWidth: 1, borderColor: Colors.border, marginBottom: Spacing.md },
   errorText: { color: Colors.error, fontSize: Fonts.sm, marginBottom: Spacing.md },
-  sendBtn: { marginBottom: Spacing.xl, borderRadius: Radius.lg },
-  hintBox: { backgroundColor: Colors.primaryLight, borderRadius: Radius.md, padding: Spacing.lg, marginBottom: Spacing.xl, borderWidth: 1, borderColor: '#F5D0B0' },
-  hintTitle: { fontSize: Fonts.md, fontWeight: Fonts.semiBold, color: Colors.primary, marginBottom: 4 },
-  hintSub: { fontSize: Fonts.sm, color: Colors.textSecondary, marginBottom: 6 },
-  hintCode: { fontSize: Fonts.md, fontWeight: Fonts.semiBold, color: Colors.textPrimary, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  sendBtn: { marginBottom: Spacing.sm, borderRadius: Radius.lg },
+  otpBtn: { marginBottom: Spacing.xl, borderRadius: Radius.lg },
+  orRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
+  orLine: { flex: 1, height: 1, backgroundColor: Colors.border },
+  orText: { color: Colors.textTertiary, fontSize: Fonts.sm },
+  linksRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.md },
+  linkText: { color: Colors.primary, fontSize: Fonts.md, fontWeight: Fonts.medium },
   terms: { fontSize: Fonts.xs, color: Colors.textTertiary, textAlign: 'center' },
   termsLink: { color: Colors.primary, fontWeight: Fonts.medium },
 });

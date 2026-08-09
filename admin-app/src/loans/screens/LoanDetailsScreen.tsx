@@ -12,7 +12,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { getLoanById, Loan, LoanScheduleRow } from '../../services/emiService';
+import {
+  getAllEmiPayments,
+  getLoanById,
+  EmiPayment,
+  Loan,
+  LoanScheduleRow,
+} from '../../services/emiService';
 import { Card } from '../../components/ui/Card';
 import { DetailRow } from '../../components/ui/DetailRow';
 import { SectionTitle } from '../../components/ui/SectionTitle';
@@ -54,13 +60,18 @@ function formatDate(value: string | null | undefined) {
 
 export function LoanDetailsScreen({ navigation, route }: Props) {
   const [loan, setLoan] = useState<Loan | null>(null);
+  const [payments, setPayments] = useState<EmiPayment[]>([]);
   const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getLoanById(route.params.loanId);
+      const [data, history] = await Promise.all([
+        getLoanById(route.params.loanId),
+        getAllEmiPayments(route.params.loanId).catch(() => [] as EmiPayment[]),
+      ]);
       setLoan(data);
+      setPayments(history);
     } catch (err) {
       console.warn('Failed to load loan details', err);
     } finally {
@@ -129,6 +140,15 @@ export function LoanDetailsScreen({ navigation, route }: Props) {
 
   const schedule = loan.schedule ?? [];
   const paidEmis = schedule.filter((r) => r.paymentStatus === 'PAID');
+
+  // Real down-payment state comes from the payment history — a successful
+  // DOWN_PAYMENT transaction means the customer actually paid it (the loan's
+  // `downPaymentPaid` field is the approved amount, not a paid flag).
+  const downPaymentTxn = payments.find(
+    (p) => p.type === 'DOWN_PAYMENT' && p.paymentStatus === 'SUCCESS',
+  );
+  const downPaymentPaid = Boolean(downPaymentTxn);
+  const downPaymentPaidAt = downPaymentTxn?.paidAt ?? downPaymentTxn?.createdAt ?? null;
   const overdueEmis = schedule.filter((r) => r.paymentStatus === 'OVERDUE');
   const remainingEmis = schedule.length - paidEmis.length;
   const progress =
@@ -144,6 +164,57 @@ export function LoanDetailsScreen({ navigation, route }: Props) {
         </Text>
       </View>
     );
+  };
+
+  const renderPaymentHistory = () => {
+    if (payments.length === 0) {
+      return (
+        <Text style={styles.helperText}>
+          No payments recorded for this loan yet.
+        </Text>
+      );
+    }
+    return payments.map((p) => {
+      const isDownPayment = p.type === 'DOWN_PAYMENT';
+      const title = isDownPayment
+        ? 'Down Payment'
+        : `EMI #${p.emiNumber ?? '—'}`;
+      const sub =
+        p.razorpayPaymentId || p.razorpayOrderId
+          ? `Payment ID: ${p.razorpayPaymentId ?? p.razorpayOrderId}`
+          : isDownPayment
+            ? 'Initial loan payment'
+            : `Instalment ${p.emiNumber ?? ''} of the loan`;
+      return (
+        <View key={p.id} style={styles.paymentRow}>
+          <View
+            style={[
+              styles.paymentIcon,
+              { backgroundColor: (PAY_STATUS_COLOR[p.paymentStatus] ?? '#6B7280') + '1A' },
+            ]}
+          >
+            <Ionicons
+              name={isDownPayment ? 'wallet-outline' : 'cash-outline'}
+              size={16}
+              color={PAY_STATUS_COLOR[p.paymentStatus] ?? '#6B7280'}
+            />
+          </View>
+          <View style={styles.paymentInfo}>
+            <Text style={styles.paymentTitle}>{title}</Text>
+            <Text style={styles.paymentMeta} numberOfLines={1}>
+              {sub}
+            </Text>
+            <Text style={styles.paymentMeta}>
+              {formatDate(p.paidAt ?? p.createdAt)}
+            </Text>
+          </View>
+          <View style={styles.paymentRight}>
+            <Text style={styles.paymentAmount}>{formatMoney(p.amount)}</Text>
+            {renderStatusBadge(p.paymentStatus)}
+          </View>
+        </View>
+      );
+    });
   };
 
   return (
@@ -184,7 +255,30 @@ export function LoanDetailsScreen({ navigation, route }: Props) {
         {/* ── Payment Status ───────────────────────────────────────────── */}
         <Card style={styles.section}>
           <SectionTitle title="Payment Status" />
-          <DetailRow label="Down Payment Paid" value={formatMoney(loan.downPaymentPaid)} />
+          <View style={styles.dpRow}>
+            <View style={styles.dpInfo}>
+              <Text style={styles.dpLabel}>Down Payment</Text>
+              <Text style={styles.dpSub}>
+                {downPaymentPaid
+                  ? `Paid on ${formatDate(downPaymentPaidAt)}`
+                  : 'Not paid yet — awaiting customer'}
+              </Text>
+            </View>
+            <View style={styles.dpRight}>
+              <Text style={styles.dpAmount}>{formatMoney(loan.downPaymentPaid)}</Text>
+              {downPaymentPaid ? (
+                <View style={[styles.statusBadge, { backgroundColor: '#0596691A' }]}>
+                  <View style={[styles.statusDot, { backgroundColor: '#059669' }]} />
+                  <Text style={[styles.statusText, { color: '#059669' }]}>Paid</Text>
+                </View>
+              ) : (
+                <View style={[styles.statusBadge, { backgroundColor: '#6B72801A' }]}>
+                  <View style={[styles.statusDot, { backgroundColor: '#6B7280' }]} />
+                  <Text style={[styles.statusText, { color: '#6B7280' }]}>Pending</Text>
+                </View>
+              )}
+            </View>
+          </View>
           <DetailRow label="Total Paid" value={formatMoney(loan.paidAmount)} />
           <DetailRow label="Outstanding" value={formatMoney(loan.outstandingAmount)} />
           <DetailRow label="Next EMI Due" value={formatDate(loan.nextEmiDueDate)} />
@@ -220,6 +314,12 @@ export function LoanDetailsScreen({ navigation, route }: Props) {
               </Text>
             </View>
           )}
+        </Card>
+
+        {/* ── Payment History ─────────────────────────────────────────── */}
+        <Card style={styles.section}>
+          <SectionTitle title="Payment History" />
+          {renderPaymentHistory()}
         </Card>
 
         {/* ── EMI Schedule / Ledger ────────────────────────────────────── */}
@@ -326,4 +426,38 @@ const styles = StyleSheet.create({
   statusDot: { width: 7, height: 7, borderRadius: 4 },
   statusText: { fontSize: 11, fontWeight: '700' },
   helperText: { fontSize: 13, color: colors.textMuted, marginTop: spacing.sm, lineHeight: 18 },
+  paymentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  paymentIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paymentInfo: { flex: 1 },
+  paymentTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
+  paymentMeta: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
+  paymentRight: { alignItems: 'flex-end', gap: 4 },
+  paymentAmount: { fontSize: 14, fontWeight: '800', color: colors.textHeading },
+  dpRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    marginBottom: spacing.sm,
+  },
+  dpInfo: { flex: 1 },
+  dpLabel: { fontSize: 14, fontWeight: '700', color: colors.text },
+  dpSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  dpRight: { alignItems: 'flex-end', gap: 4 },
+  dpAmount: { fontSize: 14, fontWeight: '800', color: colors.textHeading },
 });

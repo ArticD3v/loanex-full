@@ -1,21 +1,86 @@
 import { CustomerKYC } from '../types';
 import { api } from '../lib/apiClient';
 
+/**
+ * Fetch the customer's KYC row from the real backend aggregate
+ * (GET /verification/status). Returns the raw customer_kyc record with
+ * completion derived from the server-side verification flags, so the UI's
+ * "KYC verified" state matches what the website shows.
+ */
 export async function getKYC(userId: string): Promise<CustomerKYC | null> {
   try {
-    const res = await api.get(`/legacy/kyc/${userId}`);
-    return res.data;
+    const res = await api.get('/verification/status');
+    const status = res.data ?? {};
+    const kyc: any = status.kyc ?? null;
+    if (!kyc) return null;
+    const completed =
+      kyc.kycCompleted === true ||
+      status.kycCompleted === true ||
+      status.verificationStatus === 'COMPLETED';
+    return {
+      ...kyc,
+      userId,
+      kycCompleted: completed,
+      kycCompletedAt: kyc.kycCompletedAt ?? (completed ? kyc.updatedAt ?? null : null),
+    };
   } catch {
     return null;
   }
 }
 
-export async function saveKYC(userId: string, kyc: any): Promise<CustomerKYC> {
-  throw new Error('Not implemented for legacy wrapper');
+/**
+ * KYC persistence happens server-side through the verification endpoints
+ * (digilocker fetch, PAN/credit report, face match) — there is no separate
+ * "save KYC" call. This re-fetches the authoritative row after the steps run.
+ */
+export async function saveKYC(userId: string, _kyc: any): Promise<CustomerKYC> {
+  const fresh = await getKYC(userId);
+  if (!fresh) {
+    throw new Error('KYC could not be confirmed on the server. Please retry.');
+  }
+  return fresh;
 }
 
-export function generateDemoCIBIL(): number { return Math.floor(Math.random() * 200) + 650; }
-export async function simulateFaceVerification(): Promise<boolean> { return true; }
-export function validateAadhar(aadhar: string): boolean { return /^\d{12}$/.test(aadhar); }
-export async function validatePAN(pan: string): Promise<any> { return { valid: true, data: { status: 'Active' } }; }
-export async function fetchExperianReport(params: any) { return { success: true, score: 750 }; }
+/**
+ * Real PAN + Experian credit report via the backend
+ * (POST /verification/pan/experian-credit-report). The backend gates this on
+ * Aadhaar being verified first (same as the web flow), so the mobile flow
+ * runs Aadhaar (DigiLocker) before this step.
+ */
+export async function fetchExperianReport(params: any) {
+  try {
+    const res = await api.post('/verification/pan/experian-credit-report', {
+      pan: params?.pan,
+      mobile_no: params?.mobile,
+      first_name: params?.firstName,
+      last_name: params?.lastName,
+      dob: params?.dob,
+      email_id: params?.email ?? undefined,
+    });
+    const data = res.data ?? {};
+    const bureauScore = Number(data?.score ?? data?.bureau_score ?? 0);
+    return {
+      success: true,
+      score: bureauScore,
+      error: undefined as string | undefined,
+      data: {
+        first_name: params?.firstName || '',
+        last_name: params?.lastName || '',
+        date_of_birth_applicant: params?.dob || '',
+        mobile_phone_number: params?.mobile || '',
+        income_tax_pan: params?.pan || '',
+        email_id: params?.email || '',
+        bureau_score: bureauScore,
+        flat_no_plot_no_house_no: null,
+        raw: data,
+      },
+    };
+  } catch (e: any) {
+    return {
+      success: false,
+      score: 0,
+      error: e?.message || 'Failed to verify PAN and credit profile.',
+      data: null,
+    };
+  }
+}

@@ -45,10 +45,10 @@ function OrderCard({ order }: { order: Order }) {
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.96, transform: [{ scale: 0.995 }] }]}
       onPress={() => router.push(`/order/${order.id}` as any)}
     >
-      {/* Top: ID + date + status badge */}
+      {/* Top: order number + date + status badge */}
       <View style={styles.cardTop}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.orderId}>{order.id}</Text>
+          <Text style={styles.orderId}>{order.orderNumber || order.id}</Text>
           <Text style={styles.orderDate}>{date}</Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: s.bg }]}>
@@ -93,7 +93,11 @@ function OrderCard({ order }: { order: Order }) {
             color={order.paymentMethod === 'emi' ? Colors.primary : Colors.success}
           />
           <Text style={styles.payTagTxt}>
-            {order.paymentMethod === 'emi' ? `EMI · ${order.emiDetails?.months}mo` : 'Cash on Delivery'}
+            {order.paymentMethod === 'emi'
+              ? (order.emiDetails?.months ? `EMI · ${order.emiDetails.months}mo` : 'EMI')
+              : order.paymentMethod === 'online'
+              ? 'Full Payment (Online)'
+              : 'Cash on Delivery'}
           </Text>
         </View>
         <View style={styles.totalRow}>

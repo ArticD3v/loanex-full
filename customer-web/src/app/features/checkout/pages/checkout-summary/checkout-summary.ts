@@ -42,6 +42,9 @@ export class CheckoutSummaryComponent implements OnInit {
   readonly mode = signal<'BUY_NOW' | 'CART'>('BUY_NOW');
   readonly isMultipleProducts = signal(false);
 
+  /** COD is blocked above the configurable cap (backend COD_MAX_AMOUNT). */
+  readonly codRestricted = signal(false);
+
   readonly form = this.fb.nonNullable.group({
     purchaseType: ['EMI' as PurchaseType, Validators.required],
     addressId: ['', Validators.required],
@@ -111,6 +114,12 @@ export class CheckoutSummaryComponent implements OnInit {
     
     if ((!productId && mode !== 'CART') || !data || this.form.invalid) {
       this.error.set('Please select a delivery address and purchase option.');
+      return;
+    }
+
+    // COD — place the order directly (pay on delivery), no payment step.
+    if (this.form.controls.purchaseType.value === 'COD') {
+      this.placeCodOrder();
       return;
     }
 
@@ -184,6 +193,46 @@ export class CheckoutSummaryComponent implements OnInit {
       });
   }
 
+  private placeCodOrder(): void {
+    const data = this.summary();
+    if (!data) return;
+    this.submitting.set(true);
+    this.error.set(null);
+
+    const items =
+      data.items && data.items.length > 0
+        ? data.items.map((item) => ({
+            productId: item.product.id,
+            quantity: item.quantity,
+            ...(item.variantId ? { variantId: item.variantId } : {}),
+          }))
+        : [
+            {
+              productId: data.product.id,
+              quantity: data.quantity,
+              ...(data.product.variantId ? { variantId: data.product.variantId } : {}),
+            },
+          ];
+
+    this.checkoutApi.placeCodOrder({
+      items,
+      addressId: this.form.controls.addressId.value,
+    }).subscribe({
+      next: (result) => {
+        this.submitting.set(false);
+        // The order is placed — land on the order confirmation page.
+        void this.router.navigate(['/orders', result.order.orderNumber || result.order.id], {
+          queryParams: { placed: 'true' },
+          replaceUrl: true,
+        });
+      },
+      error: () => {
+        this.submitting.set(false);
+        this.error.set(this.checkoutApi.error() ?? 'Unable to place your order.');
+      },
+    });
+  }
+
   goBack(): void {
     if (this.mode() === 'CART') {
       void this.router.navigateByUrl('/cart');
@@ -221,6 +270,14 @@ export class CheckoutSummaryComponent implements OnInit {
         const isMultiple = (data.items?.length ?? 1) > 1;
         this.isMultipleProducts.set(isMultiple);
         if (isMultiple) {
+          this.form.controls.purchaseType.setValue('DIRECT');
+        }
+
+        // COD cap from the server — show the restriction when it applies.
+        const restricted =
+          data.codRules != null && data.codRules.maxAmount > 0 && !data.codRules.codAllowed;
+        this.codRestricted.set(restricted);
+        if (restricted && this.form.controls.purchaseType.value === 'COD') {
           this.form.controls.purchaseType.setValue('DIRECT');
         }
 

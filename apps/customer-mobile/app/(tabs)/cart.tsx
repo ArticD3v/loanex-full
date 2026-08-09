@@ -34,34 +34,52 @@ export default function CartScreen() {
       </View>
       <FlatList
         data={cartItems}
-        keyExtractor={i => i.product.id}
+        keyExtractor={i => `${i.product.id}::${i.variantId ?? ''}`}
         contentContainerStyle={{ paddingBottom: 220 }}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
-        renderItem={({ item }: { item: CartItem }) => (
-          <View style={styles.item}>
-            <Image source={{ uri: item.product.image }} style={styles.img} contentFit="cover" transition={200} />
-            <View style={styles.info}>
-              <Text style={styles.brand}>{item.product.brand}</Text>
-              <Text style={styles.name} numberOfLines={2}>{item.product.name}</Text>
-              <Text style={styles.price}>{APP_CONFIG.currency}{(item.product.price * item.quantity).toLocaleString()}</Text>
-              {item.product.emiAvailable && <Text style={styles.emiNote}>EMI from {APP_CONFIG.currency}{Math.ceil(item.product.price / 12).toLocaleString()}/mo</Text>}
-            </View>
-            <View style={styles.actions}>
-              <Pressable onPress={() => removeItem(item.product.id)} style={styles.removeBtn}>
-                <MaterialIcons name="delete-outline" size={20} color={Colors.error} />
-              </Pressable>
-              <View style={styles.qtyControl}>
-                <Pressable onPress={() => updateQuantity(item.product.id, item.quantity - 1)} style={styles.qtyBtn}>
-                  <MaterialIcons name="remove" size={16} color={Colors.textPrimary} />
+        renderItem={({ item }: { item: CartItem }) => {
+          const unitPrice = item.variantPrice ?? item.product.price;
+          const variantLabel =
+            item.variantId && item.product.productVariants?.length
+              ? item.product.productVariants.find((v: any) => v.id === item.variantId)
+              : null;
+          // Show only selectable attribute values (skip display-only extras like colorHex).
+          const selectableKeys = new Set(
+            (item.product.attributeGroups ?? []).map((g: any) => g.key)
+          );
+          const variantText = variantLabel?.attributes
+            ? Object.entries(variantLabel.attributes)
+                .filter(([k]) => selectableKeys.size === 0 ? !/hex/i.test(k) : selectableKeys.has(k))
+                .map(([, v]) => v)
+                .join(' · ')
+            : variantLabel?.sku;
+          return (
+            <View style={styles.item}>
+              <Image source={{ uri: item.product.image }} style={styles.img} contentFit="cover" transition={200} />
+              <View style={styles.info}>
+                <Text style={styles.brand}>{item.product.brand}</Text>
+                <Text style={styles.name} numberOfLines={2}>{item.product.name}</Text>
+                {variantText ? <Text style={styles.variant}>{variantText}</Text> : null}
+                <Text style={styles.price}>{APP_CONFIG.currency}{(unitPrice * item.quantity).toLocaleString()}</Text>
+                {item.product.emiAvailable && <Text style={styles.emiNote}>EMI from {APP_CONFIG.currency}{Math.ceil(unitPrice / 12).toLocaleString()}/mo</Text>}
+              </View>
+              <View style={styles.actions}>
+                <Pressable onPress={() => removeItem(item.product.id, item.variantId)} style={styles.removeBtn}>
+                  <MaterialIcons name="delete-outline" size={20} color={Colors.error} />
                 </Pressable>
-                <Text style={styles.qty}>{item.quantity}</Text>
-                <Pressable onPress={() => updateQuantity(item.product.id, item.quantity + 1)} style={styles.qtyBtn}>
-                  <MaterialIcons name="add" size={16} color={Colors.textPrimary} />
-                </Pressable>
+                <View style={styles.qtyControl}>
+                  <Pressable onPress={() => updateQuantity(item.product.id, item.variantId, item.quantity - 1)} style={styles.qtyBtn}>
+                    <MaterialIcons name="remove" size={16} color={Colors.textPrimary} />
+                  </Pressable>
+                  <Text style={styles.qty}>{item.quantity}</Text>
+                  <Pressable onPress={() => updateQuantity(item.product.id, item.variantId, item.quantity + 1)} style={styles.qtyBtn}>
+                    <MaterialIcons name="add" size={16} color={Colors.textPrimary} />
+                  </Pressable>
+                </View>
               </View>
             </View>
-          </View>
-        )}
+          );
+        }}
       />
       <View style={[styles.summary, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.summaryRow}><Text style={styles.sumLabel}>Subtotal ({totalItems} items)</Text><Text style={styles.sumVal}>{APP_CONFIG.currency}{totalPrice.toLocaleString()}</Text></View>
@@ -89,6 +107,7 @@ const styles = StyleSheet.create({
   info: { flex: 1, gap: 3 },
   brand: { fontSize: Fonts.xs, color: Colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 },
   name: { fontSize: Fonts.sm, fontWeight: Fonts.semiBold, color: Colors.textPrimary, lineHeight: 18 },
+  variant: { fontSize: Fonts.xs, color: Colors.primary, fontWeight: Fonts.medium },
   price: { fontSize: Fonts.lg, fontWeight: Fonts.bold, color: Colors.textPrimary },
   emiNote: { fontSize: Fonts.xs, color: Colors.success, fontWeight: Fonts.medium },
   actions: { alignItems: 'flex-end', justifyContent: 'space-between' },

@@ -380,20 +380,46 @@ export const getLoanEmiSchedule = async (loanId: string): Promise<LoanScheduleRo
 
 export interface EmiPayment {
   id: string;
-  userId: string;
-  loanId: string;
+  type: 'DOWN_PAYMENT' | 'EMI';
+  emiScheduleId: string | null;
+  emiNumber: number | null;
   amount: number;
-  status: string;
+  paymentStatus: string;
+  razorpayOrderId: string | null;
+  razorpayPaymentId: string | null;
+  paidAt: string | null;
   createdAt: string;
+  updatedAt: string | null;
+}
+
+function mapEmiPayment(raw: any): EmiPayment {
+  return {
+    id: String(raw.id ?? ''),
+    type: raw.type === 'DOWN_PAYMENT' ? 'DOWN_PAYMENT' : 'EMI',
+    emiScheduleId: raw.emiScheduleId ?? null,
+    emiNumber: raw.emiNumber != null ? Number(raw.emiNumber) : null,
+    amount: Number(raw.amount ?? 0),
+    paymentStatus: String(raw.paymentStatus ?? 'PENDING'),
+    razorpayOrderId: raw.razorpayOrderId ?? null,
+    razorpayPaymentId: raw.razorpayPaymentId ?? null,
+    paidAt: raw.paidAt ?? null,
+    createdAt: raw.createdAt ?? new Date().toISOString(),
+    updatedAt: raw.updatedAt ?? null,
+  };
 }
 
 /**
- * Get ALL EMI payments (admin endpoint)
+ * Get the full payment history for a loan (down payment + EMI instalments,
+ * newest first). Admin endpoint — requires the loanId query parameter.
  */
-export const getAllEmiPayments = async (): Promise<EmiPayment[]> => {
-  const response = await api.get('/admin/emi-payments');
-  const data = response.data.data || [];
-  return Array.isArray(data) ? data : data.items || [];
+export const getAllEmiPayments = async (loanId?: string): Promise<EmiPayment[]> => {
+  const url = loanId
+    ? `/admin/emi-payments?loanId=${encodeURIComponent(loanId)}`
+    : '/admin/emi-payments';
+  const response = await api.get(url);
+  const data = response.data.data || {};
+  const items = Array.isArray(data) ? data : data.items || [];
+  return items.map(mapEmiPayment);
 };
 
 // ==================== Autopay ====================

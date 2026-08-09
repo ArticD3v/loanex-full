@@ -23,7 +23,8 @@ export function authenticate(
   try {
     req.user = verifyAccessToken(token);
     next();
-  } catch {
+  } catch (err) {
+    console.error('[AUTH-DEBUG] verify failed:', (err as Error).message);
     next(new UnauthorizedError('Invalid or expired access token'));
   }
 }

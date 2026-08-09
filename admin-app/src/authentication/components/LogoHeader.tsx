@@ -4,7 +4,7 @@ import { spacing } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { authColors } from '../../theme/colors';
 
-const logoSource = require('../../../assets/logo-loanex.png');
+const logoSource = require('../../../assets/logo-loanex.jpg');
 
 interface LogoHeaderProps {
   subtitle?: string;

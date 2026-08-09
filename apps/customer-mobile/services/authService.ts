@@ -4,6 +4,9 @@ import { SERVER_URL } from '../constants/config';
 
 const DEV_USER_KEY = '@loanex_dev_user';
 const ACCESS_TOKEN_KEY = '@loanex_access_token';
+const REFRESH_TOKEN_KEY = '@loanex_refresh_token';
+
+export type OtpPurpose = 'REGISTER' | 'FORGOT_PASSWORD';
 
 // Simple api helper for auth requests
 async function apiPost(endpoint: string, data: any) {
@@ -17,53 +20,149 @@ async function apiPost(endpoint: string, data: any) {
   return json.data;
 }
 
-export async function sendOTP(phone: string): Promise<{ success: boolean }> {
-  const cleanPhone = phone.replace(/\D/g, '');
-  try {
-    await apiPost('/send-otp', { mobile: cleanPhone, purpose: 'LOGIN' });
-    return { success: true };
-  } catch (err) {
-    // If user not found, they need to register
-    try {
-      await apiPost('/send-otp', { mobile: cleanPhone, purpose: 'REGISTER' });
-      return { success: true };
-    } catch {
-      return { success: false };
-    }
+function mapUser(u: any, fallbackMobile?: string): User {
+  return {
+    id: u.id ?? '',
+    phone: u.mobile ?? fallbackMobile ?? '',
+    name: u.fullName ?? u.name ?? 'User',
+    email: u.email,
+    role: u.role === 'admin' ? 'admin' : 'customer',
+    createdAt: u.createdAt ?? new Date().toISOString(),
+  };
+}
+
+async function storeSession(user: User, accessToken?: string, refreshToken?: string) {
+  await AsyncStorage.setItem(DEV_USER_KEY, JSON.stringify(user));
+  if (accessToken) {
+    await AsyncStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+  }
+  if (refreshToken) {
+    await AsyncStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
   }
 }
 
-export async function verifyOTP(phone: string, otp: string): Promise<{ user: User | null; error?: string }> {
+/**
+ * Send an OTP for a specific purpose.
+ * - REGISTER: new-account signup (backend rejects when the mobile is already
+ *   an active account).
+ * - FORGOT_PASSWORD: password reset (backend rejects unknown mobiles).
+ */
+export async function sendOTP(phone: string, purpose: OtpPurpose = 'REGISTER'): Promise<{ success: boolean; error?: string }> {
+  const cleanPhone = phone.replace(/\D/g, '');
+  try {
+    await apiPost('/send-otp', { mobile: cleanPhone, purpose });
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Failed to send OTP.' };
+  }
+}
+
+/**
+ * Verify an OTP for a specific purpose.
+ * - REGISTER: activates a PENDING account (register flow) and logs the user in.
+ * - FORGOT_PASSWORD: validates the code so the reset-password step can proceed
+ *   (the code is NOT consumed here — the backend consumes it at reset).
+ */
+export async function verifyOTP(
+  phone: string,
+  otp: string,
+  purpose: OtpPurpose = 'REGISTER',
+): Promise<{ user: User | null; error?: string }> {
   const cleanPhone = phone.replace(/\D/g, '');
   const cleanOtp = otp.replace(/\D/g, '');
 
   try {
-    let result;
-    try {
-      result = await apiPost('/verify-otp', { mobile: cleanPhone, otp: cleanOtp, purpose: 'LOGIN' });
-    } catch {
-      result = await apiPost('/verify-otp', { mobile: cleanPhone, otp: cleanOtp, purpose: 'REGISTER' });
-    }
+    const result = await apiPost('/verify-otp', {
+      mobile: cleanPhone,
+      otp: cleanOtp,
+      purpose,
+    });
 
     if (!result.verified) return { user: null, error: 'Invalid OTP' };
 
-    const user: User = {
-      id: result.user.id,
-      phone: result.user.mobile,
-      name: result.user.fullName,
-      email: result.user.email,
-      role: 'customer',
-      createdAt: result.user.createdAt,
-    };
-
-    await AsyncStorage.setItem(DEV_USER_KEY, JSON.stringify(user));
-    if (result.accessToken) {
-      await AsyncStorage.setItem(ACCESS_TOKEN_KEY, result.accessToken);
+    if (purpose === 'FORGOT_PASSWORD') {
+      // No session yet — the user still has to set a new password.
+      return { user: null };
     }
-    
+
+    const user = mapUser(result.user ?? {}, cleanPhone);
+    await storeSession(user, result.accessToken, result.refreshToken);
     return { user };
   } catch (err: any) {
-    return { user: null, error: err.message };
+    return { user: null, error: err.message || 'Invalid OTP' };
+  }
+}
+
+/**
+ * Password sign-in against the real backend. The backend deliberately
+ * disabled LOGIN OTPs ("sign in with your password"), so existing customers
+ * authenticate with their mobile/email + password.
+ */
+export async function passwordLogin(
+  identifier: string,
+  password: string,
+): Promise<{ user: User | null; error?: string }> {
+  try {
+    const data = await apiPost('/login', { identifier, password });
+    const user = mapUser(data.user ?? {}, identifier.replace(/\D/g, ''));
+    await storeSession(user, data.accessToken, data.refreshToken);
+    return { user };
+  } catch (err: any) {
+    return { user: null, error: err.message || 'Invalid credentials' };
+  }
+}
+
+/**
+ * Signup: create the account (PENDING) and send the REGISTER OTP.
+ * The user then verifies the OTP (verifyOTP with purpose REGISTER), which
+ * activates the account and returns a session.
+ */
+export async function register(input: {
+  fullName: string;
+  mobile: string;
+  email: string;
+  password: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    await apiPost('/register', {
+      fullName: input.fullName.trim(),
+      mobile: input.mobile.replace(/\D/g, ''),
+      email: input.email.trim().toLowerCase(),
+      password: input.password,
+    });
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Registration failed.' };
+  }
+}
+
+/** Forgot password step 1: send the FORGOT_PASSWORD OTP. */
+export async function forgotPassword(mobile: string): Promise<{ success: boolean; error?: string }> {
+  const cleanPhone = mobile.replace(/\D/g, '');
+  try {
+    await apiPost('/forgot-password', { mobile: cleanPhone });
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Unable to send reset OTP.' };
+  }
+}
+
+/** Forgot password step 3: set the new password (backend validates the OTP). */
+export async function resetPassword(
+  mobile: string,
+  otp: string,
+  newPassword: string,
+): Promise<{ success: boolean; error?: string }> {
+  const cleanPhone = mobile.replace(/\D/g, '');
+  try {
+    await apiPost('/reset-password', {
+      mobile: cleanPhone,
+      otp: otp.replace(/\D/g, ''),
+      newPassword,
+    });
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Unable to reset password.' };
   }
 }
 
@@ -80,6 +179,7 @@ export async function getCurrentUser(): Promise<User | null> {
 export async function logout(): Promise<void> {
   await AsyncStorage.removeItem(DEV_USER_KEY);
   await AsyncStorage.removeItem(ACCESS_TOKEN_KEY);
+  await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 export async function updateProfile(updates: Partial<Pick<User, 'name' | 'email' | 'avatarUrl'>>): Promise<User | null> {
@@ -87,7 +187,7 @@ export async function updateProfile(updates: Partial<Pick<User, 'name' | 'email'
   if (!current) return null;
 
   const token = await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
-  
+
   const payload: any = {};
   if (updates.name !== undefined) payload.fullName = updates.name;
   if (updates.email !== undefined) payload.email = updates.email;
@@ -95,9 +195,9 @@ export async function updateProfile(updates: Partial<Pick<User, 'name' | 'email'
   if (Object.keys(payload).length > 0) {
     const res = await fetch(`${SERVER_URL}/api/v1/profile/personal`, {
       method: 'PUT',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` 
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify(payload),
     });
@@ -113,4 +213,3 @@ export async function updateProfile(updates: Partial<Pick<User, 'name' | 'email'
 export async function getAllUsers(): Promise<User[]> {
   return []; // Not needed for customer app
 }
-

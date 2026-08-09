@@ -10,6 +10,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Dialog } from 'primeng/dialog';
 import { forkJoin, of, catchError } from 'rxjs';
 import { formatInr } from '../../../../shared/utils/currency';
+import { paymentTypeLabel } from '../../../../shared/utils/payment-labels';
 import { LayoutUiService } from '../../../../layout/services/layout-ui.service';
 import { AutopayService } from '../../../emi/services/autopay.service';
 import {
@@ -64,6 +65,55 @@ export class OrderDetailsComponent implements OnInit {
   readonly hasProcessingFee = computed(() => {
     const fee = this.order()?.emi?.processingFee;
     return fee !== null && fee !== undefined && fee > 0;
+  });
+
+  /**
+   * Upcoming (unpaid) installments from the live loan schedule — the mirror
+   * of the paid history above, showing due dates and amounts still to pay.
+   */
+  readonly upcomingInstallments = computed(() => {
+    const order = this.order();
+    if (!order?.emiSchedule) return [];
+    return order.emiSchedule.filter(
+      (row) => row.paymentStatus !== 'PAID',
+    );
+  });
+
+  /**
+   * Live payment history, mirroring the invoice's Payment History table:
+   * the collected down payment first, then each paid EMI (only collected rows).
+   */
+  readonly paymentHistory = computed(() => {
+    const order = this.order();
+    if (!order) return [];
+    const rows: { label: string; date: string | null; amount: number }[] = [];
+    if (order.downPaymentCollected && order.downPaymentCollected > 0) {
+      rows.push({
+        label: 'Down Payment',
+        date: order.transactionDate ?? null,
+        amount: order.downPaymentCollected,
+      });
+    }
+    for (const payment of order.emiPayments ?? []) {
+      rows.push({
+        label: `EMI #${payment.emiNumber}`,
+        date: payment.paidAt ?? payment.dueDate ?? null,
+        amount: payment.amount,
+      });
+    }
+    // COD cash is collected at delivery — show it in the history once paid.
+    if (
+      order.paymentType === 'COD' &&
+      order.amountPaid > 0 &&
+      (order.paymentStatus === 'SUCCESS' || order.paymentStatus === 'PAID')
+    ) {
+      rows.push({
+        label: 'Paid at Delivery',
+        date: order.paidAtDelivery ?? order.transactionDate ?? null,
+        amount: order.amountPaid,
+      });
+    }
+    return rows;
   });
 
   private orderRef = '';
@@ -173,6 +223,10 @@ export class OrderDetailsComponent implements OnInit {
   formatMoney(value: number | null | undefined): string {
     if (value === null || value === undefined) return '—';
     return formatInr(value);
+  }
+
+  formatPaymentType(value: string | null | undefined): string {
+    return paymentTypeLabel(value);
   }
 
   formatDate(value: string | null | undefined): string {

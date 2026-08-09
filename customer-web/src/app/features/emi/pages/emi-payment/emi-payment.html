@@ -123,6 +123,37 @@
         </div>
       </section>
 
+      @if (history(); as ledger) {
+        @if (ledger.items.length > 0) {
+          <section class="lx-emi-pay__history" aria-labelledby="lx-emi-pay-history-title">
+            <h2 id="lx-emi-pay-history-title" class="lx-emi-pay__section-title">Payment History</h2>
+            <p class="lx-emi-pay__muted">
+              {{ ledger.loanAccountNumber }} — every paid EMI, same ledger as your invoice.
+            </p>
+            <div class="lx-emi-pay__payments-wrap">
+              <table class="lx-emi-pay__payments">
+                <thead>
+                  <tr>
+                    <th scope="col">Payment</th>
+                    <th scope="col">Date</th>
+                    <th scope="col" class="lx-emi-pay__payments-amt">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (payment of ledger.items; track payment.emiId ?? payment.emiNumber) {
+                    <tr>
+                      <td>EMI #{{ payment.emiNumber }}</td>
+                      <td>{{ formatDate(payment.paidDate ?? payment.dueDate) }}</td>
+                      <td class="lx-emi-pay__payments-amt">{{ formatMoney(payment.amount) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+        }
+      }
+
       <div class="lx-emi-pay__actions">
         @if (data.canPay) {
           <button

@@ -9,15 +9,16 @@ import { ProductCard } from '../../components/feature/ProductCard';
 import { useAuth } from '../../hooks/useAuth';
 import { getCategories } from '../../services/categoryService';
 import { getFeaturedProducts, getDeals, getTrendingProducts, getRecommendedProducts, getNewArrivals } from '../../services/productService';
-import { getBanners, Banner as BannerType } from '../../services/bannerService';
+import { getBanners } from '../../services/bannerService';
+import { Banner as BannerType } from '../../types';
 import { getUnreadCount } from '../../services/notificationService';
 import { Category, Product } from '../../types';
 
 const W = Dimensions.get('window').width;
 
 const FALLBACK_BANNERS: BannerType[] = [
-  { id: 'fb-1', title: 'Biggest Electronics Sale', subtitle: 'Up to 40% off premium gadgets', badgeText: '0% EMI Available', imageUrl: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=800&q=80', link: '', sortOrder: 1, status: 'active', createdAt: '' },
-  { id: 'fb-2', title: 'Fashion Forward', subtitle: 'New arrivals, fresh styles this season', badgeText: 'Flat 30% off', imageUrl: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&q=80', link: '', sortOrder: 2, status: 'active', createdAt: '' },
+  { id: 'fb-1', title: 'Biggest Electronics Sale', subtitle: 'Up to 40% off premium gadgets', badgeText: '0% EMI Available', imageUrl: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=800&q=80', isActive: true, position: 1, createdAt: '' },
+  { id: 'fb-2', title: 'Fashion Forward', subtitle: 'New arrivals, fresh styles this season', badgeText: 'Flat 30% off', imageUrl: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&q=80', isActive: true, position: 2, createdAt: '' },
 ];
 
 export default function HomeScreen() {
