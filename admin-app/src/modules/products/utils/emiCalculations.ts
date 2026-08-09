@@ -1,7 +1,10 @@
 import { EMIPlan } from '../types/product';
 import { parseAmount } from './amountUtils';
 
-/** Platform default reducing-balance annual interest rate (%). */
+/**
+ * Legacy constant retained for any non-product callers.
+ * Product EMI preview uses the client Excel model (0% interest).
+ */
 export const DEFAULT_ANNUAL_INTEREST_RATE_PERCENT = 12.5;
 
 /** Round money to 2 decimal places. */
@@ -14,20 +17,25 @@ export interface EmiCalcInput {
   downPayment: number;
   processingFee: number;
   tenureMonths: number;
+  /** Ignored — Excel product EMI is always 0% interest. */
   annualInterestRatePercent?: number;
 }
 
 export interface EmiRowCalculations {
-  /** Alias of loanAmount (Product Price − Down Payment) */
+  /** Alias of loanAmount (Amount Converted into EMI) */
   balanceAmount: number;
+  /**
+   * EMI Principal (Excel):
+   * Sale Price − Down Payment + Service/Convenience Charge
+   */
   loanAmount: number;
   monthlyEmi: number;
   totalEmi: number;
   totalInterest: number;
   processingFee: number;
-  /** Down Payment + Processing Fee */
+  /** Down Payment only (fee recovered via EMI) */
   upfrontPayment: number;
-  /** Product Price + Processing Fee (+ interest) */
+  /** Sale Price + Service/Convenience Charge */
   totalPayable: number;
   /** @deprecated Alias of totalEmi */
   loanTotal: number;
@@ -35,7 +43,7 @@ export interface EmiRowCalculations {
   grandTotal: number;
 }
 
-/** Reducing-balance EMI; rate 0 → principal / tenure. */
+/** Principal / tenure at 0%; reducing-balance retained for rate > 0 callers. */
 export function calculateMonthlyEmi(
   principal: number,
   annualRatePercent: number,
@@ -51,40 +59,27 @@ export function calculateMonthlyEmi(
 }
 
 /**
- * Canonical EMI breakdown — processing fee is upfront only, never financed.
+ * Client Excel EMI model (matches backend calculateEmiBreakdown).
  *
- * Loan Amount = Product Price − Down Payment
- * Monthly EMI = f(Loan Amount, rate, tenure)
- * Upfront Payment = Down Payment + Processing Fee
- * Total Payable = Product Price + Processing Fee (+ interest)
+ * EMI Principal = Sale Price − Down Payment + Processing Fee
+ * Interest      = 0
+ * Monthly EMI   = EMI Principal / Tenure
+ * Upfront       = Down Payment
+ * Total Payable = Sale Price + Processing Fee
  */
 export function calculateEmiBreakdown(input: EmiCalcInput): EmiRowCalculations {
   const productPrice = roundMoney(Math.max(0, input.productPrice));
   const downPayment = roundMoney(Math.min(Math.max(0, input.downPayment), productPrice));
   const processingFee = roundMoney(Math.max(0, input.processingFee));
   const tenureMonths = Math.max(0, Math.floor(input.tenureMonths));
-  const annualInterestRatePercent = Math.max(
-    0,
-    input.annualInterestRatePercent ?? DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
-  );
 
-  const loanAmount = roundMoney(productPrice - downPayment);
-  const monthlyEmi = calculateMonthlyEmi(
-    loanAmount,
-    annualInterestRatePercent,
-    tenureMonths,
-  );
-  const totalEmi =
-    annualInterestRatePercent === 0
-      ? loanAmount
-      : roundMoney(monthlyEmi * tenureMonths);
-  const totalInterest =
-    annualInterestRatePercent === 0
-      ? 0
-      : roundMoney(Math.max(0, totalEmi - loanAmount));
-
-  const upfrontPayment = roundMoney(downPayment + processingFee);
-  const totalPayable = roundMoney(productPrice + processingFee + totalInterest);
+  const loanAmount = roundMoney(productPrice - downPayment + processingFee);
+  const monthlyEmi =
+    tenureMonths > 0 && loanAmount > 0 ? roundMoney(loanAmount / tenureMonths) : 0;
+  const totalEmi = loanAmount;
+  const totalInterest = 0;
+  const upfrontPayment = downPayment;
+  const totalPayable = roundMoney(productPrice + processingFee);
 
   return {
     balanceAmount: loanAmount,
@@ -111,6 +106,5 @@ export function computeEmiRowCalculations(sellingPrice: number, plan: EMIPlan): 
     downPayment: down,
     processingFee: roundMoney(service + delivery),
     tenureMonths: months,
-    annualInterestRatePercent: DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
   });
 }

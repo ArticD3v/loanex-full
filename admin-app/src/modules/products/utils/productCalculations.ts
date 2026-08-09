@@ -48,7 +48,7 @@ export function computePricing(formData: ProductFormData): PricingCalculations {
 
   let totalPayable = sellingPrice;
   if (selectedPlan && formData.emiEnabled) {
-    // Product price + upfront processing fee (+ interest if any)
+    // Excel: Sale Price + Service/Convenience Charge (0% interest)
     totalPayable = computeEmiRowCalculations(sellingPrice, selectedPlan).totalPayable;
   }
 

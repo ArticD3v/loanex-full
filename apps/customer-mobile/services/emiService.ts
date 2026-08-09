@@ -11,7 +11,9 @@ export interface EMICalcInput {
   annualInterestRatePercent?: number;
 }
 
-/** Platform default reducing-balance annual interest rate (%). */
+/**
+ * Legacy constant — product EMI uses the client Excel model (0% interest).
+ */
 export const DEFAULT_ANNUAL_INTEREST_RATE_PERCENT = 12.5;
 
 export function roundMoney(value: number): number {
@@ -64,8 +66,9 @@ export interface EmiBreakdown {
 }
 
 /**
- * Canonical EMI breakdown.
- * Processing fee is collected upfront and never financed / never in EMI.
+ * Client Excel EMI model:
+ * EMI Principal = Sale − DP + Processing Fee; Interest = 0;
+ * Monthly EMI = Principal / Tenure; Total = Sale + Fee.
  */
 export function calculateEmiBreakdown(input: {
   productPrice: number;
@@ -78,28 +81,14 @@ export function calculateEmiBreakdown(input: {
   const downPayment = roundMoney(Math.min(Math.max(0, input.downPayment), productPrice));
   const processingFee = roundMoney(Math.max(0, input.processingFee));
   const tenureMonths = Math.max(0, Math.floor(input.tenureMonths));
-  const annualInterestRatePercent = Math.max(
-    0,
-    input.annualInterestRatePercent ?? DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
-  );
 
-  const loanAmount = roundMoney(productPrice - downPayment);
-  const monthlyEmi = calculateMonthlyEmi(
-    loanAmount,
-    annualInterestRatePercent,
-    tenureMonths,
-  );
-  const totalEmi =
-    annualInterestRatePercent === 0
-      ? loanAmount
-      : roundMoney(monthlyEmi * tenureMonths);
-  const totalInterest =
-    annualInterestRatePercent === 0
-      ? 0
-      : roundMoney(Math.max(0, totalEmi - loanAmount));
-
-  const upfrontPayment = roundMoney(downPayment + processingFee);
-  const totalPayable = roundMoney(productPrice + processingFee + totalInterest);
+  const loanAmount = roundMoney(productPrice - downPayment + processingFee);
+  const monthlyEmi =
+    tenureMonths > 0 && loanAmount > 0 ? roundMoney(loanAmount / tenureMonths) : 0;
+  const totalEmi = loanAmount;
+  const totalInterest = 0;
+  const upfrontPayment = downPayment;
+  const totalPayable = roundMoney(productPrice + processingFee);
 
   return {
     productPrice,
@@ -133,8 +122,6 @@ export function calculateEMI(input: EMICalcInput): EMICalcResult {
     downPayment: dpAmount,
     processingFee,
     tenureMonths: input.tenure,
-    annualInterestRatePercent:
-      input.annualInterestRatePercent ?? DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
   });
 
   const futureEMICount =

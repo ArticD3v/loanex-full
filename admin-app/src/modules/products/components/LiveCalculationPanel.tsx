@@ -59,10 +59,10 @@ export function LiveCalculationPanel({ formData, collapsed: defaultCollapsed = f
             value={selectedPlan.planName || `${selectedPlan.months} months`}
           />
           <CalcRow label="Down Payment" value={formatCurrency(parseAmount(selectedPlan.downPayment))} />
-          <CalcRow label="Processing Fee (Upfront)" value={formatCurrency(emiCalcs.processingFee)} />
-          <CalcRow label="Loan Amount" value={formatCurrency(emiCalcs.loanAmount)} />
+          <CalcRow label="Service/Convenience Charge" value={formatCurrency(emiCalcs.processingFee)} />
+          <CalcRow label="EMI Principal" value={formatCurrency(emiCalcs.loanAmount)} />
           <CalcRow label="Monthly EMI" value={formatCurrency(emiCalcs.monthlyEmi)} />
-          <CalcRow label="Upfront Payment" value={formatCurrency(emiCalcs.upfrontPayment)} />
+          <CalcRow label="Down Payment (Upfront)" value={formatCurrency(emiCalcs.upfrontPayment)} />
           <CalcRow label="Documentation Charge" value={formatCurrency(docCharge)} />
           <CalcRow label="Verification Charge" value={formatCurrency(verifyCharge)} />
           <CalcRow label="Total Payable" value={formatCurrency(emiTotalPayable)} highlight />

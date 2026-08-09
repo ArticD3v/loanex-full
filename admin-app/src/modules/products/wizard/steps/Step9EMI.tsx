@@ -27,10 +27,10 @@ const COLUMNS = [
   { key: 'planName', label: 'Plan Name', width: 130 },
   { key: 'months', label: 'EMI Duration (Months)', width: 110 },
   { key: 'downPayment', label: 'Down Payment (₹)', width: 110 },
-  { key: 'balance', label: 'Balance Amount', width: 110 },
+  { key: 'balance', label: 'EMI Principal', width: 110 },
   { key: 'serviceCharge', label: 'Service Charge (₹)', width: 115 },
   { key: 'deliveryCharge', label: 'Delivery Charge (₹)', width: 115 },
-  { key: 'upfrontPayment', label: 'Upfront Payment', width: 120 },
+  { key: 'upfrontPayment', label: 'Down Payment (Upfront)', width: 130 },
   { key: 'totalPayable', label: 'Total Payable', width: 110 },
   { key: 'monthlyEmi', label: 'Monthly EMI', width: 100 },
   { key: 'minEligibility', label: 'Min Eligibility (₹)', width: 115 },
@@ -413,13 +413,13 @@ function EmiPlanModal({
             {calcs && sellingPrice > 0 ? (
               <View style={styles.calcPreview}>
                 <Text style={styles.calcPreviewTitle}>Auto Calculated Preview</Text>
-                <CalcPreviewRow label="Loan Amount" value={formatCurrency(calcs.loanAmount)} />
+                <CalcPreviewRow label="EMI Principal" value={formatCurrency(calcs.loanAmount)} />
                 <CalcPreviewRow
                   label="Monthly EMI"
                   value={plan.months ? formatCurrency(calcs.monthlyEmi) : '— (enter EMI duration)'}
                   highlight
                 />
-                <CalcPreviewRow label="Upfront Payment" value={formatCurrency(calcs.upfrontPayment)} />
+                <CalcPreviewRow label="Down Payment (Upfront)" value={formatCurrency(calcs.upfrontPayment)} />
                 <CalcPreviewRow label="Total Payable" value={formatCurrency(calcs.totalPayable)} />
               </View>
             ) : (
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
   empty: { padding: spacing.xxxl, alignItems: 'center' },
   emptyTitle: { fontSize: 15, fontWeight: '600', color: colors.text },
   emptyHint: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm, lineHeight: 20, maxWidth: 400 },
-  table: { minWidth: 1289 },
+  table: { minWidth: 1299 },
   headerRow: {
     flexDirection: 'row',
     backgroundColor: colors.primaryLight,

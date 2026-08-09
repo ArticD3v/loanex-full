@@ -1,7 +1,35 @@
+import { randomBytes } from 'crypto';
 import { config as loadEnv } from 'dotenv';
 import { z } from 'zod';
 
 loadEnv();
+// Local override file (gitignored). Used when `.env` was corrupted by
+// secret-redaction placeholders like `[SENSITIVE]`.
+loadEnv({ path: '.env.local', override: true });
+
+/** Treat secret-redaction placeholders as unset so Zod defaults can apply. */
+for (const [key, value] of Object.entries(process.env)) {
+  if (value === '[SENSITIVE]') {
+    delete process.env[key];
+  }
+}
+
+// Local-dev bootstraps when placeholders wiped required values.
+// Never used when NODE_ENV is already production.
+if (process.env.NODE_ENV !== 'production') {
+  process.env.NODE_ENV ??= 'development';
+  if (!process.env.JWT_ACCESS_SECRET || process.env.JWT_ACCESS_SECRET.length < 16) {
+    process.env.JWT_ACCESS_SECRET = randomBytes(32).toString('hex');
+  }
+  if (!process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET.length < 16) {
+    process.env.JWT_REFRESH_SECRET = randomBytes(32).toString('hex');
+  }
+  process.env.RAZORPAY_KEY_ID ??= 'rzp_test_local_dev_only';
+  process.env.RAZORPAY_KEY_SECRET ??= 'local_dev_razorpay_secret_do_not_use_in_prod';
+  process.env.SUPABASE_SYNC_MODE ??= 'source';
+  process.env.DATA_PRIMARY ??= 'mongodb';
+  process.env.PAYMENT_DEV_BYPASS ??= 'true';
+}
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
