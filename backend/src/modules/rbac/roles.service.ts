@@ -1,5 +1,4 @@
 import { jsonDb } from '../../config/json-db';
-import { supabase } from '../../config/supabase';
 import {
   BadRequestError,
   ConflictError,
@@ -119,20 +118,6 @@ export class RolesService {
       }
     }
 
-    // Legacy Supabase fallback (pre-Mongo deployments).
-    if (!user) {
-      try {
-        const { data, error } = await supabase.from('users').select('*').eq('id', userId).limit(1);
-        if (!error && data && data.length > 0) {
-          user = data[0];
-          const collection = jsonDb.getCollection('users');
-          if (!collection.some((u: any) => u.id === user.id)) collection.push(user);
-        }
-      } catch {
-        /* keep local state */
-      }
-    }
-
     if (!user) return [];
 
     const roleId = user.role_id ?? user.roleId ?? null;
@@ -149,16 +134,8 @@ export class RolesService {
       if (!role) {
         // A role created on another serverless instance may not be cached yet.
         try {
-          const { data, error } = await supabase
-            .from('roles')
-            .select('*')
-            .eq('id', roleId)
-            .limit(1);
-          if (!error && data && data.length > 0) {
-            role = data[0];
-            const collection = jsonDb.getCollection('roles');
-            if (!collection.some((r: any) => r.id === role.id)) collection.push(role);
-          }
+          await jsonDb.refreshCollection('roles');
+          role = jsonDb.findOne('roles', { id: roleId });
         } catch {
           /* keep local state */
         }

@@ -13,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 const SETTING_CATEGORIES = [
   { id: 'profile', title: 'My Profile', description: 'View and edit profile details', icon: 'person-circle-outline' },
+  { id: 'cod-settings', title: 'Checkout Settings', description: 'COD limit & checkout rules', icon: 'cash-outline' },
   { id: 'branches', title: 'Branch Management', description: 'Manage office branches', icon: 'business-outline' },
   { id: 'pincode-master', title: 'Pincode Master', description: 'Manage serviceable pincodes', icon: 'map-outline' },
   { id: 'masters', title: 'Master Data', description: 'Manage entities like brands, categories, suppliers', icon: 'layers-outline' },
@@ -62,6 +63,10 @@ export function SettingsHomeScreen({ navigation }: Props) {
             onPress={() => {
               if (category.id === 'masters') {
                 navigation.navigate('MastersHome');
+                return;
+              }
+              if (category.id === 'cod-settings') {
+                navigation.navigate('CodSettings');
                 return;
               }
               if (category.id === 'branches') {

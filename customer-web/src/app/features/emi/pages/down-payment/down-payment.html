@@ -5,8 +5,32 @@
       <p>Complete your down payment to confirm your order.</p>
     </header>
 
-    @if (error(); as err) {
+    @if (!paymentFailed() && error(); as err) {
       <div class="lx-dp__alert" role="alert">{{ err }}</div>
+    }
+
+    @if (paymentFailed()) {
+      <div class="lx-dp__failed" role="alert" aria-labelledby="lx-dp-failed-title">
+        <div class="lx-dp__failed-icon" aria-hidden="true">!</div>
+        <div>
+          <h2 id="lx-dp-failed-title">Payment not completed</h2>
+          <p class="lx-dp__failed-msg">
+            Your items are still in your cart
+            @if (cartItemCount() > 0) {
+              ({{ cartItemCount() }} item{{ cartItemCount() === 1 ? '' : 's' }})
+            }.
+            Nothing was charged and no order was placed.
+          </p>
+          <div class="lx-dp__failed-actions">
+            <button type="button" class="lx-btn lx-btn--primary" (click)="backToCart()">
+              Back to Cart
+            </button>
+            <button type="button" class="lx-btn lx-btn--outline" (click)="retryPayment()">
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
     }
 
     @if (loading() && !context()) {

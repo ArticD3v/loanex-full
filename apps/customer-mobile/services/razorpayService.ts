@@ -186,6 +186,15 @@ export function generateCheckoutHTML(params: {
   <script src="https://checkout.razorpay.com/v1/checkout.js"><\/script>
   <script>
     (function() {
+      // postMessage bridge: native WebView exposes ReactNativeWebView; the web
+      // fallback (iframe) posts to the parent window instead.
+      var bridge = window.ReactNativeWebView || {
+        postMessage: function(msg) {
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage(msg, '*');
+          }
+        }
+      };
       var options = {
         key: '${key_id}',
         amount: ${amount},
@@ -201,7 +210,7 @@ export function generateCheckoutHTML(params: {
           color: '${theme_color}'
         },
         handler: function(response) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({
+          bridge.postMessage(JSON.stringify({
             event: 'payment.success',
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_order_id: response.razorpay_order_id,
@@ -210,7 +219,7 @@ export function generateCheckoutHTML(params: {
         },
         modal: {
           ondismiss: function() {
-            window.ReactNativeWebView.postMessage(JSON.stringify({
+            bridge.postMessage(JSON.stringify({
               event: 'payment.cancelled'
             }));
           },
@@ -221,7 +230,7 @@ export function generateCheckoutHTML(params: {
       try {
         var rzp = new Razorpay(options);
         rzp.on('payment.failed', function(response) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({
+          bridge.postMessage(JSON.stringify({
             event: 'payment.failed',
             error_code: response.error.code,
             error_description: response.error.description,
@@ -234,7 +243,7 @@ export function generateCheckoutHTML(params: {
       } catch(e) {
         document.getElementById('container').innerHTML =
           '<div class="error-box"><h3>Failed to open payment</h3><p>' + e.message + '<\/p>' +
-          '<button onclick="window.ReactNativeWebView.postMessage(JSON.stringify({event:\\'payment.error\\',message: \\'' + e.message + '\\'}))">Close<\/button><\/div>';
+          '<button onclick="bridge.postMessage(JSON.stringify({event:\\'payment.error\\',message: \\'' + e.message + '\\'}))">Close<\/button><\/div>';
       }
     })();
   <\/script>

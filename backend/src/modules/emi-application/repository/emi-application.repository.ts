@@ -117,9 +117,23 @@ export class EmiApplicationRepository {
     return results.sort((a: any, b: any) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
   }
 
-  countApplicationsToday(prefix: string) {
-    const results = jsonDb.findMany('emi_applications', {});
-    return results.filter((r: any) => r.applicationNumber?.startsWith(prefix)).length;
+  /**
+   * Highest application-number sequence used today (e.g. 3 for ...-0003).
+   * Uses MAX + 1 semantics (like order numbers) so gaps or stale stores can
+   * never hand out a duplicate number — a count-based generator collides when
+   * a sequence is missing (e.g. 0001 deleted) or the in-memory store lags the
+   * source, and the duplicate then fails the Mongo unique index mirror write.
+   */
+  async maxApplicationSequenceToday(prefix: string): Promise<number> {
+    await jsonDb.refreshCollection('emi_applications');
+    let max = 0;
+    for (const r of jsonDb.findMany('emi_applications', {})) {
+      const num = String(r.applicationNumber ?? '');
+      if (!num.startsWith(prefix)) continue;
+      const seq = parseInt(num.slice(prefix.length), 10);
+      if (Number.isFinite(seq) && seq > max) max = seq;
+    }
+    return max;
   }
 
   acceptOffer(id: string) {

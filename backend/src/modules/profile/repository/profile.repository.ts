@@ -62,7 +62,15 @@ export class ProfileRepository {
       const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return ta - tb;
     });
-    return unique.map((r: any) => ({
+    // Self-heal: legacy/imported data can mark several rows default for one
+    // user. Only the first (newest) default row is reported as default so the
+    // UI never shows two "Default" badges for the same account.
+    let defaultSeen = false;
+    return unique.map((r: any) => {
+      const isDefault = Boolean(r.is_default ?? r.isDefault);
+      const effectiveDefault = isDefault && !defaultSeen;
+      if (isDefault) defaultSeen = true;
+      return {
       id: r.id,
       addressLine1: r.house_number ?? r.addressLine1 ?? r.fullAddress?.split(',')[0] ?? '',
       addressLine2: r.street ?? r.addressLine2 ?? r.area ?? '',
@@ -71,11 +79,12 @@ export class ProfileRepository {
       state: r.state ?? '',
       pincode: r.pincode ?? '',
       country: 'India',
-      isDefault: r.is_default ?? false,
+      isDefault: effectiveDefault,
       addressType: r.label ?? r.addressType ?? 'SHIPPING',
       createdAt: r.createdAt ?? new Date().toISOString(),
       updatedAt: r.updatedAt ?? new Date().toISOString(),
-    }));
+    };
+    });
   }
 
   async findAddressByType(userId: string, addressType: string) {
@@ -125,10 +134,18 @@ export class ProfileRepository {
     }
 
     if (makeDefault) {
-      // Unset all current defaults for this user
+      // Unset all current defaults for this user (both field spellings — the
+      // legacy camelCase `isDefault` predates the Mongo migration and must not
+      // keep marking rows as default).
       all
-        .filter((r: any) => (r.profileId === userId || r.userId === userId) && r.is_default)
-        .forEach((r: any) => jsonDb.update('addresses', { id: r.id }, { is_default: false }));
+        .filter(
+          (r: any) =>
+            (r.profileId === userId || r.userId === userId) &&
+            (r.is_default || r.isDefault),
+        )
+        .forEach((r: any) =>
+          jsonDb.update('addresses', { id: r.id }, { is_default: false, isDefault: false }),
+        );
     }
 
     // If there's an empty/corrupt existing address for this user+type, update it instead of creating a new one
@@ -195,12 +212,18 @@ export class ProfileRepository {
   }
 
   async setDefaultAddress(addressId: string, userId: string) {
-    // Unset all
+    // Unset all (both field spellings)
     const all = jsonDb.findMany('addresses');
     all
-      .filter((r: any) => (r.profileId === userId || r.userId === userId) && r.is_default)
-      .forEach((r: any) => jsonDb.update('addresses', { id: r.id }, { is_default: false }));
-    // Set new default
+      .filter(
+        (r: any) =>
+          (r.profileId === userId || r.userId === userId) &&
+          (r.is_default || r.isDefault),
+      )
+      .forEach((r: any) =>
+        jsonDb.update('addresses', { id: r.id }, { is_default: false, isDefault: false }),
+      );
+    // Set new default (legacy `isDefault` is dropped by the data cleanup)
     jsonDb.update('addresses', { id: addressId }, { is_default: true });
     return { id: addressId };
   }

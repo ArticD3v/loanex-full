@@ -64,6 +64,39 @@ function formatDate(date: string) {
   });
 }
 
+/** Down payment first, then each paid EMI — mirrors the invoice's Payment History. */
+function paymentHistory(order: Order): { label: string; date: string | null; amount: number }[] {
+  const rows: { label: string; date: string | null; amount: number }[] = [];
+  if (order.downPaymentCollected && order.downPaymentCollected > 0) {
+    rows.push({
+      label: 'Down Payment',
+      date: order.transactionDate ?? null,
+      amount: order.downPaymentCollected,
+    });
+  }
+  for (const payment of order.emiPayments ?? []) {
+    rows.push({
+      label: `EMI #${payment.emiNumber}`,
+      date: payment.paidAt ?? payment.dueDate ?? null,
+      amount: payment.amount,
+    });
+  }
+  // COD cash is collected at delivery — track it in the ledger.
+  if (
+    order.paymentType === 'cash' &&
+    order.amountPaid != null &&
+    order.amountPaid > 0 &&
+    (order.paymentStatus === 'SUCCESS' || order.paymentStatus === 'PAID')
+  ) {
+    rows.push({
+      label: 'Paid at Delivery',
+      date: order.paidAtDelivery ?? order.transactionDate ?? null,
+      amount: order.amountPaid,
+    });
+  }
+  return rows;
+}
+
 export function OrderDetailsScreen({ navigation, route }: Props) {
   const [order, setOrder] = React.useState<Order | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -193,7 +226,11 @@ export function OrderDetailsScreen({ navigation, route }: Props) {
         </Card>
 
         <Card style={styles.section}>
-          <SectionTitle title="EMI Information" />
+          <SectionTitle
+            title={
+              order.paymentType === 'emi' ? 'EMI & Loan Ledger' : 'Payment Information'
+            }
+          />
           <DetailRow
             label="Payment Type"
             value={PAYMENT_TYPE_LABEL[order.paymentType]}
@@ -206,8 +243,106 @@ export function OrderDetailsScreen({ navigation, route }: Props) {
                 label="EMI Amount"
                 value={order.emiAmount != null ? formatAmount(order.emiAmount) : '—'}
               />
-              <DetailRow label="EMI Duration" value={order.emiDuration ?? '—'} isLast />
+              <DetailRow label="EMI Duration" value={order.emiDuration ?? '—'} />
+
+              {/* Live loan ledger — same dynamic data the customer sees */}
+              <DetailRow
+                label="Loan Status"
+                value={order.loanStatus ? formatLabel(order.loanStatus) : '—'}
+              />
+              <DetailRow label="Loan Account" value={order.loanAccountNumber ?? '—'} />
+              <DetailRow
+                label="Loan Amount"
+                value={order.loanAmount != null ? formatAmount(order.loanAmount) : '—'}
+              />
+              <DetailRow
+                label="Down Payment"
+                value={order.downPayment != null ? formatAmount(order.downPayment) : '—'}
+              />
+              <DetailRow
+                label="Down Payment Collected"
+                value={
+                  order.downPaymentCollected != null && order.downPaymentCollected > 0
+                    ? formatAmount(order.downPaymentCollected)
+                    : 'Not paid'
+                }
+              />
+              <DetailRow
+                label="Amount Paid"
+                value={
+                  order.amountPaid != null && order.amountPaid > 0
+                    ? formatAmount(order.amountPaid)
+                    : '—'
+                }
+              />
+              <DetailRow
+                label="Outstanding Balance"
+                value={
+                  order.outstandingAmount != null
+                    ? formatAmount(order.outstandingAmount)
+                    : '—'
+                }
+              />
+              <DetailRow
+                label="Installments Paid"
+                value={
+                  order.paidEmiCount != null && order.totalEmiCount != null
+                    ? `${order.paidEmiCount} of ${order.totalEmiCount}`
+                    : '—'
+                }
+              />
+              {order.nextEmiDueDate && (
+                <DetailRow label="Next EMI Due" value={formatDate(order.nextEmiDueDate)} />
+              )}
+              <DetailRow
+                label="Interest Rate"
+                value={order.interestRate != null ? `${order.interestRate}% p.a.` : '—'}
+              />
+              <DetailRow
+                label="Processing Fee"
+                value={order.processingFee != null ? formatAmount(order.processingFee) : '—'}
+                isLast
+              />
             </>
+          )}
+
+          {/* Payment history — only rows actually collected (EMI installments, down payment, or COD collected at delivery) */}
+          {paymentHistory(order).length > 0 && (
+            <View style={styles.paymentHistory}>
+              <Text style={styles.paymentHistoryTitle}>Payment History</Text>
+              {paymentHistory(order).map((row) => (
+                <View key={row.label} style={styles.paymentRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.paymentLabel}>{row.label}</Text>
+                    <Text style={styles.paymentDate}>{row.date ? formatDate(row.date) : '—'}</Text>
+                  </View>
+                  <Text style={styles.paymentAmount}>{formatAmount(row.amount)}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Upcoming installments — the unpaid mirror of the paid history, straight from the live loan schedule */}
+          {(order.emiSchedule ?? []).filter((row) => row.paymentStatus !== 'PAID').length > 0 && (
+            <View style={styles.paymentHistory}>
+              <Text style={styles.paymentHistoryTitle}>Upcoming Installments</Text>
+              {(order.emiSchedule ?? [])
+                .filter((row) => row.paymentStatus !== 'PAID')
+                .map((row) => (
+                  <View key={row.emiNumber} style={styles.paymentRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.paymentLabel}>EMI #{row.emiNumber}</Text>
+                      <Text style={styles.paymentDate}>
+                        Due {row.dueDate ? formatDate(row.dueDate) : '—'} ·{' '}
+                        <Text style={{ color: row.paymentStatus === 'OVERDUE' ? '#b91c1c' : colors.textMuted }}>
+                          {row.paymentStatus === 'OVERDUE' ? 'Overdue' : 'Pending'}
+                        </Text>
+                      </Text>
+                    </View>
+                    <Text style={styles.paymentAmount}>{formatAmount(row.amount)}</Text>
+                  </View>
+                ))}
+            </View>
           )}
         </Card>
       </ScrollView>
@@ -285,6 +420,42 @@ const styles = StyleSheet.create({
   },
   footerBtn: {
     flex: 1,
+  },
+  paymentHistory: {
+    marginTop: spacing.lg,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+  },
+  paymentHistoryTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textHeading,
+    marginBottom: spacing.sm,
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    gap: spacing.md,
+  },
+  paymentLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  paymentDate: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  paymentAmount: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
   },
   notFound: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   notFoundText: { fontSize: 16, color: colors.textSecondary },

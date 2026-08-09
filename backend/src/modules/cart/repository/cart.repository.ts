@@ -74,20 +74,49 @@ export class CartRepository {
   }
 
   /**
-   * Remove the cart lines for products that were actually purchased — used at
+   * Reduce the cart lines for products that were actually purchased — used at
    * payment success so abandoned checkouts keep the customer's cart intact.
-   * Only the bought products leave the cart; anything added later survives.
+   * Only the bought quantities leave the cart: if the customer checked out
+   * fewer units than the line holds, the line quantity is reduced instead of
+   * the whole line being deleted. Anything added later survives.
    */
-  removeProducts(userId: string, productIds: string[] | undefined | null): number {
-    const ids = new Set((productIds ?? []).filter(Boolean));
-    if (ids.size === 0) return 0;
+  removeProducts(
+    userId: string,
+    purchases: Array<{ productId: string; quantity: number }> | undefined | null,
+  ): number {
+    const map = new Map<string, number>();
+    for (const p of purchases ?? []) {
+      if (!p?.productId) continue;
+      const qty = Math.max(1, Math.floor(Number(p.quantity) || 1));
+      map.set(p.productId, (map.get(p.productId) ?? 0) + qty);
+    }
+    if (map.size === 0) return 0;
     const items = jsonDb.findMany('cart_items', { user_id: userId });
     let removed = 0;
     for (const item of items) {
-      if (ids.has(item.product_id)) {
+      const purchased = map.get(item.product_id);
+      if (!purchased) continue;
+      const lineQty = Math.max(0, Number(item.quantity) || 0);
+      if (lineQty <= purchased) {
         jsonDb.delete('cart_items', { id: item.id });
         removed += 1;
+        continue;
       }
+      // Low-stock guard: never leave the cart holding more units than are
+      // available. This runs right after decrementStockDurable, so the product
+      // row already reflects the post-order stock — clamp the leftover to it
+      // instead of leaving an unfulfillable cart line.
+      const rawStock = Number(this.findProduct(item.product_id)?.stock);
+      const available = Number.isFinite(rawStock) && rawStock >= 0 ? rawStock : Number.POSITIVE_INFINITY;
+      const remaining = Math.min(lineQty - purchased, available);
+      if (remaining <= 0) {
+        jsonDb.delete('cart_items', { id: item.id });
+      } else {
+        jsonDb.update('cart_items', { id: item.id }, {
+          quantity: remaining,
+        });
+      }
+      removed += 1;
     }
     return removed;
   }

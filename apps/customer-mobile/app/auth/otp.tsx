@@ -7,18 +7,24 @@ import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../../components/ui/Button';
 import { Colors, Fonts, Spacing, Radius } from '../../constants/theme';
 
-const OTP_LEN = 4;
+const OTP_LEN = 6;
 
 export default function OTPScreen() {
-  const { phone, returnTo } = useLocalSearchParams<{ phone: string, returnTo?: string }>();
+  const { phone, returnTo, purpose } = useLocalSearchParams<{
+    phone: string,
+    returnTo?: string,
+    purpose?: 'REGISTER' | 'FORGOT_PASSWORD',
+  }>();
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [timer, setTimer] = useState(30);
-  const { verifyOTP } = useAuth();
+  const { verifyOTP, login, forgotPassword } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
+
+  const isReset = purpose === 'FORGOT_PASSWORD';
 
   useEffect(() => {
     const t = setInterval(() => setTimer(s => s > 0 ? s - 1 : 0), 1000);
@@ -26,17 +32,35 @@ export default function OTPScreen() {
   }, []);
 
   async function handleVerify() {
-    if (otp.length < OTP_LEN) { setError('Enter the complete 4-digit OTP'); return; }
+    if (otp.length < OTP_LEN) { setError('Enter the complete 6-digit OTP'); return; }
     setError(''); setLoading(true);
     try {
-      const res = await verifyOTP(phone, otp);
-      if (res.user) {
+      const res = await verifyOTP(phone, otp, isReset ? 'FORGOT_PASSWORD' : 'REGISTER');
+      if (isReset) {
+        // OTP validated for password reset — the code is NOT consumed yet;
+        // proceed to set the new password (backend consumes it at reset).
+        router.replace({
+          pathname: '/auth/reset-password',
+          params: { phone, otp },
+        } as any);
+      } else if (res.user) {
         if (returnTo) router.replace(returnTo as any);
-        else if (res.user.role === 'admin') router.replace('/admin');
         else router.replace('/(tabs)');
-      } else { setError(res.error || 'Invalid OTP'); setOtp(''); }
+      } else {
+        setError(res.error || 'Invalid OTP');
+        setOtp('');
+      }
     } catch { setError('Verification failed. Try again.'); }
     finally { setLoading(false); }
+  }
+
+  async function handleResend() {
+    setError('');
+    setTimer(30);
+    const res = isReset
+      ? await forgotPassword(phone)
+      : await login(phone);
+    if (!res.success) setError(res.error || 'Unable to resend OTP.');
   }
 
   const digits = otp.split('');
@@ -67,17 +91,12 @@ export default function OTPScreen() {
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
-        <Button title="Verify OTP" onPress={handleVerify} loading={loading} disabled={otp.length < OTP_LEN} fullWidth size="lg" style={styles.verifyBtn} />
+        <Button title={isReset ? 'Verify & Continue' : 'Verify OTP'} onPress={handleVerify} loading={loading} disabled={otp.length < OTP_LEN} fullWidth size="lg" style={styles.verifyBtn} />
         <View style={styles.resendRow}>
           <Text style={styles.resendText}>Did not receive? </Text>
           {timer > 0 ? <Text style={styles.timerText}>Resend in {timer}s</Text> : (
-            <Pressable onPress={() => setTimer(30)}><Text style={styles.resendLink}>Resend OTP</Text></Pressable>
+            <Pressable onPress={handleResend}><Text style={styles.resendLink}>Resend OTP</Text></Pressable>
           )}
-        </View>
-        <View style={styles.hintBox}>
-          <Text style={styles.hintTitle}>Dev: No real SMS</Text>
-          <Text style={styles.hintCode}>{"0000  →  Admin"}</Text>
-          <Text style={styles.hintCode}>{"1111  →  Customer"}</Text>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -93,21 +112,18 @@ const styles = StyleSheet.create({
   title: { fontSize: Fonts.xxl, fontWeight: Fonts.bold, color: Colors.textPrimary, marginBottom: Spacing.sm },
   subtitle: { fontSize: Fonts.md, color: Colors.textSecondary, textAlign: 'center', lineHeight: 24, marginBottom: Spacing.xxxl },
   phoneHL: { fontWeight: Fonts.semiBold, color: Colors.textPrimary },
-  otpRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.xl },
-  box: { width: 62, height: 68, borderRadius: Radius.lg, borderWidth: 2, borderColor: Colors.border, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center' },
+  otpRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xl },
+  box: { width: 48, height: 60, borderRadius: Radius.lg, borderWidth: 2, borderColor: Colors.border, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center' },
   boxActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryLight },
   boxFilled: { borderColor: Colors.primary },
   boxError: { borderColor: Colors.error, backgroundColor: Colors.errorLight },
-  digit: { fontSize: Fonts.xxxl, fontWeight: Fonts.bold, color: Colors.textPrimary },
+  digit: { fontSize: Fonts.xxl, fontWeight: Fonts.bold, color: Colors.textPrimary },
   hiddenInput: { position: 'absolute', opacity: 0, width: 0, height: 0 },
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.md },
   errorText: { color: Colors.error, fontSize: Fonts.sm },
   verifyBtn: { borderRadius: Radius.lg, marginBottom: Spacing.xl, width: '100%' },
-  resendRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.xxl },
+  resendRow: { flexDirection: 'row', alignItems: 'center' },
   resendText: { fontSize: Fonts.md, color: Colors.textSecondary },
   timerText: { fontSize: Fonts.md, color: Colors.textTertiary },
   resendLink: { fontSize: Fonts.md, color: Colors.primary, fontWeight: Fonts.semiBold },
-  hintBox: { backgroundColor: Colors.primaryLight, borderRadius: Radius.md, padding: Spacing.lg, width: '100%', borderWidth: 1, borderColor: '#F5D0B0' },
-  hintTitle: { fontSize: Fonts.sm, fontWeight: Fonts.semiBold, color: Colors.primary, marginBottom: 6 },
-  hintCode: { fontSize: Fonts.md, fontWeight: Fonts.semiBold, color: Colors.textPrimary, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
 });

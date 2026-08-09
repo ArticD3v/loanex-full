@@ -104,13 +104,15 @@ export class VerificationRepository {
     const faceVerified = Boolean(kyc?.face_verified);
     const bankVerified = Boolean(customer?.bankVerified || user?.bankVerified);
 
-    const completedSteps = [mobileVerified, aadhaarVerified, panVerified, bankVerified].filter(
+    // Bank verification is temporarily disabled — the live KYC flow is
+    // Aadhaar (DigiLocker) → PAN/Experian → EMI. Completion is derived from
+    // the same core steps the web uses (mobile + Aadhaar + PAN); face is a
+    // security re-check on every EMI application, not a completion gate.
+    const coreSteps = [mobileVerified, aadhaarVerified, panVerified].filter(
       Boolean,
     ).length;
-
-    // Face is optional / not part of the live Aadhaar → PAN → Bank → EMI flow.
-    const totalSteps = 4;
-    const overallProgress = Math.round((completedSteps / totalSteps) * 100);
+    const totalSteps = 3;
+    const overallProgress = Math.round((coreSteps / totalSteps) * 100);
 
     return {
       mobileVerified,
@@ -119,14 +121,15 @@ export class VerificationRepository {
       faceVerified,
       bankVerified,
       overallProgress,
-      completedSteps,
+      completedSteps: coreSteps,
       totalSteps,
       verificationStatus:
-        completedSteps === 0
+        coreSteps === 0
           ? 'NOT_STARTED'
-          : completedSteps === totalSteps
+          : coreSteps === totalSteps
             ? 'COMPLETED'
             : 'IN_PROGRESS',
+      kycCompleted: coreSteps === totalSteps,
       kyc,
       message: 'Status fetched',
     };

@@ -2,7 +2,7 @@
  * RBAC permission registry — single source of truth for the admin portal.
  * Permission keys are `${module}.${action}` strings persisted on public.roles
  * (Supabase) and mirrored through the in-memory engine.
- * Keep in sync with supabase-rbac.sql seed data.
+ * Keep in sync with the roles seed data (scripts/seed or migrate-mongo).
  */
 
 export const MODULE_KEYS = [

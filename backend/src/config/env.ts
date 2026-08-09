@@ -8,7 +8,12 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   APP_NAME: z.string().default('LoanEx API'),
   API_PREFIX: z.string().default('/api/v1'),
-  DATABASE_URL: z.string().min(1),
+  /** MongoDB Atlas is the single source of truth — no PostgreSQL/Supabase mirror. */
+  MONGODB_URI: z
+    .string()
+    .trim()
+    .min(1, 'MONGODB_URI is required — MongoDB is the only supported data store'),
+  MONGODB_DB_NAME: z.string().optional().default('loanex'),
   JWT_ACCESS_SECRET: z.string().min(16),
   JWT_REFRESH_SECRET: z.string().min(16),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
@@ -78,27 +83,20 @@ const envSchema = z.object({
   RAZORPAY_CURRENCY: z.string().default('INR'),
   GST_PERCENT: z.coerce.number().default(18),
   EMI_LATE_FEE_PERCENT: z.coerce.number().default(2),
+  /** Cash-on-delivery cap — COD orders above this amount are blocked. */
+  COD_MAX_AMOUNT: z.coerce.number().default(50_000),
   AUTOPAY_PROVIDER: z.string().default('RAZORPAY'),
   PAYMENT_DEV_BYPASS: z
     .string()
     .optional()
     .transform((value) => value === 'true'),
-  SUPABASE_URL: z.string().url(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   /**
-   * mirror  = db.json stays the boot source, every write is mirrored to Supabase.
-   * source  = Supabase is the boot source of truth (legacy; prefer mongodb when configured).
+   * Optional — used ONLY for career-resume object storage. MongoDB is the
+   * data source of truth; there is no database mirroring to Supabase anymore.
+   * When unset, resume uploads fall back to local/embedded storage.
    */
-  SUPABASE_SYNC_MODE: z.enum(['mirror', 'source']).default('source'),
-  /** MongoDB Atlas — preferred application data store after migration. */
-  MONGODB_URI: z.string().optional().default(''),
-  MONGODB_DB_NAME: z.string().optional().default('loanex'),
-  /**
-   * mongodb = hydrate/mirror via MongoDB (PostgreSQL/Supabase kept intact as backup).
-   * supabase = legacy jsonDb ↔ Supabase path.
-   * auto = use mongodb when MONGODB_URI is set, else supabase.
-   */
-  DATA_PRIMARY: z.enum(['auto', 'mongodb', 'supabase']).default('auto'),
+  SUPABASE_URL: z.string().optional().default(''),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional().default(''),
   /** Secret for the internal cron endpoint (EMI reminders). Vercel Cron sends it as Bearer token when configured. */
   CRON_SECRET: z.string().optional().default(''),
   /** IDSPay / DigiLocker — required for Aadhaar KYC (no hardcoded fallbacks). */
@@ -121,6 +119,16 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 
+// Fail-fast boot guard: MongoDB is the single source of truth. If the URI is
+// missing, refuse to boot instead of serving stale local/bootstrap data.
+if (!env.MONGODB_URI?.trim()) {
+  console.error(
+    '[BOOT-FAIL] MONGODB_URI is not configured. MongoDB Atlas is the single source of truth ' +
+      '— the backend will not start without it. Set MONGODB_URI in .env and restart.',
+  );
+  process.exit(1);
+}
+
 if (env.NODE_ENV === 'production') {
   if (env.OTP_DEV_ECHO) {
     console.error('[SECURITY] OTP_DEV_ECHO must be false in production — forcing off');
@@ -129,15 +137,6 @@ if (env.NODE_ENV === 'production') {
   if (env.PAYMENT_DEV_BYPASS) {
     console.error('[SECURITY] PAYMENT_DEV_BYPASS must be false in production — forcing off');
     (env as { PAYMENT_DEV_BYPASS: boolean }).PAYMENT_DEV_BYPASS = false;
-  }
-  const mongoPrimary =
-    env.DATA_PRIMARY === 'mongodb' ||
-    (env.DATA_PRIMARY === 'auto' && Boolean(env.MONGODB_URI?.trim()));
-  if (!mongoPrimary && env.SUPABASE_SYNC_MODE !== 'source') {
-    console.error('[SECURITY] SUPABASE_SYNC_MODE should be "source" in production when MongoDB is not primary');
-  }
-  if (mongoPrimary && !env.MONGODB_URI?.trim()) {
-    console.error('[SECURITY] DATA_PRIMARY=mongodb but MONGODB_URI is missing');
   }
   if (!env.AUTHKEY_API_KEY?.trim()) {
     console.error('[SECURITY] AUTHKEY_API_KEY is missing — OTP send will fail closed');

@@ -1,10 +1,8 @@
 import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { supabase } from './supabase';
-import { env } from './env';
-import { getMongoDb, isMongoConfigured } from './mongo';
-import { normalizeOrderRow, sanitizeMirrorPayload } from './mirror-sanitize';
+import { getMongoDb } from './mongo';
+import { normalizeOrderRow } from './mirror-sanitize';
 
 const { appendFileSync } = fs;
 
@@ -639,9 +637,9 @@ const DEFAULT_INITIAL_DATA: LocalDatabaseSchema = {
 };
 
 /**
- * Collections hydrated on cold start in SUPABASE_SYNC_MODE=source.
- * Fixed whitelist — OpenAPI enumeration pulls ~58 paths (including casing
- * duplicates) and sequential selects measured at ~19s locally.
+ * Collections hydrated on cold start from MongoDB (the single source of
+ * truth). Fixed whitelist — OpenAPI enumeration pulls ~58 paths (including
+ * casing duplicates) and sequential selects measured at ~19s locally.
  */
 const HYDRATE_COLLECTIONS = Array.from(
   new Set([
@@ -676,6 +674,7 @@ const HYDRATE_COLLECTIONS = Array.from(
     'job_openings',
     'job_applications',
     'general_applications',
+    'settings',
   ]),
 );
 
@@ -717,16 +716,6 @@ const CATALOG_REFRESH_TTL_MS = 15_000;
 
 class LocalDatabaseEngine {
   private data: LocalDatabaseSchema;
-  /** Prefer MongoDB after migration; PostgreSQL/Supabase remains intact as backup. */
-  private readonly mongoPrimary =
-    env.DATA_PRIMARY === 'mongodb' ||
-    (env.DATA_PRIMARY === 'auto' && isMongoConfigured());
-  private readonly sourceMode =
-    this.mongoPrimary
-      ? true
-      : env.NODE_ENV === 'production'
-        ? true
-        : env.SUPABASE_SYNC_MODE === 'source';
   private readonly warned = new Set<string>();
   private readonly lastRefreshAt = new Map<string, number>();
   public readonly ready: Promise<void>;
@@ -735,11 +724,8 @@ class LocalDatabaseEngine {
 
   constructor() {
     this.data = this.loadData();
-    this.ready = this.sourceMode
-      ? this.mongoPrimary
-        ? this.hydrateFromMongo()
-        : this.hydrateFromSupabase()
-      : Promise.resolve();
+    // MongoDB is the single source of truth — hydrate every collection at boot.
+    this.ready = this.hydrateFromMongo();
   }
 
   private stripMongoId<T extends Record<string, any>>(row: T): T {
@@ -766,70 +752,14 @@ class LocalDatabaseEngine {
     return DEFAULT_INITIAL_DATA;
   }
 
-  public saveData(dataToSave?: LocalDatabaseSchema): void {
-    if (this.sourceMode) return;
-    try {
-      const data = dataToSave || this.data;
-      fs.writeFileSync(DB_FILE_PATH, JSON.stringify(data, null, 2), 'utf-8');
-    } catch (e) {
-      console.error('[JSON DB] Error saving data to db.json:', e);
-    }
+  /** db.json is never the source of truth anymore — MongoDB is. */
+  public saveData(_dataToSave?: LocalDatabaseSchema): void {
+    return;
   }
 
   /**
-   * SUPABASE_SYNC_MODE=source: replace local collections from Supabase at boot.
-   * Parallel whitelist hydrate — tables that do not exist (PGRST205) keep local data.
-   */
-  private async hydrateFromSupabase(): Promise<void> {
-    const started = Date.now();
-    const names = HYDRATE_COLLECTIONS;
-    let loaded = 0;
-    let skipped = 0;
-    let failed = 0;
-    let rows = 0;
-
-    const hydrateOne = async (name: string): Promise<void> => {
-      try {
-        const { data, error } = await supabase.from(name).select('*').limit(10000);
-        if (error) {
-          if (
-            String(error.code || '').includes('PGRST205') ||
-            /does not exist|could not find/i.test(String(error.message))
-          ) {
-            skipped += 1;
-            return;
-          }
-          failed += 1;
-          console.error(`[Supabase] hydrate "${name}" failed:`, error.message);
-          return;
-        }
-        if (Array.isArray(data)) {
-          (this.data as any)[name] =
-            name === 'orders' ? data.map((row) => normalizeOrderRow(row)) : data;
-          loaded += 1;
-          rows += data.length;
-        }
-      } catch (e) {
-        failed += 1;
-        console.error(`[Supabase] hydrate "${name}" threw:`, e);
-      }
-    };
-
-    for (let i = 0; i < names.length; i += HYDRATE_CONCURRENCY) {
-      const batch = names.slice(i, i + HYDRATE_CONCURRENCY);
-      await Promise.all(batch.map((name) => hydrateOne(name)));
-    }
-
-    this.lastHydrateMs = Date.now() - started;
-    console.info(
-      `[Supabase] hydrated ${loaded}/${names.length} collections in ${this.lastHydrateMs}ms ` +
-        `(rows=${rows}, skipped=${skipped}, failed=${failed}, concurrency=${HYDRATE_CONCURRENCY})`,
-    );
-  }
-
-  /**
-   * MongoDB primary: replace local collections from Atlas at boot.
-   * PostgreSQL/Supabase is not written or deleted — kept as backup source.
+   * Replace local collections from MongoDB (Atlas) at boot.
+   * Collections that do not exist in Mongo keep their local/bootstrap data.
    */
   private async hydrateFromMongo(): Promise<void> {
     const started = Date.now();
@@ -879,52 +809,33 @@ class LocalDatabaseEngine {
   }
 
   /**
-   * Re-fetch catalog collections from Supabase on a throttle so records added
-   * directly in the Supabase dashboard (products, categories, banners, …) surface
-   * in the API without a process restart. No-op outside source mode.
+   * Re-fetch catalog collections from MongoDB on a throttle so records added
+   * directly in Atlas (products, categories, banners, …) surface in the API
+   * without a process restart.
    */
   public async refreshCatalogThrottled(): Promise<void> {
-    if (!this.sourceMode) return;
     const now = Date.now();
     const due = CATALOG_REFRESH_COLLECTIONS.filter(
       (name) => (this.lastRefreshAt.get(name) ?? 0) + CATALOG_REFRESH_TTL_MS <= now,
     );
     if (due.length === 0) return;
 
-    if (this.mongoPrimary) {
-      try {
-        const db = await getMongoDb();
-        await Promise.all(
-          due.map(async (name) => {
-            try {
-              const data = await db.collection(name).find({}).limit(10000).toArray();
-              (this.data as any)[name] = data.map((row) => this.stripMongoId(row as any));
-              this.lastRefreshAt.set(name, now);
-            } catch (e) {
-              console.error(`[MongoDB] catalog refresh "${name}" failed:`, e);
-            }
-          }),
-        );
-      } catch (e) {
-        console.error('[MongoDB] catalog refresh failed:', e);
-      }
-      return;
-    }
-
-    await Promise.all(
-      due.map(async (name) => {
-        try {
-          const { data, error } = await supabase.from(name).select('*').limit(10000);
-          if (error) return;
-          if (Array.isArray(data)) {
-            (this.data as any)[name] = data;
+    try {
+      const db = await getMongoDb();
+      await Promise.all(
+        due.map(async (name) => {
+          try {
+            const data = await db.collection(name).find({}).limit(10000).toArray();
+            (this.data as any)[name] = data.map((row) => this.stripMongoId(row as any));
             this.lastRefreshAt.set(name, now);
+          } catch (e) {
+            console.error(`[MongoDB] catalog refresh "${name}" failed:`, e);
           }
-        } catch (e) {
-          console.error(`[Supabase] catalog refresh "${name}" failed:`, e);
-        }
-      }),
-    );
+        }),
+      );
+    } catch (e) {
+      console.error('[MongoDB] catalog refresh failed:', e);
+    }
   }
 
   /** Force one full refresh pass of the catalog collections (bypasses throttle). */
@@ -937,7 +848,7 @@ class LocalDatabaseEngine {
     const line = `[${new Date().toISOString()}] ${operation} "${name}" failed: ${message}`;
     if (!this.warned.has(name)) {
       this.warned.add(name);
-      console.error(`[Supabase] ${line}`);
+      console.error(`[Mirror] ${line}`);
     }
     try {
       appendFileSync('mirror-errors.log', line + '\n');
@@ -947,82 +858,26 @@ class LocalDatabaseEngine {
   }
 
   private async mirrorInsert(name: string, item: any): Promise<void> {
-    if (this.mongoPrimary) {
-      try {
-        const db = await getMongoDb();
-        const payload = { ...item };
-        const id = String(payload.id || randomUUID());
-        payload.id = id;
-        // Avoid null unique-index collisions (slug/orderNumber/etc.)
-        for (const f of [
-          'slug',
-          'sku',
-          'orderNumber',
-          'applicationNumber',
-          'loanAccountNumber',
-          'razorpayOrderId',
-          'email',
-          'phone',
-          'token',
-        ]) {
-          if (payload[f] == null) delete payload[f];
-        }
-        await db.collection(name).replaceOne({ _id: id as any }, { ...payload, _id: id }, { upsert: true });
-      } catch (e) {
-        this.logMirrorError(name, 'insert', String(e));
-        throw e;
-      }
-      return;
-    }
-
-    const payload = sanitizeMirrorPayload(name, item, 'insert');
-    const looksLikeMissingColumn = (message: string) =>
-      /PGRST204|could not find the column|could not find the '[^']+' column|column .* does not exist/i.test(message);
-    const extractMissingColumn = (message: string): string | null => {
-      const postgrest = /Could not find the '([^']+)' column/i.exec(message);
-      if (postgrest) return postgrest[1];
-      const pg = /column "?([^"]+)"? of relation/i.exec(message);
-      return pg ? pg[1] : null;
-    };
-
     try {
-      // PostgREST rejects the whole insert if ANY key is an unknown column.
-      // Self-heal: strip unknown keys one at a time and retry (e.g. users.role_id
-      // before the RBAC migration, or emi_schedules.paidAmount), so the row still
-      // persists and a cold start does not lose it.
-      let attemptPayload = payload;
-      let { error } = await supabase.from(name).upsert([attemptPayload], {
-        onConflict: 'id',
-      });
-
-      let iterations = 0;
-      while (error && looksLikeMissingColumn(error.message) && iterations < 8) {
-        const missing = extractMissingColumn(error.message);
-        if (!missing || attemptPayload[missing] === undefined) break;
-        console.error(
-          `[Supabase] insert "${name}" missing column "${missing}" — retrying without it. ` +
-            `Apply the matching migration (see backend/emi-payment-durability.sql) to persist this field.`,
-        );
-        attemptPayload = { ...attemptPayload };
-        delete attemptPayload[missing];
-        ({ error } = await supabase.from(name).upsert([attemptPayload], {
-          onConflict: 'id',
-        }));
-        iterations += 1;
+      const db = await getMongoDb();
+      const payload = { ...item };
+      const id = String(payload.id || randomUUID());
+      payload.id = id;
+      // Avoid null unique-index collisions (slug/orderNumber/etc.)
+      for (const f of [
+        'slug',
+        'sku',
+        'orderNumber',
+        'applicationNumber',
+        'loanAccountNumber',
+        'razorpayOrderId',
+        'email',
+        'phone',
+        'token',
+      ]) {
+        if (payload[f] == null) delete payload[f];
       }
-
-      if (error) {
-        // Table without a unique "id" constraint: fall back to a plain insert.
-        const { error: fallbackError } = await supabase.from(name).insert([attemptPayload]);
-        if (fallbackError) {
-          this.logMirrorError(
-            name,
-            'insert',
-            `${fallbackError.message} | keys: ${Object.keys(attemptPayload).join(',')}`,
-          );
-          throw fallbackError;
-        }
-      }
+      await db.collection(name).replaceOne({ _id: id as any }, { ...payload, _id: id }, { upsert: true });
     } catch (e) {
       this.logMirrorError(name, 'insert', String(e));
       throw e;
@@ -1030,81 +885,17 @@ class LocalDatabaseEngine {
   }
 
   private async mirrorUpdate(name: string, where: Record<string, any>, data: any): Promise<void> {
-    if (this.mongoPrimary) {
-      try {
-        const db = await getMongoDb();
-        const filter: Record<string, any> = {};
-        for (const [key, value] of Object.entries(where || {})) {
-          if (value === undefined) continue;
-          if (key === 'id') filter._id = String(value);
-          else filter[key] = value;
-        }
-        const setDoc = { ...data, updatedAt: data?.updatedAt || new Date().toISOString() };
-        delete (setDoc as any)._id;
-        await db.collection(name).updateMany(filter, { $set: setDoc });
-      } catch (e) {
-        this.logMirrorError(name, 'update', String(e));
-        throw e;
-      }
-      return;
-    }
-
-    const payload = sanitizeMirrorPayload(name, data, 'update');
-    const looksLikeMissingColumn = (message: string) =>
-      /PGRST204|could not find the column|could not find the '[^']+' column|column .* does not exist/i.test(message);
-
-    // PostgREST rejects an update if ANY key is an unknown column — dropping
-    // just the offending key keeps the rest of the write alive (e.g. an EMI
-    // payment still persists `paymentStatus = PAID` even when the schema lacks
-    // `paidAmount`/`lastPaymentDate`, so a cold start does not revert it).
-    const extractMissingColumn = (message: string): string | null => {
-      const postgrest = /Could not find the '([^']+)' column/i.exec(message);
-      if (postgrest) return postgrest[1];
-      const pg = /column "?([^"]+)"? of relation/i.exec(message);
-      return pg ? pg[1] : null;
-    };
-
-    const run = (payloadToSend: Record<string, any>) => {
-      let query = supabase.from(name).update(payloadToSend);
-      for (const [key, value] of Object.entries(where)) {
-        if (value === undefined) continue;
-        query = query.eq(key, value);
-      }
-      return query;
-    };
-
     try {
-      let attemptPayload = payload;
-      let attempt = await run(attemptPayload);
-      let { error } = attempt;
-
-      // Self-heal: strip missing columns (users.role_id, emi_schedules
-      // paidAmount/transactionId, loanAccount.lastPaymentDate, …) one at a
-      // time and retry — a single unknown key makes PostgREST reject the whole
-      // update, silently reverting e.g. an EMI payment on the next cold start.
-      let iterations = 0;
-      while (error && looksLikeMissingColumn(error.message) && iterations < 8) {
-        const missing = extractMissingColumn(error.message);
-        if (!missing || attemptPayload[missing] === undefined) break;
-        console.error(
-          `[Supabase] update "${name}" missing column "${missing}" — retrying without it. ` +
-            `Apply the matching migration (see backend/emi-payment-durability.sql) to persist this field.`,
-        );
-        attemptPayload = { ...attemptPayload };
-        delete attemptPayload[missing];
-        attempt = await run(attemptPayload);
-        error = attempt.error;
-        iterations += 1;
+      const db = await getMongoDb();
+      const filter: Record<string, any> = {};
+      for (const [key, value] of Object.entries(where || {})) {
+        if (value === undefined) continue;
+        if (key === 'id') filter._id = String(value);
+        else filter[key] = value;
       }
-
-      if (error) {
-        this.logMirrorError(
-          name,
-          'update',
-          `${error.message} | payload keys: ${Object.keys(attemptPayload).join(',')} | payload: ${JSON.stringify(attemptPayload).slice(0, 2000)}`,
-        );
-        throw error;
-      }
+      const setDoc = { ...data, updatedAt: data?.updatedAt || new Date().toISOString() };
+      delete (setDoc as any)._id;
+      await db.collection(name).updateMany(filter, { $set: setDoc });
     } catch (e) {
       this.logMirrorError(name, 'update', String(e));
       throw e;
@@ -1112,41 +903,18 @@ class LocalDatabaseEngine {
   }
 
   private async mirrorDelete(name: string, where: Record<string, any>): Promise<void> {
-    if (this.mongoPrimary) {
-      try {
-        const db = await getMongoDb();
-        const filter: Record<string, any> = {};
-        const hasFilter = Object.keys(where || {}).some((key) => where[key] !== undefined);
-        if (hasFilter) {
-          for (const [key, value] of Object.entries(where)) {
-            if (value === undefined) continue;
-            if (key === 'id') filter._id = String(value);
-            else filter[key] = value;
-          }
-        }
-        await db.collection(name).deleteMany(hasFilter ? filter : {});
-      } catch (e) {
-        this.logMirrorError(name, 'delete', String(e));
-      }
-      return;
-    }
-
     try {
-      const hasFilter = Object.keys(where).some((key) => where[key] !== undefined);
-      // PostgREST refuses DELETE with no filter — use a match-all predicate for wipe-all.
-      let query = hasFilter
-        ? supabase.from(name).delete()
-        : supabase.from(name).delete().neq('id', '00000000-0000-0000-0000-000000000000');
-
+      const db = await getMongoDb();
+      const filter: Record<string, any> = {};
+      const hasFilter = Object.keys(where || {}).some((key) => where[key] !== undefined);
       if (hasFilter) {
         for (const [key, value] of Object.entries(where)) {
           if (value === undefined) continue;
-          query = query.eq(key, value);
+          if (key === 'id') filter._id = String(value);
+          else filter[key] = value;
         }
       }
-
-      const { error } = await query;
-      if (error) this.logMirrorError(name, 'delete', error.message);
+      await db.collection(name).deleteMany(hasFilter ? filter : {});
     } catch (e) {
       this.logMirrorError(name, 'delete', String(e));
     }
@@ -1156,37 +924,25 @@ class LocalDatabaseEngine {
    * Re-read a collection from MongoDB (or Supabase legacy) into memory.
    * Keeps list endpoints consistent after another instance wiped rows.
    */
+  /**
+   * Re-read a collection from MongoDB into memory. Keeps list endpoints
+   * consistent after another instance wiped rows.
+   */
   public async refreshCollection(name: string): Promise<void> {
-    if (!this.sourceMode) return;
-    if (this.mongoPrimary) {
-      try {
-        const db = await getMongoDb();
-        const data = await db.collection(name).find({}).limit(10000).toArray();
-        const normalized = data.map((row) => {
-          const clean = this.stripMongoId(row as Record<string, any>);
-          return name === 'orders' ? normalizeOrderRow(clean) : clean;
-        });
-        (this.data as any)[name] = normalized;
-      } catch (e) {
-        this.logMirrorError(name, 'refresh', String(e));
-      }
-      return;
-    }
     try {
-      const { data, error } = await supabase.from(name).select('*').limit(10000);
-      if (error) {
-        this.logMirrorError(name, 'refresh', error.message);
-        return;
-      }
-      if (Array.isArray(data)) {
-        (this.data as any)[name] = name === 'orders' ? data.map((row) => normalizeOrderRow(row)) : data;
-      }
+      const db = await getMongoDb();
+      const data = await db.collection(name).find({}).limit(10000).toArray();
+      const normalized = data.map((row) => {
+        const clean = this.stripMongoId(row as Record<string, any>);
+        return name === 'orders' ? normalizeOrderRow(clean) : clean;
+      });
+      (this.data as any)[name] = normalized;
     } catch (e) {
       this.logMirrorError(name, 'refresh', String(e));
     }
   }
 
-  /** Empty local collection and await Supabase delete-all. */
+  /** Empty local collection and await the Mongo delete. */
   public async clearCollectionAwaited(name: string): Promise<number> {
     const collection = this.getCollection(name);
     const count = collection.length;
@@ -1245,7 +1001,7 @@ class LocalDatabaseEngine {
 
     collection.push(newItem);
     this.saveData();
-    // Fire-and-forget for non-auth tables; auth uses insertAwaited.
+    // Fire-and-forget for non-auth collections; auth uses insertAwaited.
     void this.mirrorInsert(collectionName, newItem).catch(() => {
       /* logged in mirrorInsert */
     });
@@ -1253,7 +1009,7 @@ class LocalDatabaseEngine {
   }
 
   /**
-   * Insert and wait for Supabase mirror — required for auth durability
+   * Insert and wait for the Mongo write — required for auth durability
    * (password hash must survive cold starts / other serverless instances).
    */
   public async insertAwaited(collectionName: string, itemData: any): Promise<any> {
@@ -1331,9 +1087,9 @@ class LocalDatabaseEngine {
   }
 
   /**
-   * Update a row in memory + local file WITHOUT mirroring to Supabase.
+   * Update a row in memory WITHOUT mirroring to Mongo.
    *
-   * Used by paths that own their own awaited Supabase write (e.g. the durable
+   * Used by paths that own their own awaited Mongo write (e.g. the durable
    * inventory decrement), so the change is persisted exactly once instead of
    * being mirrored fire-and-forget (which can be lost on a serverless freeze
    * and would double-write when the durable path already wrote it).

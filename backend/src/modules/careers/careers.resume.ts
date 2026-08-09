@@ -2,7 +2,8 @@ import { randomUUID } from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { supabase } from '../../config/supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { getSupabase } from '../../config/supabase';
 import { BadRequestError } from '../../common/errors/app-error';
 
 const ALLOWED_MIME = new Set([
@@ -27,7 +28,7 @@ function isServerlessRuntime(): boolean {
   return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 }
 
-async function ensureCareerResumesBucket(): Promise<boolean> {
+async function ensureCareerResumesBucket(supabase: SupabaseClient): Promise<boolean> {
   try {
     const { data: buckets, error: listError } = await supabase.storage.listBuckets();
     if (listError) {
@@ -62,7 +63,7 @@ async function ensureCareerResumesBucket(): Promise<boolean> {
   }
 }
 
-async function signedResumeUrl(objectPath: string): Promise<string> {
+async function signedResumeUrl(supabase: SupabaseClient, objectPath: string): Promise<string> {
   // Long-lived signed URL for admin/recruiters; bucket itself stays private.
   const { data, error } = await supabase.storage
     .from(STORAGE_BUCKET)
@@ -76,8 +77,10 @@ async function trySupabaseUpload(
   buffer: Buffer,
   mime: string,
 ): Promise<string | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null; // Supabase unconfigured — fall through to local storage.
   try {
-    await ensureCareerResumesBucket();
+    await ensureCareerResumesBucket(supabase);
 
     const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(objectPath, buffer, {
       contentType: mime || 'application/octet-stream',
@@ -87,14 +90,14 @@ async function trySupabaseUpload(
     if (error) {
       // Retry once after ensuring bucket (race / first deploy).
       if (/bucket not found/i.test(error.message)) {
-        const ready = await ensureCareerResumesBucket();
+        const ready = await ensureCareerResumesBucket(supabase);
         if (ready) {
           const retry = await supabase.storage.from(STORAGE_BUCKET).upload(objectPath, buffer, {
             contentType: mime || 'application/octet-stream',
             upsert: false,
           });
           if (!retry.error) {
-            return signedResumeUrl(objectPath);
+            return signedResumeUrl(supabase, objectPath);
           }
           console.warn(`[Careers] Supabase storage upload retry failed: ${retry.error.message}`);
           return null;
@@ -104,7 +107,7 @@ async function trySupabaseUpload(
       return null;
     }
 
-    return signedResumeUrl(objectPath);
+    return signedResumeUrl(supabase, objectPath);
   } catch (err) {
     console.warn('[Careers] Supabase storage unavailable.', err);
     return null;
@@ -159,6 +162,7 @@ export async function storeResumeFile(
   const objectPath = `${folder}/${objectFileName}`;
 
   const supabaseUrl = await trySupabaseUpload(objectPath, file.buffer, mime);
+
   if (supabaseUrl) {
     return { resumeUrl: supabaseUrl, resumeFileName: original };
   }

@@ -114,14 +114,18 @@ export class PaymentRepository {
       .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
-  createTransaction(data: {
+  async createTransaction(data: {
     applicationId: string;
     userId: string;
     razorpayOrderId: string;
     amount: number;
     currency: string;
   }) {
-    return jsonDb.insert('paymentTransaction', {
+    // Awaited insert: the payment-completion update later targets this row by
+    // id, and a fire-and-forget insert could land AFTER that update — PostgREST
+    // update on a missing row returns success with 0 rows affected, silently
+    // leaving the transaction stuck on CREATED with no razorpayPaymentId.
+    return jsonDb.insertAwaited('paymentTransaction', {
       applicationId: data.applicationId,
       userId: data.userId,
       razorpayOrderId: data.razorpayOrderId,
@@ -210,20 +214,23 @@ export class PaymentRepository {
     orderNumber: string;
   }) {
     const estimatedDeliveryDate = new Date();
-    estimatedDeliveryDate.setDate(estimatedDeliveryDate.getDate() + 7);
-
-    // Orders may already exist from admin approval on another serverless
+    estimatedDeliveryDate.setDate(estimatedDeliveryDate.getDate() + 7);    // Orders may already exist from admin approval on another serverless
     // instance — refresh Mongo before deciding insert vs link.
     await jsonDb.refreshCollection('orders');
 
-    jsonDb.update('paymentTransaction', { id: input.transactionId }, {
+    // Awaited mirrors so the SUCCESS status + Razorpay payment id survive a
+    // cold start — a fire-and-forget update could be lost when a serverless
+    // instance freezes before the mirror lands, leaving the ledger row stuck
+    // on CREATED while the customer's UI shows the payment succeeded.
+    await jsonDb.updateAwaited('paymentTransaction', { id: input.transactionId }, {
+
       razorpayPaymentId: input.razorpayPaymentId,
       razorpaySignature: input.razorpaySignature,
       paymentStatus: PaymentStatus.SUCCESS,
     });
     const payment = jsonDb.findOne('paymentTransaction', { id: input.transactionId });
 
-    jsonDb.update('emi_applications', { id: input.applicationId }, { status: EmiApplicationStatus.ACTIVE_EMI });
+    await jsonDb.updateAwaited('emi_applications', { id: input.applicationId }, { status: EmiApplicationStatus.ACTIVE_EMI });
     const application = jsonDb.findOne('emi_applications', { id: input.applicationId });
 
     let existing =

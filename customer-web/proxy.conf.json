@@ -1,7 +1,7 @@
 {
   "/api": {
-    "target": "https://loanex-api.vercel.app",
-    "secure": true,
+    "target": "http://localhost:4000",
+    "secure": false,
     "changeOrigin": true,
     "logLevel": "debug"
   }

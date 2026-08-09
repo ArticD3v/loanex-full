@@ -935,6 +935,7 @@ enum PaymentType {
   EMI
   KYC_VERIFICATION
   FULL_PAYMENT
+  COD
   @@schema("public")
 }
 

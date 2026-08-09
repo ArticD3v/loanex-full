@@ -10,7 +10,19 @@ export function EMICalculator({ price, selectedPlan, onSelectPlan }: Props) {
   const plans = useMemo((): EMIPlan[] =>
     EMI_RATES.map(({ months, annualRate }) => {
       const { monthlyAmount, totalAmount, processingFee } = calculateEMI(price, annualRate, months);
-      return { months, interestRate: annualRate, monthlyAmount, totalAmount, processingFee };
+      return {
+        months,
+        interestRate: annualRate,
+        monthlyAmount,
+        totalAmount,
+        processingFee,
+        // The calculator has no down-payment input, so the whole price is financed.
+        loanAmount: price,
+        upfrontPayment: processingFee,
+        totalPayable: totalAmount,
+        loanTotal: totalAmount,
+        grandTotal: totalAmount,
+      };
     }), [price]);
 
   return (

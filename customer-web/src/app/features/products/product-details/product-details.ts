@@ -12,6 +12,8 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { catchError } from 'rxjs';
+import { MessageService } from 'primeng/api';
+import { ToastModule } from 'primeng/toast';
 import { AuthService } from '../../../core/services/auth.service';
 import { CartService } from '../../cart/services/cart.service';
 import { WishlistService } from '../../wishlist/services/wishlist.service';
@@ -26,6 +28,7 @@ import {
   TrustBadge,
 } from '../models/product-details.models';
 import { ProductsApiService } from '../services/products-api.service';
+import { CheckoutApiService } from '../../checkout/services/checkout-api.service';
 import { toProductCardItem } from '../utils/map-catalog-product-card';
 import { applyVariantToDetails, mapProductDetails } from '../utils/map-product-details';
 import { ProductCardItem } from '../../../shared/models/product-card.model';
@@ -43,7 +46,9 @@ import { SpecificationComponent, RatingSummary } from './components/specificatio
     EmiCalculatorComponent,
     SpecificationComponent,
     RelatedProductsComponent,
+    ToastModule,
   ],
+  providers: [MessageService],
   templateUrl: './product-details.html',
   styleUrl: './product-details.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -57,6 +62,8 @@ export class ProductDetails {
   private readonly cartApi = inject(CartService);
   private readonly wishlistApi = inject(WishlistService);
   private readonly auth = inject(AuthService);
+  private readonly checkoutApi = inject(CheckoutApiService);
+  private readonly toast = inject(MessageService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -64,6 +71,9 @@ export class ProductDetails {
   readonly error = signal<string | null>(null);
   readonly product = signal<ProductDetailsModel | null>(null);
   readonly relatedProducts = signal<ProductCardItem[]>([]);
+
+  /** Set once the COD warning toast fired for this product — avoids re-toasting on variant toggles. */
+  private codToastShown = false;
 
   readonly deliverySteps = DELIVERY_STEPS;
   readonly cartNotice = signal<string | null>(null);
@@ -124,6 +134,7 @@ export class ProductDetails {
 
     const updated = applyVariantToDetails(details, variant, true);
     this.product.set(updated);
+    this.checkCodWarning(updated);
     this.layoutUi.setBreadcrumbs(
       updated.breadcrumbs.map((item: BreadcrumbTrailItem) => ({
         label: item.label,
@@ -242,6 +253,8 @@ export class ProductDetails {
               path: item.path,
             })),
           );
+          this.codToastShown = false;
+          this.checkCodWarning(mapped);
           this.loadWishlistStatus(mapped.id, mapped.selectedVariantId ?? undefined);
           this.loadRelatedProducts(detail.id, detail.category);
         },
@@ -252,6 +265,35 @@ export class ProductDetails {
           this.relatedProducts.set([]);
         },
       });
+  }
+
+  /**
+   * Toast the COD restriction on the product page, before the customer starts
+   * checkout. Same backend rules as the checkout summary — price + delivery is
+   * the buy-now total. Silently skipped for guests (the checkout enforces it).
+   */
+  private checkCodWarning(details: ProductDetailsModel): void {
+    if (!this.auth.isAuthenticated()) return;
+    const total = details.price + (details.deliveryCharge ?? 0);
+    this.checkoutApi.getCodRules(total).subscribe({
+      next: (rules) => {
+        const restricted = rules.maxAmount > 0 && !rules.codAllowed;
+        if (restricted && !this.codToastShown) {
+          this.codToastShown = true;
+          this.toast.add({
+            severity: 'warn',
+            summary: 'Cash on Delivery unavailable',
+            detail: `COD is not available for orders above ₹${rules.maxAmount.toLocaleString('en-IN')}. Please pay online or choose EMI instead.`,
+            life: 6000,
+          });
+        } else if (!restricted) {
+          this.codToastShown = false;
+        }
+      },
+      error: () => {
+        /* Silent — the checkout page still enforces the cap. */
+      },
+    });
   }
 
   private loadRelatedProducts(currentId: string, category: string): void {

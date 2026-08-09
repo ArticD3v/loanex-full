@@ -10,7 +10,18 @@ import {
 async function bootstrap() {
   const app = createApp();
 
-  await jsonDb.ready;
+  try {
+    await jsonDb.ready;
+  } catch (error) {
+    // Fail fast: MongoDB is the single source of truth — never boot on a
+    // stale local/bootstrap snapshot when Mongo is unreachable.
+    console.error(
+      '[BOOT-FAIL] Could not hydrate data from MongoDB — refusing to start. ' +
+        'Check MONGODB_URI / network access and restart.',
+      error instanceof Error ? error.message : String(error),
+    );
+    process.exit(1);
+  }
 
   try {
     const res = await pool.query('SELECT NOW()');

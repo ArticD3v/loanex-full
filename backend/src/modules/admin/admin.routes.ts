@@ -15,6 +15,7 @@ import { adminCreateNotificationSchema } from '../notifications/validator/notifi
 import { orderController } from '../order/controller/order.controller';
 import { adminUpdateOrderStatusSchema } from '../order/validator/order.validator';
 import { adminJobsRouter } from '../careers';
+import { settingsController } from '../settings/settings.controller';
 
 export const adminRouter = Router();
 
@@ -30,6 +31,14 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // —— Users ——
+// —— Portal settings (COD cap etc.) ——
+adminRouter.get('/settings', requirePermission('settings.view'), asyncHandler(settingsController.getSettings));
+adminRouter.patch(
+  '/settings/cod',
+  requirePermission('settings.edit'),
+  asyncHandler(settingsController.updateCodMaxAmount),
+);
+
 adminRouter.get('/users', requirePermission('users.view'), asyncHandler(adminController.listUsers));
 adminRouter.post('/users', requirePermission('users.create'), asyncHandler(adminController.createUser));
 adminRouter.patch('/users/:id', requirePermission('users.edit'), asyncHandler(adminController.updateUser));

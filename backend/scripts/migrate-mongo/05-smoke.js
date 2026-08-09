@@ -1,5 +1,8 @@
 ﻿const path = require("path");
-process.chdir("C:/Users/user/Desktop/loanex-full/backend");
+// Resolve paths relative to this repo (backend/scripts/migrate-mongo → backend).
+const BACKEND = path.resolve(__dirname, "..", "..");
+const ROOT = path.resolve(BACKEND, "..");
+process.chdir(BACKEND);
 require("dotenv").config({ path: path.join(process.cwd(), ".env") });
 process.env.DATA_PRIMARY = process.env.DATA_PRIMARY || "auto";
 
@@ -11,7 +14,7 @@ process.env.DATA_PRIMARY = process.env.DATA_PRIMARY || "auto";
   const { MongoClient } = require("mongodb");
   const fs = require("fs");
   function loadEnv(p){const e={}; for(const line of fs.readFileSync(p,"utf8").split(/\r?\n/)){if(!line||line.trim().startsWith("#"))continue; const i=line.indexOf("="); if(i<0)continue; let k=line.slice(0,i).trim(); let v=line.slice(i+1).trim(); if((v.startsWith('"')&&v.endsWith('"'))||(v.startsWith("'")&&v.endsWith("'")))v=v.slice(1,-1); e[k]=v;} return e;}
-  const env = loadEnv("C:/Users/user/Desktop/loanex-full/backend/.env");
+  const env = loadEnv(path.join(BACKEND, ".env"));
   const client = new MongoClient(env.MONGODB_URI, { serverSelectionTimeoutMS: 20000, family: 4 });
   await client.connect();
   const db = client.db(env.MONGODB_DB_NAME || "loanex");
@@ -22,7 +25,7 @@ process.env.DATA_PRIMARY = process.env.DATA_PRIMARY || "auto";
   // Ensure PG untouched: read-only count still works
   const { createClient } = require("@supabase/supabase-js");
   let sbUrl=env.SUPABASE_URL, sbKey=env.SUPABASE_SERVICE_ROLE_KEY;
-  if(!sbUrl||/sensitive/i.test(sbUrl)){ const seed=fs.readFileSync("C:/Users/user/Desktop/loanex-full/apps/customer-mobile/seed.js","utf8"); sbUrl=seed.match(/supabaseUrl\s*=\s*'([^']+)'/)[1]; sbKey=seed.match(/supabaseKey\s*=\s*'([^']+)'/)[1]; }
+  if(!sbUrl||/sensitive/i.test(sbUrl)){ const seed=fs.readFileSync(path.join(ROOT,"apps/customer-mobile/seed.js"),"utf8"); sbUrl=seed.match(/supabaseUrl\s*=\s*'([^']+)'/)[1]; sbKey=seed.match(/supabaseKey\s*=\s*'([^']+)'/)[1]; }
   const sb=createClient(sbUrl,sbKey,{auth:{persistSession:false}});
   const pgProducts = await sb.from("products").select("*",{count:"exact",head:true});
   console.log(JSON.stringify({

@@ -76,7 +76,7 @@
 
         </div>
 
-        <div>
+        <div *ngIf="data.applicationNumber">
 
           <dt>Application Number</dt>
 
@@ -116,7 +116,7 @@
 
           <dt>Payment Type</dt>
 
-          <dd>{{ data.paymentType || '—' }}</dd>
+          <dd>{{ formatPaymentType(data.paymentType) }}</dd>
 
         </div>
 
@@ -124,7 +124,7 @@
 
           <dt>Payment Method</dt>
 
-          <dd>{{ data.paymentMethod || '—' }}</dd>
+          <dd>{{ formatPaymentType(data.paymentMethod) }}</dd>
 
         </div>
 
@@ -132,7 +132,12 @@
 
           <dt>Amount Paid</dt>
 
-          <dd>{{ formatMoney(data.amountPaid) }}</dd>
+          <dd>
+            {{ formatMoney(data.amountPaid) }}
+            @if (data.paidAtDelivery) {
+              <span class="lx-od__paid-at-delivery">(Paid at delivery)</span>
+            }
+          </dd>
 
         </div>
 
@@ -284,7 +289,157 @@
 
             }
 
+            @if (emi.remainingLoanAmount !== undefined && emi.remainingLoanAmount !== null) {
+
+              <div>
+
+                <dt>Remaining Loan Amount</dt>
+
+                <dd>{{ formatMoney(emi.remainingLoanAmount) }}</dd>
+
+              </div>
+
+            }
+
+            @if (emi.paidEmiCount !== undefined && emi.totalEmiCount !== undefined) {
+
+              <div>
+
+                <dt>Installments Paid</dt>
+
+                <dd>{{ emi.paidEmiCount }} of {{ emi.totalEmiCount }}</dd>
+
+              </div>
+
+            }
+
+            @if (emi.nextEmiDueDate) {
+
+              <div>
+
+                <dt>Next EMI Due</dt>
+
+                <dd>{{ formatDate(emi.nextEmiDueDate) }}</dd>
+
+              </div>
+
+            }
+
           </dl>
+
+        </section>
+
+      }
+
+
+
+      @if (paymentHistory().length > 0) {
+
+        <section class="lx-od__section" aria-labelledby="lx-od-payments-title">
+
+          <h2 id="lx-od-payments-title">Payment History</h2>
+
+          <div class="lx-od__payments-wrap">
+
+            <table class="lx-od__payments">
+
+              <thead>
+
+                <tr>
+
+                  <th scope="col">Payment</th>
+
+                  <th scope="col">Date</th>
+
+                  <th scope="col" class="lx-od__payments-amt">Amount</th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                @for (row of paymentHistory(); track $index) {
+
+                  <tr>
+
+                    <td>{{ row.label }}</td>
+
+                    <td>{{ formatDeliveryDate(row.date) }}</td>
+
+                    <td class="lx-od__payments-amt">{{ formatMoney(row.amount) }}</td>
+
+                  </tr>
+
+                }
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </section>
+
+      }
+
+
+
+      @if (upcomingInstallments().length > 0) {
+
+        <section class="lx-od__section" aria-labelledby="lx-od-upcoming-title">
+
+          <h2 id="lx-od-upcoming-title">Upcoming Installments</h2>
+
+          <p class="lx-od__section-note">
+
+            Remaining EMIs on this loan — {{ upcomingInstallments().length }} installment{{ upcomingInstallments().length === 1 ? '' : 's' }} left.
+
+          </p>
+
+          <div class="lx-od__payments-wrap">
+
+            <table class="lx-od__payments">
+
+              <thead>
+
+                <tr>
+
+                  <th scope="col">Installment</th>
+
+                  <th scope="col">Due Date</th>
+
+                  <th scope="col">Status</th>
+
+                  <th scope="col" class="lx-od__payments-amt">Amount</th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                @for (row of upcomingInstallments(); track row.emiNumber) {
+
+                  <tr>
+
+                    <td>EMI #{{ row.emiNumber }}</td>
+
+                    <td>{{ formatDeliveryDate(row.dueDate) }}</td>
+
+                    <td><span class="lx-od__badge" [class.lx-od__badge--overdue]="row.paymentStatus === 'OVERDUE'">{{ statusLabel(row.paymentStatus) }}</span></td>
+
+                    <td class="lx-od__payments-amt">{{ formatMoney(row.amount) }}</td>
+
+                  </tr>
+
+                }
+
+              </tbody>
+
+            </table>
+
+          </div>
 
         </section>
 

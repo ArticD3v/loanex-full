@@ -10,6 +10,7 @@ import { jsonDb } from '../../../config/json-db';
 import { maskPan } from '../../../common/utils/pan';
 import { auditLogService } from '../../verification/service/audit-log.service';
 import { orderRepository } from '../../order/repository/order.repository';
+import { generateSequentialOrderNumber } from '../../../common/utils/order-number';
 import { loanRepository } from '../../loan/repository/loan.repository';
 import {
   calculateMonthlyEmi,
@@ -1026,14 +1027,8 @@ export class EmiApplicationService {
     };
   }
 
-  private async generateOrderNumber(): Promise<string> {
-    const now = new Date();
-    const yyyy = now.getUTCFullYear();
-    const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
-    const dd = String(now.getUTCDate()).padStart(2, '0');
-    const prefix = `LX-ORD-${yyyy}${mm}${dd}-`;
-    const count = await orderRepository.countOrdersToday(prefix);
-    return `${prefix}${String(count + 1).padStart(4, '0')}`;
+  private generateOrderNumber(): Promise<string> {
+    return Promise.resolve(generateSequentialOrderNumber());
   }
 
   private async generateApplicationNumber(): Promise<string> {
@@ -1042,8 +1037,8 @@ export class EmiApplicationService {
     const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
     const dd = String(now.getUTCDate()).padStart(2, '0');
     const prefix = `LX-EMI-${yyyy}${mm}${dd}-`;
-    const count = await emiApplicationRepository.countApplicationsToday(prefix);
-    const seq = String(count + 1).padStart(4, '0');
+    const maxSeq = await emiApplicationRepository.maxApplicationSequenceToday(prefix);
+    const seq = String(maxSeq + 1).padStart(4, '0');
     return `${prefix}${seq}`;
   }
 

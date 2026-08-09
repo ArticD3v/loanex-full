@@ -14,11 +14,21 @@
       },
       "package": "com.tousifkhansteam.lloanex"
     },
+    "owner": "strever",
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ],
     "extra": {
       "eas": {
-        "projectId": "573db643-3c97-44a3-a786-3aabbef9e854"
+        "projectId": "8dd6d885-0cb7-4feb-87e6-b690eb6731db"
       }
-    },
-    "owner": "tousifkhans-team"
+    }
   }
 }

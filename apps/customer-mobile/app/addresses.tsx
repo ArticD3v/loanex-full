@@ -4,7 +4,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
-import { getAddresses, deleteAddress, updateAddress } from '../services/addressService';
+import { getAddresses, deleteAddress, setDefaultAddress } from '../services/addressService';
 import { Colors, Fonts, Spacing, Radius, Shadow } from '../constants/theme';
 import { Address } from '../types';
 
@@ -27,7 +27,7 @@ export default function AddressesScreen() {
 
   async function handleSetDefault(id: string) {
     if (!user) return;
-    await updateAddress(id, { isDefault: true } as Partial<Address>);
+    await setDefaultAddress(user.id, id);
     load();
   }
 

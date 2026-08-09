@@ -10,7 +10,8 @@ const { MongoClient } = require("mongodb");
 
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
-const ROOT = "C:/Users/user/Desktop/loanex-full/backend";
+// Resolve paths relative to this repo (backend/scripts/migrate-mongo → backend).
+const ROOT = path.resolve(__dirname, "..", "..");
 const REPORT_DIR = path.join(ROOT, "scripts/migrate-mongo/reports");
 fs.mkdirSync(REPORT_DIR, { recursive: true });
 
@@ -225,6 +226,28 @@ const DEFAULT_ROLES = [
     legacyExcluded: [],
   };
 
+  // --- Identity reconciliation -------------------------------------------------
+  // Keep existing MongoDB users canonical by phone/email: a Supabase user whose
+  // phone/email already exists in Mongo is NOT inserted again — the Mongo id
+  // wins, and every child row (orders, profiles, applications, loans, …) is
+  // re-keyed to it. Without this, re-running the migration creates duplicate
+  // users and detaches orders from the account the customer logs in with.
+  const phoneToMongoId = new Map();
+  const emailToMongoId = new Map();
+  const existingUsers = await db.collection("users").find({}).toArray();
+  for (const u of existingUsers) {
+    const mid = String(u._id ?? u.id ?? "");
+    const phone = String(u.phone ?? "").replace(/\D/g, "").slice(-10);
+    if (phone.length === 10 && !phoneToMongoId.has(phone)) phoneToMongoId.set(phone, mid);
+    const email = String(u.email ?? "").toLowerCase().trim();
+    if (email && !emailToMongoId.has(email)) emailToMongoId.set(email, mid);
+  }
+  const remapId = (v) => {
+    if (v === null || v === undefined) return v;
+    const key = String(v);
+    return phoneToMongoId.get(key) || emailToMongoId.get(key) || key;
+  };
+
   const cache = {};
   async function getTable(name) {
     if (cache[name]) return cache[name];
@@ -273,9 +296,37 @@ const DEFAULT_ROLES = [
     let migrated = 0;
     let failed = 0;
     for (const row of rows) {
-      const id = row.id != null ? String(row.id) : null;
+      let doc = { ...row };
+
+      if (plan.mongo === "users") {
+        const phone = String(row.phone ?? "").replace(/\D/g, "").slice(-10);
+        const email = String(row.email ?? "").toLowerCase().trim();
+        const existing =
+          (phone && phoneToMongoId.get(phone)) || (email && emailToMongoId.get(email));
+        if (existing && String(row.id) !== existing) {
+          // Identity already lives in Mongo — map the Supabase id to it.
+          if (row.id != null) phoneToMongoId.set(String(row.id), existing);
+          stats.recordsSkipped += 1;
+          continue;
+        }
+        if (row.id != null) {
+          const sid = String(row.id);
+          phoneToMongoId.set(sid, sid);
+          if (phone) phoneToMongoId.set(phone, sid);
+          if (email) emailToMongoId.set(email, sid);
+        }
+      }
+
+      // Re-key user references to the canonical Mongo identity.
+      for (const k of ["userId", "profileId", "user_id", "profile_id"]) {
+        if (doc[k] !== null && doc[k] !== undefined) doc[k] = remapId(doc[k]);
+      }
+      // Profiles are keyed by user id — re-key the row id too.
+      if (plan.mongo === "profiles" && doc.id != null) doc.id = remapId(doc.id);
+
+      const id = doc.id != null ? String(doc.id) : null;
       if (!id) { stats.recordsSkipped += 1; continue; }
-      const doc = { ...row, id, _id: id };
+      doc = { ...doc, id, _id: id };
       try {
         await col.replaceOne({ _id: id }, doc, { upsert: true });
         migrated += 1;

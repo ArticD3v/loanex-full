@@ -6,7 +6,7 @@
       "user_profiles"
     ],
     "sourceCounts": {
-      "profiles": 1,
+      "profiles": 56,
       "user_profiles": 0
     },
     "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -20,9 +20,9 @@
       "userAddress"
     ],
     "sourceCounts": {
-      "addresses": 6,
+      "addresses": 23,
       "user_addresses": 0,
-      "userAddress": 0
+      "userAddress": 1
     },
     "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
     "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
@@ -47,7 +47,7 @@
       "order_tracking"
     ],
     "sourceCounts": {
-      "orderTracking": 0,
+      "orderTracking": 8,
       "order_tracking": 0
     },
     "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -60,7 +60,7 @@
       "payment_transactions"
     ],
     "sourceCounts": {
-      "paymentTransaction": 0,
+      "paymentTransaction": 5,
       "payment_transactions": 0
     },
     "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -73,7 +73,7 @@
       "loan_accounts"
     ],
     "sourceCounts": {
-      "loanAccount": 0,
+      "loanAccount": 3,
       "loan_accounts": 0
     },
     "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -86,7 +86,7 @@
       "emi_schedule"
     ],
     "sourceCounts": {
-      "emi_schedules": 0,
+      "emi_schedules": 22,
       "emi_schedule": 0
     },
     "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -99,7 +99,7 @@
       "kyc"
     ],
     "sourceCounts": {
-      "customer_kyc": 1,
+      "customer_kyc": 5,
       "kyc": 0
     },
     "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -112,7 +112,7 @@
       "customer_verifications"
     ],
     "sourceCounts": {
-      "customerVerification": 0,
+      "customerVerification": 5,
       "customer_verifications": 0
     },
     "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -125,7 +125,7 @@
       "aadhaar_verifications"
     ],
     "sourceCounts": {
-      "aadhaarVerification": 0,
+      "aadhaarVerification": 2,
       "aadhaar_verifications": 0
     },
     "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -138,7 +138,7 @@
       "pan_verifications"
     ],
     "sourceCounts": {
-      "panVerification": 0,
+      "panVerification": 2,
       "pan_verifications": 0
     },
     "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -164,7 +164,7 @@
       "mobile_verifications"
     ],
     "sourceCounts": {
-      "mobileVerification": 0,
+      "mobileVerification": 2,
       "mobile_verifications": 0
     },
     "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -177,8 +177,8 @@
       "notifications"
     ],
     "sourceCounts": {
-      "notification": 0,
-      "notifications": 6
+      "notification": 77,
+      "notifications": 0
     },
     "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
     "conflictRule": "NON-NULL denser > sparser; then newer updatedAt/createdAt; conflicts logged"
@@ -190,7 +190,7 @@
       "audit_logs"
     ],
     "sourceCounts": {
-      "audit_log": 0,
+      "audit_log": 766,
       "audit_logs": 0
     },
     "mergeReason": "Same business entity; prefer runtime name + denser/newer row",
@@ -203,7 +203,7 @@
       "autopay_mandates"
     ],
     "sourceCounts": {
-      "autopayMandate": 0,
+      "autopayMandate": 2,
       "autopay_mandates": 0
     },
     "mergeReason": "Same business entity; prefer runtime name + denser/newer row",

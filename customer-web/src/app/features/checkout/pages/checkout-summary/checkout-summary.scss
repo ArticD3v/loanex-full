@@ -303,6 +303,27 @@
     border-color: #0a2e6f;
     box-shadow: 0 0 0 3px rgba(10, 46, 111, 0.08);
   }
+
+  &.is-disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    background: #f9fafb;
+  }
+}
+
+.lx-co__cod-restricted {
+  margin-top: 0.75rem;
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  line-height: 1.45;
 }
 
 .lx-co__actions {

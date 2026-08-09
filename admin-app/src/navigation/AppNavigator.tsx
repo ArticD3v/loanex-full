@@ -36,6 +36,7 @@ import { MasterListScreen } from '../settings/screens/MasterListScreen';
 import { CategoriesMasterScreen } from '../settings/screens/CategoriesMasterScreen';
 import { BranchMasterScreen } from '../settings/screens/BranchMasterScreen';
 import { PincodeMasterScreen } from '../settings/screens/PincodeMasterScreen';
+import { CodSettingsScreen } from '../settings/screens/CodSettingsScreen';
 import { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -103,6 +104,7 @@ export function AppNavigator() {
           options={{ animation: 'slide_from_bottom' }}
         />
         <Stack.Screen name="SettingsHome" component={SettingsHomeScreen} />
+        <Stack.Screen name="CodSettings" component={CodSettingsScreen} />
         <Stack.Screen name="MastersHome" component={MastersHomeScreen} />
         <Stack.Screen name="MasterList" component={MasterListScreen} />
         <Stack.Screen name="CategoriesMaster" component={CategoriesMasterScreen} />

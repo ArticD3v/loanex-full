@@ -98,39 +98,22 @@ function isDownPaymentPaid(app: EmiApplicationStatus, payment: any) {
   );
 }
 
-function resolvePaymentType(order: any): 'FULL PAYMENT' | 'EMI' {
+function resolvePaymentType(order: any): 'FULL PAYMENT' | 'EMI' | 'COD' {
   const method = String(order.paymentMethod ?? order.payment_method ?? '').toUpperCase();
   if (order.applicationId || method === 'EMI') return 'EMI';
+  if (method === 'COD' || method === 'CASH_ON_DELIVERY') return 'COD';
   return 'FULL PAYMENT';
 }
 
-function resolveAmountPaid(order: any, app: any, payment: any, paymentType: string): number {
+function resolveAmountPaid(order: any, app: any, payment: any): number {
   if (payment && String(payment.paymentStatus).toUpperCase() === PaymentStatus.SUCCESS) {
     return toNumber(payment.amount);
   }
-
   const totalAmount = toNumber(
     order.totalAmount ?? order.total_amount ?? order.total ?? app.sellingPrice ?? 0,
   );
-
-  if (paymentType === 'FULL PAYMENT') {
-    const status = String(order.payment_status ?? order.orderStatus ?? order.status ?? '').toUpperCase();
-    // Confirmed / paid full-payment orders should show order total, not ₹0.
-    if (
-      status.includes('CONFIRM') ||
-      status === 'SUCCESS' ||
-      status === 'PENDING' ||
-      status === 'PAID' ||
-      !status
-    ) {
-      return totalAmount;
-    }
-    return totalAmount;
-  }
-
-  const downPayment = toNumber(app.downPayment || 0);
-  if (isDownPaymentPaid(app.status, payment)) return downPayment;
-  return 0;
+  // Confirmed / paid full-payment orders should show order total, not ₹0.
+  return totalAmount;
 }
 
 function buildTrackingSteps(order: any, createdAt: string) {
@@ -151,6 +134,37 @@ function buildTrackingSteps(order: any, createdAt: string) {
   });
 }
 
+/**
+ * Effective EMI status for a schedule row: stored PAID/FAILED/OVERDUE win,
+ * otherwise a PENDING row whose due date has passed becomes OVERDUE. Mirrors
+ * loan-payload.service's effectiveStatus so every surface (admin ledger,
+ * order details, invoices) shows the true repayment runway.
+ */
+/**
+ * Real collected amount for a schedule row: paidAmount when money was taken,
+ * else the EMI amount. A stored paidAmount of 0 (unpaid rows) must never
+ * blank the amount out (0 ?? emiAmount picks 0).
+ */
+export function emiRowAmount(row: any): number {
+  const paid = toNumber(row?.paidAmount);
+  return paid > 0 ? paid : toNumber(row?.emiAmount);
+}
+
+export function effectiveEmiPaymentStatus(row: any, asOf: Date = new Date()): string {
+  const raw = String(row?.paymentStatus ?? row?.payment_status ?? 'PENDING').toUpperCase();
+  if (raw === 'PAID' || raw === 'FAILED' || raw === 'OVERDUE' || raw === 'PARTIAL') return raw;
+  const due = row?.dueDate ? new Date(row.dueDate) : null;
+  if (
+    due &&
+    !Number.isNaN(due.getTime()) &&
+    due.getTime() < asOf.getTime() &&
+    raw === 'PENDING'
+  ) {
+    return 'OVERDUE';
+  }
+  return raw;
+}
+
 export function buildOrderPayload(order: any) {
   const app = order.application || {};
   const payment = order.paymentTransaction;
@@ -163,21 +177,88 @@ export function buildOrderPayload(order: any) {
       order.items?.[0]?.unitPrice ??
       0,
   );
-  const loanAmount = toNumber(app.loanAmount ?? (paymentType === 'EMI' ? productPrice : 0));
-  const downPayment = toNumber(app.downPayment || 0);
+  // Real loan + EMI ledger drives every EMI number — the application row only
+  // holds requested/estimated terms, while the loanAccount + emi_schedules hold
+  // the approved truth (and change as EMIs are paid).
+  const loan = order.loan ?? null;
+  const schedules = Array.isArray(order.emiSchedules) ? order.emiSchedules : [];
+  const paidSchedules = schedules.filter(
+    (s: any) => String(s.paymentStatus ?? '').toUpperCase() === 'PAID',
+  );
+  const emiCollected = paidSchedules.reduce(
+    (sum: number, s: any) => sum + emiRowAmount(s),
+    0,
+  );
+  const loanAmount = toNumber(
+    loan?.loanAmount ??
+      app.approvedAmount ??
+      app.loanAmount ??
+      app.requestedAmount ??
+      (paymentType === 'EMI' ? productPrice : 0),
+  );
+  const downPayment = toNumber(
+    app.approvedDownPayment ?? app.requestedDownPayment ?? app.downPayment ?? 0,
+  );
   const downPaymentPaid = isDownPaymentPaid(app.status, payment);
-  const amountPaid = resolveAmountPaid(order, app, payment, paymentType);
+  const dpCollected =
+    payment && String(payment.paymentStatus).toUpperCase() === PaymentStatus.SUCCESS
+      ? toNumber(payment.amount)
+      : 0;
+  // EMI: collected down-payment transaction plus every paid EMI — computed live
+  // from the ledger so the value grows as EMIs are paid (never static).
+  const amountPaid =
+    paymentType === 'FULL PAYMENT'
+      ? resolveAmountPaid(order, app, payment)
+      : paymentType === 'COD'
+        ? payment && String(payment.paymentStatus).toUpperCase() === PaymentStatus.SUCCESS
+          ? toNumber(payment.amount)
+          : 0
+        : Math.round((dpCollected + emiCollected) * 100) / 100;
+  // COD cash is collected at delivery — expose when that happened so receipts
+  // and the admin ledger can say 'Paid at delivery on <date>'.
+  const paidAtDelivery =
+    paymentType === 'COD' &&
+    payment &&
+    String(payment.paymentStatus).toUpperCase() === PaymentStatus.SUCCESS
+      ? payment.paidAt ?? payment.createdAt ?? null
+      : null;
   const remainingLoanAmount =
-    paymentType === 'EMI' ? Math.max(0, loanAmount - (downPaymentPaid ? downPayment : 0)) : 0;
+    paymentType === 'EMI'
+      ? loan
+        ? toNumber(loan.outstandingAmount ?? 0)
+        : Math.max(0, loanAmount - (downPaymentPaid ? downPayment : 0))
+      : 0;
   const canPayDownPayment =
     paymentType === 'EMI' &&
     PAYABLE_DOWN_PAYMENT_STATUSES.includes(app.status) &&
     !downPaymentPaid;
 
-  const tenure = toNumber(app.approvedTenure || app.tenure || app.months || app.requestedTenure || 0) || null;
-  const monthlyEmi = toNumber(app.monthlyEmi || app.estimatedMonthlyEmi || app.regular_emi_amount || 0);
-  const interestRate = toNumber(app.interestRate || 12.5);
-  const processingFee = toNumber(app.processingFee || app.service_charge || 0);
+  const tenure =
+    toNumber(
+      loan?.loanTenure ??
+        app.approvedTenure ??
+        app.tenure ??
+        app.months ??
+        app.requestedTenure ??
+        0,
+    ) || null;
+  const monthlyEmi = toNumber(
+    loan?.emiAmount ??
+      app.monthlyEmi ??
+      app.estimatedMonthlyEmi ??
+      app.regular_emi_amount ??
+      0,
+  );
+  const interestRate = toNumber(loan?.interestRate ?? app.interestRate ?? 0);
+  const processingFee = toNumber(
+    loan?.processingFee ?? app.processingFee ?? app.service_charge ?? 0,
+  );
+  const loanStatus = loan?.loanStatus ?? null;
+  const nextEmiDueDate =
+    loan?.nextEmiDueDate ??
+    schedules.find((s: any) => String(s.paymentStatus ?? '').toUpperCase() !== 'PAID')
+      ?.dueDate ??
+    null;
   const gstPercent = env.GST_PERCENT;
   const gstAmount = processingFee > 0 ? Math.round((processingFee * gstPercent) / 100) : 0;
   const totalPayableToday = Math.round((downPayment + processingFee + gstAmount) * 100) / 100;
@@ -203,6 +284,7 @@ export function buildOrderPayload(order: any) {
           productImage: i.product?.imageUrl || resolveProductImage(i.productId),
           quantity: i.quantity ?? 1,
           unitPrice: toNumber(i.unitPrice ?? productPrice),
+          variantId: i.variantId ?? null,
         }))
       : undefined;
 
@@ -217,7 +299,12 @@ export function buildOrderPayload(order: any) {
     paymentTransactionId: payment?.transactionId ?? payment?.id ?? null,
     transactionDate: payment?.createdAt ? new Date(payment.createdAt).toISOString() : createdAt,
     paymentType,
-    paymentMethod: paymentType === 'FULL PAYMENT' ? 'FULL PAYMENT' : (payment?.paymentMethod ?? 'EMI'),
+    paymentMethod:
+      paymentType === 'FULL PAYMENT'
+        ? 'FULL PAYMENT'
+        : paymentType === 'COD'
+          ? 'COD'
+          : (payment?.paymentMethod ?? 'EMI'),
     paymentStatus: payment?.paymentStatus ?? order.payment_status ?? 'SUCCESS',
     productId: order.productId ?? app.productId ?? items?.[0]?.productId ?? 'prod-1',
     productName:
@@ -230,7 +317,11 @@ export function buildOrderPayload(order: any) {
     productPrice,
     loanAmount,
     downPayment,
+    // Only EMI orders have a down payment — COD collection is reported via
+    // amountPaid/paidAtDelivery instead.
+    downPaymentCollected: paymentType === 'EMI' ? dpCollected : 0,
     amountPaid,
+    paidAtDelivery,
     remainingLoanAmount,
     approvedLoanAmount: loanAmount,
     approvedDownPayment: downPayment,
@@ -238,6 +329,31 @@ export function buildOrderPayload(order: any) {
     monthlyEmi,
     interestRate,
     processingFee,
+    loanStatus,
+    loanAccountNumber: loan?.loanAccountNumber ?? null,
+    paidEmiCount: paidSchedules.length,
+    totalEmiCount: schedules.length,
+    nextEmiDueDate,
+    emiPayments: paidSchedules.map((s: any) => ({
+      emiNumber: s.emiNumber,
+      dueDate: s.dueDate ?? null,
+      paidAt: s.paidAt ?? null,
+      principalAmount: toNumber(s.principalAmount),
+      interestAmount: toNumber(s.interestAmount),
+      amount: emiRowAmount(s),
+    })),
+    // Full loan schedule — paid rows carry paidAt/PAID, upcoming rows stay
+    // PENDING/OVERDUE so every surface can show the remaining installments
+    // with due dates and amounts next to the paid history.
+    emiSchedule: schedules.map((s: any) => ({
+      emiNumber: s.emiNumber,
+      dueDate: s.dueDate ?? null,
+      principalAmount: toNumber(s.principalAmount),
+      interestAmount: toNumber(s.interestAmount),
+      amount: emiRowAmount(s),
+      paymentStatus: effectiveEmiPaymentStatus(s),
+      paidAt: s.paidAt ?? null,
+    })),
     gstPercent,
     gstAmount,
     totalPayableToday: paymentType === 'EMI' ? downPayment + processingFee : amountPaid,
@@ -267,10 +383,16 @@ export function buildOrderPayload(order: any) {
             downPayment,
             tenure,
             monthlyEmi: monthlyEmi || null,
-            // Only surface a rate when the application actually has one — don't
-            // leak the 12.5% fallback into FULL PAYMENT order payloads.
-            interestRate: app.interestRate ? interestRate : null,
+            // Only surface a rate when one actually exists — don't leak a
+            // default into FULL PAYMENT order payloads.
+            interestRate: interestRate ? interestRate : null,
             processingFee: processingFee || null,
+            loanStatus,
+            loanAccountNumber: loan?.loanAccountNumber ?? null,
+            paidEmiCount: paidSchedules.length,
+            totalEmiCount: schedules.length,
+            nextEmiDueDate,
+            remainingLoanAmount,
           }
         : undefined,
     timeline: {
@@ -506,6 +628,149 @@ async function generateOrderPdfBuffer(
     });
 
     y += 52;
+
+    // COD cash is collected at delivery — state it explicitly with the date.
+    if (payload.paidAtDelivery) {
+      doc
+        .fillColor(BRAND.primary)
+        .font('Helvetica-Bold')
+        .fontSize(10)
+        .text(
+          `Paid at delivery on ${new Date(payload.paidAtDelivery).toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+          })}`,
+          left,
+          y,
+        );
+      y += 18;
+    }
+
+    if (type === 'invoice' && payload.paymentType === 'EMI') {
+      // EMI loan summary — dynamic from the loan ledger + paid installments,
+      // so the document reflects every payment actually collected.
+      y += 4;
+      doc.fillColor(BRAND.primary).font('Helvetica-Bold').fontSize(12).text('EMI Loan Summary', left, y);
+      y += 16;
+      const emiRows: Array<[string, string]> = [
+        ['Loan Account', payload.loanAccountNumber || '—'],
+        ['Loan Status', String(payload.loanStatus || '—').replaceAll('_', ' ')],
+        ['Loan Amount', formatInr(payload.emi?.loanAmount || 0)],
+        ['Down Payment', formatInr(payload.emi?.downPayment || 0)],
+        ['Tenure', payload.emi?.tenure ? `${payload.emi.tenure} months` : '—'],
+        ['Monthly EMI', payload.emi?.monthlyEmi ? formatInr(payload.emi.monthlyEmi) : '—'],
+        ['Interest Rate', payload.emi?.interestRate ? `${payload.emi.interestRate}% p.a.` : '—'],
+        ['Processing Fee', payload.emi?.processingFee ? formatInr(payload.emi.processingFee) : '—'],
+      ];
+      emiRows.forEach(([label, value], i) => {
+        if (i % 2 === 0) doc.rect(left, y, contentWidth, 18).fill('#FFFFFF');
+        else doc.rect(left, y, contentWidth, 18).fill(BRAND.soft);
+        doc.fillColor(BRAND.muted).font('Helvetica').fontSize(9).text(label, left + 12, y + 5);
+        doc
+          .fillColor(BRAND.ink)
+          .font('Helvetica-Bold')
+          .fontSize(9)
+          .text(value, left + 150, y + 5, { width: contentWidth - 162, align: 'right' });
+        y += 18;
+      });
+
+      y += 10;
+      const paidCount = Number(payload.paidEmiCount ?? 0);
+      const totalCount = Number(payload.totalEmiCount ?? 0);
+      doc
+        .fillColor(BRAND.primary)
+        .font('Helvetica-Bold')
+        .fontSize(10)
+        .text(`Installments Paid: ${paidCount} / ${totalCount || '—'}`, left, y);
+      y += 15;
+      if (payload.nextEmiDueDate) {
+        doc
+          .fillColor(BRAND.muted)
+          .font('Helvetica')
+          .fontSize(9)
+          .text(
+            `Next EMI due: ${new Date(payload.nextEmiDueDate).toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            })}`,
+            left,
+            y,
+          );
+        y += 14;
+      }
+      doc
+        .fillColor(BRAND.muted)
+        .font('Helvetica')
+        .fontSize(9)
+        .text(`Amount paid to date: ${formatInr(payload.amountPaid || 0)}`, left, y);
+      y += 14;
+      doc
+        .fillColor(BRAND.muted)
+        .font('Helvetica')
+        .fontSize(9)
+        .text(`Remaining balance: ${formatInr(payload.remainingLoanAmount || 0)}`, left, y);
+      y += 20;
+
+      // Payment history — only rows that were actually collected.
+      const paidEmis: any[] = payload.emiPayments || [];
+      if (paidEmis.length > 0 || payload.downPaymentCollected > 0) {
+        doc.fillColor(BRAND.primary).font('Helvetica-Bold').fontSize(11).text('Payment History', left, y);
+        y += 16;
+        doc.rect(left, y, contentWidth, 22).fill(BRAND.primary);
+        doc.fillColor(BRAND.white).font('Helvetica-Bold').fontSize(9);
+        doc.text('PAYMENT', left + 12, y + 7);
+        doc.text('DATE', left + 150, y + 7, { width: 90, align: 'right' });
+        doc.text('AMOUNT', left + contentWidth - 55, y + 7, { width: 43, align: 'right' });
+        y += 22;
+        const rows: Array<{ label: string; date: string | null; amount: number }> = [];
+        if (payload.downPaymentCollected > 0) {
+          rows.push({
+            label: 'Down Payment',
+            date: payload.transactionDate ?? null,
+            amount: toNumber(payload.downPaymentCollected),
+          });
+        }
+        for (const p of paidEmis) {
+          rows.push({
+            label: `EMI #${p.emiNumber}`,
+            date: p.paidAt ?? p.dueDate ?? null,
+            amount: toNumber(p.amount),
+          });
+        }
+        rows.forEach((r, i) => {
+          if (i % 2 === 0) doc.rect(left, y, contentWidth, 22).fill('#FFFFFF');
+          else doc.rect(left, y, contentWidth, 22).fill(BRAND.soft);
+          doc
+            .strokeColor(BRAND.line)
+            .lineWidth(0.5)
+            .moveTo(left, y + 22)
+            .lineTo(right, y + 22)
+            .stroke();
+          doc.fillColor(BRAND.ink).font('Helvetica').fontSize(9).text(r.label, left + 12, y + 6);
+          doc
+            .font('Helvetica')
+            .text(
+              r.date
+                ? new Date(r.date).toLocaleDateString('en-IN', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  })
+                : '—',
+              left + 150,
+              y + 6,
+              { width: 90, align: 'right' },
+            );
+          doc
+            .font('Helvetica-Bold')
+            .text(formatInr(r.amount), left + contentWidth - 55, y + 6, { width: 43, align: 'right' });
+          y += 22;
+        });
+        y += 16;
+      }
+    }
 
     if (type === 'invoice') {
       doc.fillColor(BRAND.primary).font('Helvetica-Bold').fontSize(11).text('Delivery', left, y);

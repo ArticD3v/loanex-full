@@ -1,6 +1,9 @@
 ﻿const fs = require("fs");
 const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
+// Resolve paths relative to this repo (backend/scripts/migrate-mongo → backend).
+const BACKEND = path.resolve(__dirname, "..", "..");
+const ROOT = path.resolve(BACKEND, "..");
 
 function loadEnv(p) {
   const env = {};
@@ -17,11 +20,11 @@ function loadEnv(p) {
   return env;
 }
 
-const env = loadEnv("C:/Users/user/Desktop/loanex-full/backend/.env");
+const env = loadEnv(path.join(BACKEND, ".env"));
 let url = env.SUPABASE_URL;
 let key = env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || /sensitive/i.test(url) || url.length < 20) {
-  const seed = fs.readFileSync("C:/Users/user/Desktop/loanex-full/apps/customer-mobile/seed.js", "utf8");
+  const seed = fs.readFileSync(path.join(ROOT, "apps/customer-mobile/seed.js"), "utf8");
   url = seed.match(/supabaseUrl\s*=\s*'([^']+)'/)[1];
   key = seed.match(/supabaseKey\s*=\s*'([^']+)'/)[1];
 }
@@ -64,7 +67,7 @@ const sb = createClient(url, key, { auth: { persistSession: false } });
     };
   }
 
-  const outDir = "C:/Users/user/Desktop/loanex-full/backend/scripts/migrate-mongo/reports";
+  const outDir = path.join(BACKEND, "scripts/migrate-mongo/reports");
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, "inventory.json"), JSON.stringify({ tableCount: tables.length, inventory }, null, 2));
   const summary = Object.entries(inventory).map(([name, info]) => ({

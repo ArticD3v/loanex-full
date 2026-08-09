@@ -18,7 +18,11 @@ export interface BackendOrder {
   // Backend mapOrderRecord emits 'FULL PAYMENT' (with space) for DIRECT orders,
   // 'EMI' for EMI orders, and could carry 'COD'/'CASH' for genuine COD sales.
   paymentMethod?: string;
-  payment_status: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+  // Raw backend values include 'SUCCESS' (Razorpay/EMI) and 'PENDING' (awaiting
+  // payment) in addition to the mapped frontend states.
+  payment_status: 'PENDING' | 'PAID' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
+  /** camelCase payment status emitted by the admin order endpoints. */
+  paymentStatus?: 'PENDING' | 'SUCCESS' | 'PAID' | 'FAILED' | 'REFUNDED' | null;
   status: string;
   items?: OrderItem[];
   notes?: string;
@@ -168,11 +172,29 @@ export const mapBackendOrderToFrontend = (
     sellingPrice,
     totalAmount,
     paymentType,
+    paymentStatus: rawOrder.paymentStatus ?? rawOrder.payment_status ?? undefined,
     status,
     productImageUrl,
     emiPlan: rawOrder.emiPlan ?? product.name,
     emiAmount: rawOrder.emiAmount,
     emiDuration: rawOrder.emiDuration,
+    // Live loan ledger — pass through from the admin order detail endpoint.
+    loanStatus: rawOrder.loanStatus ?? null,
+    loanAccountNumber: rawOrder.loanAccountNumber ?? null,
+    outstandingAmount: rawOrder.outstandingAmount ?? null,
+    paidEmiCount: rawOrder.paidEmiCount,
+    totalEmiCount: rawOrder.totalEmiCount,
+    downPayment: rawOrder.downPayment ?? null,
+    loanAmount: rawOrder.loanAmount ?? null,
+    interestRate: rawOrder.interestRate ?? null,
+    processingFee: rawOrder.processingFee ?? null,
+    downPaymentCollected: rawOrder.downPaymentCollected,
+    amountPaid: rawOrder.amountPaid,
+    transactionDate: rawOrder.transactionDate ?? null,
+    paidAtDelivery: rawOrder.paidAtDelivery ?? null,
+    nextEmiDueDate: rawOrder.nextEmiDueDate ?? null,
+    emiPayments: Array.isArray(rawOrder.emiPayments) ? rawOrder.emiPayments : undefined,
+    emiSchedule: Array.isArray(rawOrder.emiSchedule) ? rawOrder.emiSchedule : undefined,
   };
 };
 

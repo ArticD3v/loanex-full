@@ -4,7 +4,7 @@ import { Observable, catchError, map, tap, throwError } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { ApiSuccess } from '../../../core/models/auth.models';
 
-export type PurchaseType = 'EMI' | 'DIRECT';
+export type PurchaseType = 'EMI' | 'DIRECT' | 'COD';
 
 export interface CheckoutSummary {
   product: {
@@ -77,6 +77,12 @@ export interface CheckoutSummary {
     isDefault: boolean;
   }>;
   purchaseOptions: Array<{ code: PurchaseType; label: string; description: string }>;
+  /** Cash-on-delivery rules — COD is blocked above the max amount. */
+  codRules?: {
+    maxAmount: number;
+    codAllowed: boolean;
+    totalAmount: number;
+  };
 }
 
 export interface CheckoutSession {
@@ -131,6 +137,20 @@ export interface DevBypassSignatureResponse {
   razorpaySignature: string;
 }
 
+export interface PlaceCodOrderResponse {
+  kind: string;
+  order: {
+    id: string;
+    orderNumber: string;
+    paymentMethod: string;
+    paymentStatus: string;
+    orderStatus: string;
+    totalAmount: number;
+    estimatedDeliveryDate?: string;
+  };
+  items: unknown[];
+}
+
 export interface RazorpayVerifyPayload {
   razorpayOrderId: string;
   razorpayPaymentId: string;
@@ -151,6 +171,21 @@ export class CheckoutApiService {
   readonly loading = this.loadingSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
   readonly errorCode = this.errorCodeSignal.asReadonly();
+
+  /**
+   * COD availability for a given cart total — same codRules the checkout
+   * summary derives from (backend COD_MAX_AMOUNT). Lightweight call that does
+   * not touch the shared loading/error signals.
+   */
+  getCodRules(amount: number): Observable<{ maxAmount: number; codAllowed: boolean; totalAmount: number }> {
+    const params = new HttpParams().set('amount', String(Math.round(amount)));
+    return this.http
+      .get<ApiSuccess<{ maxAmount: number; codAllowed: boolean; totalAmount: number }>>(
+        `${this.baseUrl}/cod-rules`,
+        { params },
+      )
+      .pipe(map((res) => res.data));
+  }
 
   getSummary(productId: string, quantity = 1, variantId?: string, mode?: string): Observable<CheckoutSummary> {
     let params = new HttpParams().set('quantity', String(quantity));
@@ -210,6 +245,22 @@ export class CheckoutApiService {
         `${this.baseUrl}/${sessionId}/payment/verify`,
         payload,
       ),
+    );
+  }
+
+  /** One-shot COD order placement (no payment step — pay on delivery). */
+  placeCodOrder(payload: {
+    items: Array<{ productId: string; quantity: number; variantId?: string | null }>;
+    addressId?: string;
+    notes?: string;
+  }): Observable<PlaceCodOrderResponse> {
+    return this.wrap(
+      this.http.post<ApiSuccess<PlaceCodOrderResponse>>(`${this.baseUrl}/place-order`, {
+        items: payload.items,
+        addressId: payload.addressId,
+        notes: payload.notes ?? null,
+        paymentMethod: 'COD',
+      }),
     );
   }
 

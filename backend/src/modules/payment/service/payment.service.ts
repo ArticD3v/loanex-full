@@ -87,7 +87,7 @@ export class PaymentService {
       throw new NotFoundError('No EMI application found for this account.');
     }
 
-    this.assertAccessRedirect(app.status);
+    this.assertAccessRedirect(app);
 
     const success = await paymentRepository.findSuccessDownPayment(app.id);
     if (isDownPaymentCompleted(app, Boolean(success))) {
@@ -488,7 +488,11 @@ export class PaymentService {
     }
   }
 
-  private assertAccessRedirect(status: EmiApplicationStatus) {
+  private assertAccessRedirect(app: {
+    status: EmiApplicationStatus;
+    order?: { orderNumber?: string | null; id?: string | null } | null;
+  }) {
+    const status = app.status;
     if (
       status === EmiApplicationStatus.DOWN_PAYMENT_COMPLETED ||
       status === EmiApplicationStatus.ORDER_CONFIRMED ||
@@ -497,6 +501,8 @@ export class PaymentService {
       throw new ConflictError('Down payment already completed.', {
         code: 'PAYMENT_ALREADY_COMPLETED',
         status,
+        orderNumber: app.order?.orderNumber ?? null,
+        orderId: app.order?.id ?? null,
         nextStep: 'ORDER_CONFIRMATION',
       });
     }

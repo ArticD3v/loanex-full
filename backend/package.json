@@ -12,7 +12,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "prisma db seed",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "test:app-numbers": "tsx scripts/test-application-number-unique.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -56,6 +57,7 @@
     "@types/nodemailer": "^6.4.24",
     "@types/pdfkit": "^0.17.6",
     "@types/swagger-ui-express": "^4.1.8",
+    "playwright": "^1.62.1",
     "prisma": "^6.16.2",
     "prisma-case-format": "^2.2.1",
     "tsx": "^4.20.5",

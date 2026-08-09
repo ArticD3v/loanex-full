@@ -1,8 +1,12 @@
 ﻿const fs = require("fs");
+const path = require("path");
 const dns = require("dns");
 const { createClient } = require("@supabase/supabase-js");
 const { MongoClient } = require("mongodb");
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
+// Resolve paths relative to this repo (backend/scripts/migrate-mongo → backend).
+const BACKEND = path.resolve(__dirname, "..", "..");
+const ROOT = path.resolve(BACKEND, "..");
 
 function loadEnv(p) {
   const env = {};
@@ -35,10 +39,10 @@ function normalizeDoc(row) {
 }
 
 (async () => {
-  const env = loadEnv("C:/Users/user/Desktop/loanex-full/backend/.env");
+  const env = loadEnv(path.join(BACKEND, ".env"));
   let sbUrl = env.SUPABASE_URL, sbKey = env.SUPABASE_SERVICE_ROLE_KEY;
   if (!sbUrl || /sensitive/i.test(sbUrl)) {
-    const seed = fs.readFileSync("C:/Users/user/Desktop/loanex-full/apps/customer-mobile/seed.js", "utf8");
+    const seed = fs.readFileSync(path.join(ROOT, "apps/customer-mobile/seed.js"), "utf8");
     sbUrl = seed.match(/supabaseUrl\s*=\s*'([^']+)'/)[1];
     sbKey = seed.match(/supabaseKey\s*=\s*'([^']+)'/)[1];
   }
@@ -46,6 +50,24 @@ function normalizeDoc(row) {
   const client = new MongoClient(env.MONGODB_URI, { serverSelectionTimeoutMS: 20000, family: 4 });
   await client.connect();
   const db = client.db(env.MONGODB_DB_NAME || "loanex");
+
+  // --- Identity reconciliation (same rule as 02-migrate / sync-current) ---------
+  // Existing Mongo users stay canonical by phone/email; child rows are re-keyed.
+  const phoneToMongoId = new Map();
+  const emailToMongoId = new Map();
+  const existingUsers = await db.collection("users").find({}).toArray();
+  for (const u of existingUsers) {
+    const mid = String(u._id ?? u.id ?? "");
+    const phone = String(u.phone ?? "").replace(/\D/g, "").slice(-10);
+    if (phone.length === 10 && !phoneToMongoId.has(phone)) phoneToMongoId.set(phone, mid);
+    const email = String(u.email ?? "").toLowerCase().trim();
+    if (email && !emailToMongoId.has(email)) emailToMongoId.set(email, mid);
+  }
+  const remapId = (v) => {
+    if (v === null || v === undefined) return v;
+    const key = String(v);
+    return phoneToMongoId.get(key) || emailToMongoId.get(key) || key;
+  };
 
   // Recreate unique indexes with partialFilterExpression (not just sparse)
   async function recreatePartialUnique(colName, field) {
@@ -66,6 +88,9 @@ function normalizeDoc(row) {
     let ok = 0, fail = 0;
     for (const row of data || []) {
       const n = normalizeDoc(row);
+      for (const k of ["userId", "profileId", "user_id", "profile_id"]) {
+        if (n[k] !== null && n[k] !== undefined) n[k] = remapId(n[k]);
+      }
       const id = String(n.id);
       n.id = id; n._id = id;
       try {

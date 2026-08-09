@@ -10,6 +10,16 @@ function requireUserId(req: AuthenticatedRequest): string {
 }
 
 export class CheckoutController {
+  getCodRules = async (req: Request, res: Response) => {
+    const amountRaw = req.query.amount;
+    const amount =
+      typeof amountRaw === 'string' && amountRaw.trim()
+        ? Number(amountRaw)
+        : Number.NaN;
+    const data = checkoutService.getCodRules(Number.isFinite(amount) ? amount : 0);
+    return sendSuccess(res, data, 'COD rules fetched');
+  };
+
   getSummary = async (req: Request, res: Response) => {
     const quantityRaw = req.query.quantity;
     const quantity =
@@ -33,6 +43,14 @@ export class CheckoutController {
       mode,
     );
     return sendSuccess(res, data, 'Checkout summary fetched');
+  };
+
+  placeOrder = async (req: Request, res: Response) => {
+    const data = await checkoutService.placeOrder(
+      requireUserId(req as AuthenticatedRequest),
+      req.body,
+    );
+    return sendSuccess(res, data, 'Order placed');
   };
 
   create = async (req: Request, res: Response) => {

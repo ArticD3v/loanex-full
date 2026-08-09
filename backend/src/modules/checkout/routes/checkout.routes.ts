@@ -5,7 +5,7 @@ import { validateRequest } from '../../../common/middleware/validate';
 import { asyncHandler } from '../../../common/utils/async-handler';
 import { env } from '../../../config/env';
 import { checkoutController } from '../controller/checkout.controller';
-import { createCheckoutBodySchema } from '../validator/checkout.validator';
+import { createCheckoutBodySchema, placeOrderBodySchema } from '../validator/checkout.validator';
 import { verifyPaymentBodySchema } from '../../payment/validator/payment.validator';
 
 const limiter = createRateLimiter({
@@ -27,6 +27,18 @@ checkoutRouter.post(
   validateRequest(createCheckoutBodySchema),
   asyncHandler(checkoutController.create),
 );
+
+// One-shot COD / DIRECT / EMI-application placement (mobile app).
+// Registered before '/:productId' so the literal path is never captured.
+checkoutRouter.post(
+  '/place-order',
+  validateRequest(placeOrderBodySchema),
+  asyncHandler(checkoutController.placeOrder),
+);
+
+// COD availability for a given cart total (mobile checkout banner).
+// Registered before '/:productId' so the literal path is never captured.
+checkoutRouter.get('/cod-rules', asyncHandler(checkoutController.getCodRules));
 
 checkoutRouter.get(
   '/session/:sessionId',
