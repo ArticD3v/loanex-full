@@ -1,7 +1,21 @@
-import { HttpClient } from '@angular/common/http';
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
+import { toObservable } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
-import { Observable, catchError, map, tap, throwError } from 'rxjs';
+import {
+  Observable,
+  catchError,
+  filter,
+  finalize,
+  firstValueFrom,
+  map,
+  of,
+  shareReplay,
+  take,
+  tap,
+  throwError,
+} from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   ApiSuccess,
@@ -23,33 +37,42 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly tokens = inject(TokenService);
   private readonly router = inject(Router);
+  private readonly platformId = inject(PLATFORM_ID);
 
   private readonly baseUrl = `${environment.apiBaseUrl}/api/v1/auth`;
   private readonly loadingSignal = signal(false);
   private readonly errorSignal = signal<string | null>(null);
+  private readonly readySignal = signal(false);
   private returnUrl = '/';
+  private refreshInFlight$: Observable<RefreshTokenResponse> | null = null;
+  private loginRedirectScheduled = false;
 
   readonly loading = this.loadingSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
   readonly user = this.tokens.user;
   readonly isAuthenticated = computed(() => this.tokens.hasAccessToken());
+  readonly authReady = this.readySignal.asReadonly();
+  private readonly ready$ = toObservable(this.readySignal);
 
   constructor() {
-    if (this.tokens.hasAccessToken()) {
-      if (!this.tokens.hasValidAccessToken()) {
-        // Expired JWT — silent refresh via HttpOnly cookie before first API call.
-        this.refreshToken().subscribe({
-          next: () => this.fetchMe().subscribe({ error: () => this.tokens.clear() }),
-          error: () => this.tokens.clear(),
-        });
-      } else {
-        this.fetchMe().subscribe({
-          error: () => {
-            this.tokens.clear();
-          },
-        });
-      }
+    if (!isPlatformBrowser(this.platformId)) {
+      // SSR/prerender has no localStorage — do not treat as logged out in a sticky way.
+      this.readySignal.set(true);
+      return;
     }
+    void this.initializeAuth();
+  }
+
+  /** Completes once when auth restoration has finished (success or keep/clear decision). */
+  whenReady(): Observable<true> {
+    if (this.readySignal()) {
+      return of(true);
+    }
+    return this.ready$.pipe(
+      filter((ready): ready is true => ready === true),
+      take(1),
+      map(() => true as const),
+    );
   }
 
   fetchMe(): Observable<AuthUser | null> {
@@ -143,6 +166,7 @@ export class AuthService {
             if (!data.requiresOtp && data.accessToken && data.user) {
               // Refresh may be HttpOnly-cookie-only; still persist access + user.
               this.persistSession(data.accessToken, data.refreshToken ?? '', data.user);
+              this.loginRedirectScheduled = false;
             }
           }),
         ),
@@ -178,6 +202,7 @@ export class AuthService {
             // Only persist session when tokens are issued (not mid-signup profile step).
             if (!data.requiresProfile && data.accessToken && data.user) {
               this.persistSession(data.accessToken, data.refreshToken ?? '', data.user);
+              this.loginRedirectScheduled = false;
             }
           }),
         ),
@@ -204,6 +229,7 @@ export class AuthService {
           tap((data) => {
             if (data.accessToken && data.user) {
               this.persistSession(data.accessToken, data.refreshToken ?? '', data.user);
+              this.loginRedirectScheduled = false;
             }
           }),
         ),
@@ -230,18 +256,39 @@ export class AuthService {
     );
   }
 
+  /**
+   * Shared single-flight refresh. Constructor restoration and the 401 interceptor
+   * must both call this so the rotating refresh token is never used twice concurrently.
+   */
   refreshToken(): Observable<RefreshTokenResponse> {
-    const refreshToken = this.tokens.refreshToken();
-    const body = refreshToken ? { refreshToken } : {};
+    if (!this.refreshInFlight$) {
+      const refreshToken = this.tokens.refreshToken();
+      const body = refreshToken ? { refreshToken } : {};
 
-    return this.http
-      .post<ApiSuccess<RefreshTokenResponse>>(`${this.baseUrl}/refresh-token`, body, {
-        withCredentials: true,
-      })
-      .pipe(
-        map((res) => res.data),
-        tap((data) => this.persistSession(data.accessToken, data.refreshToken, data.user)),
-      );
+      this.refreshInFlight$ = this.http
+        .post<ApiSuccess<RefreshTokenResponse>>(`${this.baseUrl}/refresh-token`, body, {
+          withCredentials: true,
+        })
+        .pipe(
+          map((res) => res.data),
+          tap((data) => {
+            this.persistSession(data.accessToken, data.refreshToken, data.user);
+            this.loginRedirectScheduled = false;
+          }),
+          catchError((err: unknown) => {
+            if (this.isDefinitiveAuthFailure(err)) {
+              this.tokens.clear();
+            }
+            return throwError(() => err);
+          }),
+          finalize(() => {
+            this.refreshInFlight$ = null;
+          }),
+          shareReplay({ bufferSize: 1, refCount: false }),
+        );
+    }
+
+    return this.refreshInFlight$;
   }
 
   logout(): Observable<{ loggedOut: boolean; message: string }> {
@@ -272,6 +319,101 @@ export class AuthService {
     const target = this.getReturnUrl();
     this.clearReturnUrl();
     void this.router.navigateByUrl(target);
+  }
+
+  /** Navigate to login at most once per auth-loss episode. */
+  redirectToLogin(returnUrl?: string): void {
+    if (this.loginRedirectScheduled) return;
+    const current = this.router.url || '';
+    if (current === '/auth/login' || current.startsWith('/auth/login?')) return;
+
+    this.loginRedirectScheduled = true;
+    const safe = this.sanitizeReturnUrl(returnUrl);
+    if (safe) {
+      this.setReturnUrl(safe);
+    }
+    void this.router.navigate(['/auth/login'], {
+      queryParams: safe ? { returnUrl: safe } : undefined,
+    });
+  }
+
+  isDefinitiveAuthFailure(err: unknown): boolean {
+    if (!(err instanceof HttpErrorResponse)) {
+      return false;
+    }
+    if (err.status === 401 || err.status === 403) {
+      return true;
+    }
+    // Refresh with missing/invalid cookie often returns 400 from our API.
+    if (err.status === 400) {
+      const message = String(
+        (err.error as { message?: string } | null)?.message ?? err.message ?? '',
+      ).toLowerCase();
+      return (
+        message.includes('refresh token') ||
+        message.includes('unauthorized') ||
+        message.includes('invalid or expired')
+      );
+    }
+    return false;
+  }
+
+  private async initializeAuth(): Promise<void> {
+    try {
+      if (!this.tokens.hasAccessToken()) {
+        return;
+      }
+
+      if (!this.tokens.hasValidAccessToken()) {
+        try {
+          await firstValueFrom(this.refreshToken());
+        } catch (err) {
+          // refreshToken() already cleared on definitive auth failure.
+          if (this.isDefinitiveAuthFailure(err)) {
+            return;
+          }
+          // Transient refresh failure — keep existing local session for retry later.
+          return;
+        }
+        await this.safeFetchMe();
+        return;
+      }
+
+      await this.safeFetchMe();
+    } finally {
+      this.readySignal.set(true);
+    }
+  }
+
+  /** Load /me; on 401 try one shared refresh; never clear on transient errors. */
+  private async safeFetchMe(): Promise<void> {
+    try {
+      await firstValueFrom(this.fetchMe());
+    } catch (err) {
+      if (!(err instanceof HttpErrorResponse) || err.status !== 401) {
+        // Network / 404 / 5xx — keep local session.
+        return;
+      }
+
+      try {
+        await firstValueFrom(this.refreshToken());
+        await firstValueFrom(
+          this.fetchMe().pipe(
+            catchError((meErr) => {
+              // Session was refreshed; keep tokens even if /me is temporarily unhealthy.
+              if (this.isDefinitiveAuthFailure(meErr) && meErr instanceof HttpErrorResponse && meErr.status === 401) {
+                // Fresh access token still rejected — session is not usable.
+                this.tokens.clear();
+              }
+              return of(null);
+            }),
+          ),
+        );
+      } catch {
+        // refreshToken() already cleared on definitive auth failure;
+        // transient failures keep the prior local session.
+      }
+    }
   }
 
   private persistSession(accessToken: string, refreshToken: string, user: AuthUser): void {

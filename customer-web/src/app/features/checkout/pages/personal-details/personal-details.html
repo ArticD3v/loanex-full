@@ -62,8 +62,17 @@
                 class="lx-input"
                 type="date"
                 formControlName="dob"
-                readonly
+                [attr.readonly]="dobLocked() ? true : null"
               />
+              @if (!dobLocked() && form.controls.dob.touched && form.controls.dob.invalid) {
+                <p class="lx-error-text" role="alert">
+                  @if (form.controls.dob.errors?.['dobUnderage']) {
+                    You must be at least 18 years old.
+                  } @else {
+                    Date of Birth is required.
+                  }
+                </p>
+              }
             </div>
 
             <fieldset class="lx-pd__field lx-pd__field--full">
@@ -86,6 +95,9 @@
                   <span>Prefer not to say</span>
                 </label>
               </div>
+              @if (!genderLocked() && form.controls.gender.touched && form.controls.gender.invalid) {
+                <p class="lx-error-text" role="alert">Gender is required.</p>
+              }
             </fieldset>
           </div>
         </section>

@@ -1,5 +1,9 @@
 import { jsonDb } from '../../../config/json-db';
 import { decrementStockDurable } from '../../../common/utils/inventory';
+import {
+  addressBelongsToUser,
+  resolveAddressType,
+} from '../../profile/repository/profile.repository';
 
 // Map Prisma-style enum values to plain strings for JSON DB
 export const PurchaseType = { EMI: 'EMI', DIRECT: 'DIRECT' } as const;
@@ -121,11 +125,7 @@ export class CheckoutRepository {
   }
 
   findDefaultShippingAddress(userId: string) {
-    const all = jsonDb.findMany('addresses');
-    const forUser = all.filter(
-      (r: any) => r.profileId === userId || r.userId === userId,
-    );
-    // Return default first, then most recent
+    const forUser = this.findShippingAddresses(userId);
     return (
       forUser.find((r: any) => r.is_default) ??
       forUser.sort((a: any, b: any) => {
@@ -140,15 +140,15 @@ export class CheckoutRepository {
   findShippingAddresses(userId: string) {
     const all = jsonDb.findMany('addresses');
     const forUser = all.filter(
-      (r: any) => r.profileId === userId || r.userId === userId,
+      (r: any) => addressBelongsToUser(r, userId) && resolveAddressType(r) === 'SHIPPING',
     );
     return forUser.sort((a: any, b: any) => {
       // Default first, then oldest first
       if (Boolean(b.is_default) !== Boolean(a.is_default)) {
         return Boolean(b.is_default) ? 1 : -1;
       }
-      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      const ta = a.createdAt || a.created_at ? new Date(a.createdAt ?? a.created_at).getTime() : 0;
+      const tb = b.createdAt || b.created_at ? new Date(b.createdAt ?? b.created_at).getTime() : 0;
       return ta - tb;
     });
   }

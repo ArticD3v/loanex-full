@@ -42,6 +42,25 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Client,
   },
   {
+    // Auth-guarded checkout must run in the browser: prerender has no localStorage,
+    // so AuthGuard would redirect to login on hard refresh before client hydration.
+    path: 'checkout',
+    renderMode: RenderMode.Client,
+  },
+  {
+    path: 'checkout/**',
+    renderMode: RenderMode.Client,
+  },
+  {
+    // Same auth/localStorage hard-refresh issue as checkout.
+    path: 'profile',
+    renderMode: RenderMode.Client,
+  },
+  {
+    path: 'profile/**',
+    renderMode: RenderMode.Client,
+  },
+  {
     path: '**',
     renderMode: RenderMode.Prerender,
   },

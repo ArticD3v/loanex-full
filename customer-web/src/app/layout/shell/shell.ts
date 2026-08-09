@@ -70,15 +70,18 @@ export class Shell {
         return;
       }
 
-      if (this.auth.isAuthenticated()) {
-        this.cartApi.getCart().subscribe({ error: () => this.ui.cartCount.set(0) });
-        this.wishlistApi.getWishlist().subscribe({
-          error: () => this.ui.wishlistCount.set(0),
-        });
-      } else {
-        this.ui.cartCount.set(0);
-        this.ui.wishlistCount.set(0);
-      }
+      // Wait for auth restore so cart/wishlist do not race a silent refresh.
+      this.auth.whenReady().subscribe(() => {
+        if (this.auth.isAuthenticated()) {
+          this.cartApi.getCart().subscribe({ error: () => this.ui.cartCount.set(0) });
+          this.wishlistApi.getWishlist().subscribe({
+            error: () => this.ui.wishlistCount.set(0),
+          });
+        } else {
+          this.ui.cartCount.set(0);
+          this.ui.wishlistCount.set(0);
+        }
+      });
 
       const onScroll = () => this.ui.setScrolled(window.scrollY > 8);
       onScroll();

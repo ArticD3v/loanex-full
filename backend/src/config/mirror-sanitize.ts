@@ -53,18 +53,70 @@ function sanitizeRolesRow(item: Record<string, any>, mode: 'insert' | 'update'):
 
 function sanitizeProfilesRow(item: Record<string, any>, mode: 'insert' | 'update'): Record<string, any> {
   const now = new Date().toISOString();
+  const fullName = item.full_name ?? item.fullName;
   return pickDefined({
     ...(mode === 'insert' && item.id != null ? { id: item.id } : {}),
     mobile_number: item.mobile_number ?? item.mobileNumber,
-    fullName: item.fullName,
+    // public.profiles uses snake_case full_name (not fullName).
+    full_name: fullName,
     email: item.email,
     dob: item.dob,
     gender: item.gender,
-    kyc_status: item.kyc_status,
+    kyc_status: item.kyc_status ?? item.kycStatus,
     branches: item.branches,
     pincodes: item.pincodes,
-    createdAt: item.createdAt ?? (mode === 'insert' ? now : undefined),
-    updatedAt: item.updatedAt ?? now,
+    created_at: item.created_at ?? item.createdAt ?? (mode === 'insert' ? now : undefined),
+    updated_at: item.updated_at ?? item.updatedAt ?? now,
+  });
+}
+
+/** Normalize hydrated address rows so ownership lookups use camelCase consistently. */
+export function normalizeAddressRow(row: Record<string, any>): Record<string, any> {
+  if (!row || typeof row !== 'object') return row;
+  const userId = row.userId ?? row.user_id ?? null;
+  const profileId = row.profileId ?? row.profile_id ?? userId;
+  return {
+    ...row,
+    userId,
+    user_id: userId,
+    profileId,
+    profile_id: profileId,
+    house_number: row.house_number ?? row.addressLine1 ?? null,
+    street: row.street ?? row.addressLine2 ?? null,
+    fullAddress: row.fullAddress ?? row.full_address ?? null,
+    full_address: row.full_address ?? row.fullAddress ?? null,
+    addressType: row.addressType ?? row.label ?? 'SHIPPING',
+    label: row.label ?? row.addressType ?? 'SHIPPING',
+    is_default: Boolean(row.is_default),
+    createdAt: row.createdAt ?? row.created_at ?? null,
+    updatedAt: row.updatedAt ?? row.updated_at ?? null,
+  };
+}
+
+function sanitizeAddressesRow(item: Record<string, any>, mode: 'insert' | 'update'): Record<string, any> {
+  const now = new Date().toISOString();
+  const userId = item.userId ?? item.user_id;
+  const profileId = item.profileId ?? item.profile_id ?? userId;
+  const label = item.label ?? item.addressType ?? 'SHIPPING';
+  return pickDefined({
+    ...(mode === 'insert' && item.id != null && isUuid(item.id) ? { id: item.id } : {}),
+    profile_id: isUuid(profileId) ? profileId : undefined,
+    user_id: isUuid(userId) ? userId : undefined,
+    label,
+    receiver_name: item.receiver_name ?? item.receiverName ?? undefined,
+    mobile_number: item.mobile_number ?? item.mobileNumber ?? undefined,
+    house_number: item.house_number ?? item.addressLine1,
+    apartment: item.apartment ?? undefined,
+    street: item.street ?? item.addressLine2,
+    area: item.area ?? undefined,
+    landmark: item.landmark ?? null,
+    city: item.city,
+    state: item.state,
+    pincode: item.pincode,
+    is_default: Boolean(item.is_default),
+    is_residential_verified: item.is_residential_verified ?? item.isResidentialVerified ?? undefined,
+    full_address: item.full_address ?? item.fullAddress ?? undefined,
+    created_at: item.created_at ?? item.createdAt ?? (mode === 'insert' ? now : undefined),
   });
 }
 
@@ -432,6 +484,8 @@ export function sanitizeMirrorPayload(
       return sanitizeRolesRow(item, mode);
     case 'profiles':
       return sanitizeProfilesRow(item, mode);
+    case 'addresses':
+      return sanitizeAddressesRow(item, mode);
     case 'refresh_tokens':
       return sanitizeRefreshTokensRow(item, mode);
     case 'products':

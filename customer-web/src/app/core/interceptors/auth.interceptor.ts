@@ -1,11 +1,9 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, finalize, shareReplay, switchMap, throwError } from 'rxjs';
+import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { TokenService } from '../services/token.service';
-
-let refreshInFlight: ReturnType<AuthService['refreshToken']> | null = null;
 
 /** Auth routes that must NOT receive the access-token Bearer header. */
 const PUBLIC_AUTH_PATH =
@@ -19,6 +17,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   const isRefresh = req.url.includes('/api/v1/auth/refresh-token');
   const isPublicAuth = PUBLIC_AUTH_PATH.test(req.url);
+  const isMe = /\/api\/v1\/auth\/me(?:\?|$)/i.test(req.url);
 
   const authReq =
     accessToken && !isPublicAuth
@@ -41,35 +40,29 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         return throwError(() => error);
       }
 
-      // Attempt refresh via HttpOnly cookie and/or in-memory/legacy refresh token.
-      if (!refreshInFlight) {
-        refreshInFlight = auth.refreshToken().pipe(
-          shareReplay({ bufferSize: 1, refCount: false }),
-          catchError((refreshError) => {
-            tokens.clear();
-            const returnUrl =
-              router.url && router.url !== '/auth/login' ? router.url : undefined;
-            if (returnUrl) {
-              auth.setReturnUrl(returnUrl);
-            }
-            void router.navigate(['/auth/login'], {
-              queryParams: returnUrl ? { returnUrl } : undefined,
-            });
-            return throwError(() => refreshError);
-          }),
-          finalize(() => {
-            refreshInFlight = null;
-          }),
-        );
+      // During bootstrap restore, /me 401 is handled by AuthService.initializeAuth
+      // via the same shared refresh — avoid a second competing refresh here.
+      if (isMe && !auth.authReady()) {
+        return throwError(() => error);
       }
 
-      return refreshInFlight.pipe(
+      // Shared single-flight refresh (same Observable as AuthService constructor).
+      return auth.refreshToken().pipe(
         switchMap((data) => {
           const retry = req.clone({
             setHeaders: { Authorization: `Bearer ${data.accessToken}` },
             withCredentials: true,
           });
           return next(retry);
+        }),
+        catchError((refreshError: unknown) => {
+          if (auth.isDefinitiveAuthFailure(refreshError)) {
+            // tokens.clear() already performed inside AuthService.refreshToken on auth failure.
+            const returnUrl =
+              router.url && !router.url.startsWith('/auth/login') ? router.url : undefined;
+            auth.redirectToLogin(returnUrl);
+          }
+          return throwError(() => refreshError);
         }),
       );
     }),

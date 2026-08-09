@@ -6,8 +6,10 @@ import {
   signal,
 } from '@angular/core';
 import {
+  AbstractControl,
   FormBuilder,
   ReactiveFormsModule,
+  ValidationErrors,
   Validators,
 } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -20,6 +22,41 @@ import {
   UpsertProfileRequest,
 } from '../../services/profile.service';
 import { AuthService } from '../../../../core/services/auth.service';
+
+const GENDER_VALUES: readonly Gender[] = [
+  'MALE',
+  'FEMALE',
+  'OTHER',
+  'PREFER_NOT_TO_SAY',
+] as const;
+
+function isValidDobIso(value: string | null | undefined): boolean {
+  return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
+}
+
+function isValidGender(value: string | null | undefined): value is Gender {
+  return Boolean(value && (GENDER_VALUES as readonly string[]).includes(value));
+}
+
+function adultDobValidator(control: AbstractControl): ValidationErrors | null {
+  const value = String(control.value ?? '').trim();
+  if (!value) return { required: true };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return { dobFormat: true };
+
+  const dob = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(dob.getTime())) return { dobFormat: true };
+
+  const today = new Date();
+  const age =
+    today.getUTCFullYear() -
+    dob.getUTCFullYear() -
+    (today.getUTCMonth() < dob.getUTCMonth() ||
+    (today.getUTCMonth() === dob.getUTCMonth() && today.getUTCDate() < dob.getUTCDate())
+      ? 1
+      : 0);
+
+  return age < 18 ? { dobUnderage: true } : null;
+}
 
 const INDIAN_STATES = [
   'Andhra Pradesh',
@@ -74,6 +111,8 @@ export class PersonalDetailsComponent implements OnInit {
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
   readonly hasProfile = signal(false);
+  readonly dobLocked = signal(true);
+  readonly genderLocked = signal(true);
 
   readonly form = this.fb.nonNullable.group({
     fullName: [{ value: '', disabled: true }],
@@ -82,7 +121,7 @@ export class PersonalDetailsComponent implements OnInit {
     dob: [{ value: '', disabled: true }],
     gender: [{ value: '' as Gender | '', disabled: true }],
     addressLine1: ['', [Validators.required, Validators.maxLength(120)]],
-    addressLine2: ['', [Validators.maxLength(200)]],
+    addressLine2: ['', [Validators.required, Validators.maxLength(200)]],
     landmark: [''],
     city: ['', [Validators.required, Validators.maxLength(80)]],
     state: ['', [Validators.required]],
@@ -123,20 +162,29 @@ export class PersonalDetailsComponent implements OnInit {
   }
 
   saveAndContinue(): void {
+    if (this.saving()) return;
+
     this.form.markAllAsTouched();
     this.syncBillingValidators(this.form.controls.billingSameAsShipping.value);
 
     if (this.form.invalid) {
-      this.error.set('Please correct the highlighted fields.');
+      this.error.set(this.firstPersonalError() ?? 'Please correct the highlighted fields.');
       return;
     }
 
     const raw = this.form.getRawValue();
+    const dob = String(raw.dob ?? '').trim();
+    const gender = raw.gender as Gender;
+    if (!isValidDobIso(dob) || !isValidGender(gender)) {
+      this.error.set('Date of Birth and Gender are required.');
+      return;
+    }
+
     const payload: UpsertProfileRequest = {
       fullName: raw.fullName.trim(),
       email: raw.email.trim(),
-      dob: raw.dob,
-      gender: raw.gender as Gender,
+      dob,
+      gender,
       address: {
         addressLine1: raw.addressLine1.trim(),
         addressLine2: raw.addressLine2.trim(),
@@ -216,12 +264,14 @@ export class PersonalDetailsComponent implements OnInit {
       next: (data) => {
         this.loading.set(false);
         this.hasProfile.set(data.hasProfile);
+        const dob = data.profile.dob ?? '';
+        const gender = data.profile.gender ?? '';
         this.form.patchValue({
           fullName: data.profile.fullName ?? '',
           mobile: data.profile.mobile ?? '',
           email: data.profile.email ?? '',
-          dob: data.profile.dob ?? '',
-          gender: data.profile.gender ?? '',
+          dob,
+          gender: isValidGender(gender) ? gender : '',
           addressLine1: data.address?.addressLine1 ?? '',
           addressLine2: data.address?.addressLine2 ?? '',
           landmark: data.address?.landmark ?? '',
@@ -238,6 +288,7 @@ export class PersonalDetailsComponent implements OnInit {
           billingPincode: data.billingAddress?.pincode ?? '',
           billingCountry: data.billingAddress?.country ?? 'India',
         });
+        this.applyDobGenderLocks(dob, gender);
         this.syncBillingValidators(data.billingSameAsShipping);
       },
       error: () => {
@@ -245,6 +296,52 @@ export class PersonalDetailsComponent implements OnInit {
         this.error.set(this.profileApi.error() ?? 'Unable to load profile.');
       },
     });
+  }
+
+  private applyDobGenderLocks(dob: string | null | undefined, gender: string | null | undefined): void {
+    const dobCtrl = this.form.controls.dob;
+    const genderCtrl = this.form.controls.gender;
+    const hasDob = isValidDobIso(dob);
+    const hasGender = isValidGender(gender);
+
+    this.dobLocked.set(hasDob);
+    this.genderLocked.set(hasGender);
+
+    if (hasDob) {
+      dobCtrl.disable({ emitEvent: false });
+      dobCtrl.clearValidators();
+    } else {
+      dobCtrl.enable({ emitEvent: false });
+      dobCtrl.setValidators([Validators.required, adultDobValidator]);
+    }
+
+    if (hasGender) {
+      genderCtrl.disable({ emitEvent: false });
+      genderCtrl.clearValidators();
+    } else {
+      genderCtrl.enable({ emitEvent: false });
+      genderCtrl.setValidators([Validators.required]);
+    }
+
+    dobCtrl.updateValueAndValidity({ emitEvent: false });
+    genderCtrl.updateValueAndValidity({ emitEvent: false });
+  }
+
+  private firstPersonalError(): string | null {
+    const dob = this.form.controls.dob;
+    const gender = this.form.controls.gender;
+    if (dob.enabled && dob.invalid) {
+      if (dob.errors?.['required'] || dob.errors?.['dobFormat']) {
+        return 'Date of Birth is required (YYYY-MM-DD).';
+      }
+      if (dob.errors?.['dobUnderage']) {
+        return 'You must be at least 18 years old.';
+      }
+    }
+    if (gender.enabled && gender.invalid) {
+      return 'Gender is required.';
+    }
+    return null;
   }
 
   private syncBillingValidators(same: boolean): void {

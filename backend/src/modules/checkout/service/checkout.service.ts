@@ -215,7 +215,8 @@ export class CheckoutService {
 
     const profile = await checkoutRepository.findProfile(userId);
     const addresses = await checkoutRepository.findShippingAddresses(userId);
-    const address = addresses.find((row) => row.isDefault) ?? addresses[0] ?? null;
+    const address =
+      addresses.find((row) => Boolean(row.is_default ?? row.isDefault)) ?? addresses[0] ?? null;
 
     const summary = buildSummary(checkoutItems);
 

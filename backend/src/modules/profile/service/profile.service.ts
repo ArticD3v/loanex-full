@@ -104,13 +104,13 @@ export class ProfileService {
       profile: profile
         ? {
             id: profile.id,
-            fullName: profile.fullName,
-            email: profile.email,
+            fullName: profile.fullName ?? profile.full_name ?? user.fullName,
+            email: profile.email ?? user.email,
             mobile: profile.mobileNumber ?? profile.mobile_number ?? user.mobile ?? '',
             dob: toDateOnlyIso(profile.dob),
             gender: profile.gender,
-            createdAt: profile.createdAt,
-            updatedAt: profile.updatedAt,
+            createdAt: profile.createdAt ?? profile.created_at,
+            updatedAt: profile.updatedAt ?? profile.updated_at,
           }
         : {
             id: null,

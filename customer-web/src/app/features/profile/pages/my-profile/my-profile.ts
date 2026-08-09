@@ -194,6 +194,8 @@ export class MyProfileComponent implements OnInit {
   }
 
   saveAddress(): void {
+    if (this.savingAddress()) return;
+
     this.addressForm.markAllAsTouched();
     if (this.addressForm.invalid) {
       this.error.set('Please correct the highlighted address fields.');

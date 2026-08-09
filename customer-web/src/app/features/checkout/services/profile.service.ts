@@ -177,7 +177,20 @@ export class ProfileService {
 
   private extractError(err: unknown): string {
     if (err && typeof err === 'object' && 'error' in err) {
-      const body = (err as { error?: { message?: string } }).error;
+      const body = (
+        err as {
+          error?: {
+            message?: string;
+            details?: Array<{ path?: string; message?: string }> | unknown;
+          };
+        }
+      ).error;
+      const details = Array.isArray(body?.details) ? body.details : [];
+      const dobDetail = details.find((d) => String(d?.path ?? '') === 'dob')?.message;
+      const genderDetail = details.find((d) => String(d?.path ?? '') === 'gender')?.message;
+      if (dobDetail && genderDetail) return `${dobDetail} ${genderDetail}`;
+      if (dobDetail) return dobDetail;
+      if (genderDetail) return genderDetail;
       if (body?.message) return body.message;
     }
     return 'Unable to complete profile request.';

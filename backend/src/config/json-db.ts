@@ -4,7 +4,11 @@ import path from 'path';
 import { supabase } from './supabase';
 import { env } from './env';
 import { getMongoDb, isMongoConfigured } from './mongo';
-import { normalizeOrderRow, sanitizeMirrorPayload } from './mirror-sanitize';
+import {
+  normalizeAddressRow,
+  normalizeOrderRow,
+  sanitizeMirrorPayload,
+} from './mirror-sanitize';
 
 const { appendFileSync } = fs;
 
@@ -742,6 +746,12 @@ class LocalDatabaseEngine {
       : Promise.resolve();
   }
 
+  private normalizeHydratedRow(name: string, row: Record<string, any>): Record<string, any> {
+    if (name === 'orders') return normalizeOrderRow(row);
+    if (name === 'addresses') return normalizeAddressRow(row);
+    return row;
+  }
+
   private stripMongoId<T extends Record<string, any>>(row: T): T {
     if (!row || typeof row !== 'object') return row;
     const { _id, ...rest } = row as T & { _id?: unknown };
@@ -804,8 +814,7 @@ class LocalDatabaseEngine {
           return;
         }
         if (Array.isArray(data)) {
-          (this.data as any)[name] =
-            name === 'orders' ? data.map((row) => normalizeOrderRow(row)) : data;
+          (this.data as any)[name] = data.map((row) => this.normalizeHydratedRow(name, row));
           loaded += 1;
           rows += data.length;
         }
@@ -851,7 +860,7 @@ class LocalDatabaseEngine {
           const data = await db.collection(name).find({}).limit(10000).toArray();
           const normalized = data.map((row) => {
             const clean = this.stripMongoId(row as Record<string, any>);
-            return name === 'orders' ? normalizeOrderRow(clean) : clean;
+            return this.normalizeHydratedRow(name, clean);
           });
           (this.data as any)[name] = normalized;
           loaded += 1;
@@ -1164,7 +1173,7 @@ class LocalDatabaseEngine {
         const data = await db.collection(name).find({}).limit(10000).toArray();
         const normalized = data.map((row) => {
           const clean = this.stripMongoId(row as Record<string, any>);
-          return name === 'orders' ? normalizeOrderRow(clean) : clean;
+          return this.normalizeHydratedRow(name, clean);
         });
         (this.data as any)[name] = normalized;
       } catch (e) {
@@ -1179,7 +1188,7 @@ class LocalDatabaseEngine {
         return;
       }
       if (Array.isArray(data)) {
-        (this.data as any)[name] = name === 'orders' ? data.map((row) => normalizeOrderRow(row)) : data;
+        (this.data as any)[name] = data.map((row) => this.normalizeHydratedRow(name, row));
       }
     } catch (e) {
       this.logMirrorError(name, 'refresh', String(e));
