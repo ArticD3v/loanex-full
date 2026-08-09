@@ -1,6 +1,9 @@
 import { EmiPlanCard, EmiPlanSummary, ProductEmiPlan } from '../models/product-details.models';
 
-/** Platform default reducing-balance annual interest rate (%). */
+/**
+ * Legacy constant — product EMI uses the client Excel model (0% interest).
+ * Kept so older imports do not break.
+ */
 export const DEFAULT_ANNUAL_INTEREST_RATE_PERCENT = 12.5;
 
 /** Round money to 2 decimal places (internal currency precision). */
@@ -13,80 +16,58 @@ export interface EmiCalcInput {
   downPayment: number;
   processingFee: number;
   tenureMonths: number;
-  /** Annual interest rate percent. 0 = no interest (flat split). */
+  /** Ignored — Excel product EMI is always 0% interest. */
   annualInterestRatePercent?: number;
 }
 
 export interface EmiCalcResult {
   productPrice: number;
   downPayment: number;
-  /** Collected upfront — never financed */
+  /** Service/convenience (+ delivery) — included in EMI principal */
   processingFee: number;
   tenureMonths: number;
   annualInterestRatePercent: number;
-  /** Product Price − Down Payment (fee excluded) */
-  loanAmount: number;
-  /** EMI on Loan Amount only */
-  monthlyEmi: number;
-  /** Sum of EMI instalments (= Loan Amount when rate is 0) */
-  totalEmi: number;
-  /** Interest across tenure (0 when rate is 0) */
-  totalInterest: number;
-  /** Down Payment + Processing Fee (charged before disbursement) */
-  upfrontPayment: number;
   /**
-   * Product Price + Processing Fee + Interest
-   * (= Upfront Payment + Total EMI)
+   * Amount converted into EMI (Excel):
+   * Sale Price − Down Payment + Processing Fee
    */
+  loanAmount: number;
+  monthlyEmi: number;
+  totalEmi: number;
+  totalInterest: number;
+  /** Down Payment only */
+  upfrontPayment: number;
+  /** Sale Price + Processing Fee */
   totalPayable: number;
   /** @deprecated Alias of totalPayable */
   grandTotal: number;
-  /** @deprecated Alias of totalEmi (financed portion only) */
+  /** @deprecated Alias of totalEmi */
   loanTotal: number;
 }
 
 /**
- * Canonical EMI calculation engine.
+ * Client Excel EMI model (must match backend calculateEmiBreakdown).
  *
- * Business rules:
- * - Processing Fee is collected upfront (never financed).
- * - Loan Amount = Product Price − Down Payment
- * - Monthly EMI is calculated only on Loan Amount
- * - Upfront Payment = Down Payment + Processing Fee
- * - Total Payable = Product Price + Processing Fee (+ interest if any)
+ * EMI Principal = Sale Price − Down Payment + Processing Fee
+ * Interest      = 0
+ * Monthly EMI   = EMI Principal / Tenure
+ * Upfront       = Down Payment
+ * Total Payable = Sale Price + Processing Fee
  */
 export function calculateEmiBreakdown(input: EmiCalcInput): EmiCalcResult {
   const productPrice = roundMoney(Math.max(0, input.productPrice));
   const downPayment = roundMoney(Math.min(Math.max(0, input.downPayment), productPrice));
   const processingFee = roundMoney(Math.max(0, input.processingFee));
   const tenureMonths = Math.max(0, Math.floor(input.tenureMonths));
-  const annualInterestRatePercent = Math.max(
-    0,
-    input.annualInterestRatePercent ?? DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
-  );
+  const annualInterestRatePercent = 0;
 
-  // Fee is never part of the financed principal.
-  const loanAmount = roundMoney(productPrice - downPayment);
-
-  const monthlyEmi = calculateMonthlyEmi(
-    loanAmount,
-    annualInterestRatePercent,
-    tenureMonths,
-  );
-
-  // At 0% interest, total EMI equals loan amount exactly (avoid paise drift).
-  const totalEmi =
-    annualInterestRatePercent === 0
-      ? loanAmount
-      : roundMoney(monthlyEmi * tenureMonths);
-  const totalInterest =
-    annualInterestRatePercent === 0
-      ? 0
-      : roundMoney(Math.max(0, totalEmi - loanAmount));
-
-  const upfrontPayment = roundMoney(downPayment + processingFee);
-  // Product Price + Fee + Interest  ≡  Upfront + Total EMI
-  const totalPayable = roundMoney(productPrice + processingFee + totalInterest);
+  const loanAmount = roundMoney(productPrice - downPayment + processingFee);
+  const monthlyEmi =
+    tenureMonths > 0 && loanAmount > 0 ? roundMoney(loanAmount / tenureMonths) : 0;
+  const totalEmi = loanAmount;
+  const totalInterest = 0;
+  const upfrontPayment = downPayment;
+  const totalPayable = roundMoney(productPrice + processingFee);
 
   return {
     productPrice,
@@ -105,7 +86,7 @@ export function calculateEmiBreakdown(input: EmiCalcInput): EmiCalcResult {
   };
 }
 
-/** Reducing-balance EMI; when rate is 0 → principal / tenure. */
+/** Principal / tenure at 0%; reducing-balance retained for rate > 0. */
 export function calculateMonthlyEmi(
   principal: number,
   annualRatePercent: number,
@@ -123,26 +104,61 @@ export function calculateMonthlyEmi(
 }
 
 function planProcessingFee(plan: ProductEmiPlan): number {
+  if (plan.processingFee != null && Number.isFinite(plan.processingFee)) {
+    return roundMoney(Math.max(0, plan.processingFee));
+  }
   return roundMoney(
     Math.max(0, plan.serviceCharge || 0) + Math.max(0, plan.deliveryCharge || 0),
   );
 }
 
+/**
+ * Prefer backend-authored plan fields when present (single source of truth).
+ * Fall back to the Excel formula for wizard-only / incomplete payloads.
+ */
 export function buildEmiPlans(
   productPrice: number,
   _downPayment: number,
   dbPlans: ProductEmiPlan[] = [],
-  annualInterestRatePercent = DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
 ): EmiPlanCard[] {
   if (!dbPlans?.length) return [];
 
   return dbPlans.map((plan) => {
+    const fee = planProcessingFee(plan);
+    const hasApiCalc =
+      plan.monthlyEmi != null &&
+      Number.isFinite(plan.monthlyEmi) &&
+      plan.totalPayable != null &&
+      Number.isFinite(plan.totalPayable) &&
+      plan.loanAmount != null &&
+      Number.isFinite(plan.loanAmount);
+
+    if (hasApiCalc) {
+      return {
+        months: plan.months,
+        monthlyEmi: roundMoney(plan.monthlyEmi as number),
+        processingFee: fee,
+        downPayment: roundMoney(plan.downPayment),
+        loanAmount: roundMoney(plan.loanAmount as number),
+        upfrontPayment: roundMoney(
+          plan.upfrontPayment != null ? plan.upfrontPayment : plan.downPayment,
+        ),
+        totalPayable: roundMoney(plan.totalPayable as number),
+        loanTotal: roundMoney(
+          plan.loanTotal != null ? plan.loanTotal : (plan.loanAmount as number),
+        ),
+        grandTotal: roundMoney(
+          plan.grandTotal != null ? plan.grandTotal : (plan.totalPayable as number),
+        ),
+        recommended: plan.isRecommended,
+      };
+    }
+
     const calc = calculateEmiBreakdown({
       productPrice,
       downPayment: plan.downPayment,
-      processingFee: planProcessingFee(plan),
+      processingFee: fee,
       tenureMonths: plan.months,
-      annualInterestRatePercent,
     });
 
     return toPlanCard(calc, plan.months, plan.isRecommended);

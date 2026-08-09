@@ -14,6 +14,7 @@ import { loanRepository } from '../../loan/repository/loan.repository';
 import {
   calculateMonthlyEmi,
   DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
+  round2,
 } from '../../loan/service/emi-calculator.service';
 import type { CreateEmiApplicationBody } from '../dto/emi-application.dto';
 import { emiApplicationRepository } from '../repository/emi-application.repository';
@@ -338,12 +339,12 @@ export class EmiApplicationService {
     }
 
     const applicationNumber = await this.generateApplicationNumber();
-    const interestRate = DEFAULT_ANNUAL_INTEREST_RATE_PERCENT;
-    const estimatedMonthlyEmi = calculateMonthlyEmi(
-      input.requestedAmount,
-      interestRate,
-      input.requestedTenure,
-    );
+    // Client Excel model: 0% interest. Prefer PDP-calculated estimate (fee-in-principal).
+    const interestRate = 0;
+    const estimatedMonthlyEmi =
+      input.estimatedMonthlyEmi > 0
+        ? round2(input.estimatedMonthlyEmi)
+        : calculateMonthlyEmi(input.requestedAmount, interestRate, input.requestedTenure);
     const created = await emiApplicationRepository.create({
       applicationNumber,
       userId,

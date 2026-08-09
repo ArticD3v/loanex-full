@@ -26,19 +26,52 @@ function normalizeEmiPlans(
     })
     .map((plan) => {
       const months = Math.max(0, Math.floor(toMoneyNumber(plan.months)));
-      return {
+      const row = plan as {
+        minEligibilityAmount?: number | string;
+        customerVisibility?: string;
+        isRecommended?: boolean;
+        processingFee?: number | string;
+        loanAmount?: number | string;
+        monthlyEmi?: number | string;
+        upfrontPayment?: number | string;
+        totalPayable?: number | string;
+        loanTotal?: number | string;
+        grandTotal?: number | string;
+      };
+      const mapped: ProductEmiPlan = {
         id: String(plan.id || `emi-${months}`),
         planName: plan.planName,
         months,
         downPayment: toMoneyNumber(plan.downPayment),
         serviceCharge: toMoneyNumber(plan.serviceCharge),
         deliveryCharge: toMoneyNumber(plan.deliveryCharge),
-        minEligibilityAmount: toMoneyNumber(
-          (plan as { minEligibilityAmount?: number | string }).minEligibilityAmount,
-        ),
-        customerVisibility: (plan as { customerVisibility?: string }).customerVisibility,
-        isRecommended: Boolean((plan as { isRecommended?: boolean }).isRecommended) || months === 6,
+        minEligibilityAmount: toMoneyNumber(row.minEligibilityAmount),
+        customerVisibility: row.customerVisibility,
+        isRecommended: Boolean(row.isRecommended) || months === 6,
       };
+      // Pass through backend Excel-model totals when the PDP API computed them.
+      if (row.processingFee != null && row.processingFee !== '') {
+        mapped.processingFee = toMoneyNumber(row.processingFee);
+      }
+      if (row.loanAmount != null && row.loanAmount !== '') {
+        mapped.loanAmount = toMoneyNumber(row.loanAmount);
+      }
+      if (row.monthlyEmi != null && row.monthlyEmi !== '') {
+        mapped.monthlyEmi = toMoneyNumber(row.monthlyEmi);
+      }
+      if (row.upfrontPayment != null && row.upfrontPayment !== '') {
+        mapped.upfrontPayment = toMoneyNumber(row.upfrontPayment);
+      }
+      if (row.totalPayable != null && row.totalPayable !== '') {
+        mapped.totalPayable = toMoneyNumber(row.totalPayable);
+      }
+      if (row.loanTotal != null && row.loanTotal !== '') {
+        mapped.loanTotal = toMoneyNumber(row.loanTotal);
+      }
+      if (row.grandTotal != null && row.grandTotal !== '') {
+        mapped.grandTotal = toMoneyNumber(row.grandTotal);
+      }
+      return mapped;
     });
 }
 

@@ -1,10 +1,7 @@
 import { randomUUID } from 'crypto';
 import { NotFoundError } from '../../../common/errors/app-error';
 import { jsonDb } from '../../../config/json-db';
-import {
-  calculateEmiBreakdown,
-  DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
-} from '../../loan/service/emi-calculator.service';
+import { calculateEmiBreakdown } from '../../loan/service/emi-calculator.service';
 import { stockState } from '../../../common/utils/inventory';
 import type { ListProductsQuery } from '../dto/product.dto';
 import { productRepository } from '../repository/product.repository';
@@ -576,12 +573,12 @@ function mapPdpProduct(
     const downPayment = toNumber(plan.downPayment);
     const serviceCharge = toNumber(plan.serviceCharge);
     const deliveryCharge = toNumber(plan.deliveryCharge);
+    // Client Excel model: 0% interest; fee included in EMI principal.
     const calc = calculateEmiBreakdown({
       productPrice: sellingPrice,
       downPayment,
       processingFee: serviceCharge + deliveryCharge,
       tenureMonths: months,
-      annualInterestRatePercent: DEFAULT_ANNUAL_INTEREST_RATE_PERCENT,
     });
 
     return {

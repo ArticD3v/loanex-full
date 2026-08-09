@@ -153,6 +153,14 @@ export interface ProductEmiPlan {
   minEligibilityAmount: number;
   customerVisibility?: string;
   isRecommended: boolean;
+  /** Backend-authored fields (Excel model) — preferred when present */
+  processingFee?: number;
+  loanAmount?: number;
+  monthlyEmi?: number;
+  upfrontPayment?: number;
+  totalPayable?: number;
+  loanTotal?: number;
+  grandTotal?: number;
 }
 
 export interface EmiTenureOption {
@@ -168,14 +176,14 @@ export interface EmiDownPaymentOption {
 export interface EmiPlanCard {
   months: number;
   monthlyEmi: number;
-  /** Collected upfront — never financed */
+  /** Service/convenience (+ delivery); included in EMI principal */
   processingFee: number;
   downPayment: number;
-  /** Product Price − Down Payment */
+  /** Sale − DP + Processing Fee (Amount Converted into EMI) */
   loanAmount: number;
-  /** Down Payment + Processing Fee */
+  /** Down Payment only */
   upfrontPayment: number;
-  /** Product Price + Processing Fee (+ interest if any) */
+  /** Sale Price + Processing Fee */
   totalPayable: number;
   /** @deprecated Alias of totalEmi (financed portion) */
   loanTotal: number;

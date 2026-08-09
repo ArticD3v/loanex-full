@@ -31,11 +31,11 @@
         <strong class="is-neg">- {{ formatInr(plan.downPayment) }}</strong>
       </div>
       <div>
-        <span>Processing Fee (Upfront)</span>
+        <span>Processing Fee</span>
         <strong class="is-pos">+ {{ formatInr(plan.processingFee) }}</strong>
       </div>
       <div>
-        <span>Loan Amount</span>
+        <span>EMI Principal</span>
         <strong>{{ formatInr(plan.loanAmount) }}</strong>
       </div>
       <div>
@@ -86,6 +86,6 @@
 
   <p class="lx-emi__note">
     <i class="pi pi-info-circle" aria-hidden="true"></i>
-    Processing fee is collected upfront and is not included in EMI. Final eligibility depends on verification.
+    Processing fee is included in the EMI principal (0% interest). Total payable = product price + processing fee. Final eligibility depends on verification.
   </p>
 </aside>

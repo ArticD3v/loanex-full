@@ -7,7 +7,10 @@ export type ScheduleRow = {
   remainingBalance: number;
 };
 
-/** Platform default reducing-balance annual interest rate (%). */
+/**
+ * Legacy default used only by existing loan/approval schedule paths that still
+ * accept an explicit annual rate. Product EMI display uses the Excel model (0%).
+ */
 export const DEFAULT_ANNUAL_INTEREST_RATE_PERCENT = 12.5;
 
 export function round2(value: number): number {
@@ -19,23 +22,29 @@ export interface EmiBreakdownInput {
   downPayment: number;
   processingFee: number;
   tenureMonths: number;
+  /** Ignored for product EMI — Excel model is always 0% interest. */
   annualInterestRatePercent?: number;
 }
 
 export interface EmiBreakdown {
   productPrice: number;
   downPayment: number;
-  /** Collected upfront — never financed */
+  /** Service/convenience (+ delivery) — included in EMI principal */
   processingFee: number;
   tenureMonths: number;
+  /** Always 0 for the client Excel product-EMI model */
   annualInterestRatePercent: number;
+  /**
+   * Amount converted into EMI (Excel):
+   * Sale Price − Down Payment + Service/Convenience Charge
+   */
   loanAmount: number;
   monthlyEmi: number;
   totalEmi: number;
   totalInterest: number;
-  /** Down Payment + Processing Fee */
+  /** Down Payment only (fee is recovered via EMI instalments) */
   upfrontPayment: number;
-  /** Product Price + Processing Fee (+ interest) */
+  /** Sale Price + Service/Convenience Charge */
   totalPayable: number;
   /** @deprecated Alias of totalEmi */
   loanTotal: number;
@@ -44,41 +53,31 @@ export interface EmiBreakdown {
 }
 
 /**
- * Canonical EMI breakdown used across the platform.
+ * Client Excel EMI model (authoritative for product EMI display).
  *
- * Business rules:
- * - Processing Fee is collected upfront (never financed, never in EMI).
- * - Loan Amount = Product Price − Down Payment
- * - Monthly EMI on Loan Amount only
- * - Upfront Payment = Down Payment + Processing Fee
- * - Total Payable = Product Price + Processing Fee (+ interest)
+ * EMI Principal = Sale Price − Down Payment + Processing Fee
+ * Interest      = 0
+ * Monthly EMI   = EMI Principal / Tenure
+ * Upfront       = Down Payment
+ * Total Payable = Sale Price + Processing Fee
+ *
+ * Identity: Down Payment + Total EMI = Total Payable
+ * (fee is NOT double-counted).
  */
 export function calculateEmiBreakdown(input: EmiBreakdownInput): EmiBreakdown {
   const productPrice = round2(Math.max(0, input.productPrice));
   const downPayment = round2(Math.min(Math.max(0, input.downPayment), productPrice));
   const processingFee = round2(Math.max(0, input.processingFee));
   const tenureMonths = Math.max(0, Math.floor(input.tenureMonths));
-  const annualInterestRatePercent = Math.max(0, input.annualInterestRatePercent ?? 0);
+  const annualInterestRatePercent = 0;
 
-  const loanAmount = round2(productPrice - downPayment);
-
-  const monthlyEmi = calculateMonthlyEmi(
-    loanAmount,
-    annualInterestRatePercent,
-    tenureMonths,
-  );
-  // At 0% interest, total EMI equals loan amount exactly (avoid paise drift).
-  const totalEmi =
-    annualInterestRatePercent === 0
-      ? loanAmount
-      : round2(monthlyEmi * tenureMonths);
-  const totalInterest =
-    annualInterestRatePercent === 0
-      ? 0
-      : round2(Math.max(0, totalEmi - loanAmount));
-
-  const upfrontPayment = round2(downPayment + processingFee);
-  const totalPayable = round2(productPrice + processingFee + totalInterest);
+  const loanAmount = round2(productPrice - downPayment + processingFee);
+  const monthlyEmi =
+    tenureMonths > 0 && loanAmount > 0 ? round2(loanAmount / tenureMonths) : 0;
+  const totalEmi = loanAmount;
+  const totalInterest = 0;
+  const upfrontPayment = downPayment;
+  const totalPayable = round2(productPrice + processingFee);
 
   return {
     productPrice,
@@ -97,6 +96,11 @@ export function calculateEmiBreakdown(input: EmiBreakdownInput): EmiBreakdown {
   };
 }
 
+/**
+ * Monthly installment helper.
+ * - rate 0 → principal / tenure (Excel / zero-interest)
+ * - rate > 0 → reducing-balance (legacy loan/approval schedules only)
+ */
 export function calculateMonthlyEmi(
   principal: number,
   annualRatePercent: number,
