@@ -1,0 +1,15 @@
+node_modules/
+.expo/
+dist/
+build/
+android/
+ios/
+admin-app/android/
+admin-app/ios/
+admin-app/node_modules/
+apps/customer-mobile/android/
+apps/customer-mobile/ios/
+apps/customer-mobile/node_modules/
+backend/node_modules/
+customer-web/node_modules/
+.git/
