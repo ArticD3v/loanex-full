@@ -1,4 +1,4 @@
-﻿const fs = require("fs");
+const fs = require("fs");
 const path = require("path");
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return null;
@@ -20,7 +20,6 @@ function describe(env, key) {
   let kind = "missing";
   if (present) {
     if (/^mongodb(\+srv)?:\/\//i.test(v)) kind = "mongodb";
-    else if (/^postgres(ql)?:\/\//i.test(v)) kind = "postgres";
     else if (/^https?:\/\//i.test(v)) kind = "http";
     else kind = "set";
   }
@@ -33,7 +32,8 @@ const files = [
   "backend/.env.runtime",
   "customer-web/.env.local",
 ];
-const keys = ["MONGODB_URI","MONGODB_DB_NAME","DATABASE_URL","DIRECT_URL","SUPABASE_URL","SUPABASE_SERVICE_ROLE_KEY","SUPABASE_SYNC_MODE"];
+// Mongo is the single source of truth — Supabase/postgres env vars were retired.
+const keys = ["MONGODB_URI", "MONGODB_DB_NAME"];
 const out = [];
 for (const f of files) {
   const env = loadEnvFile(f);
@@ -43,7 +43,7 @@ for (const f of files) {
     keyCount: env ? Object.keys(env).length : 0,
     hasMongoUriKey: !!(env && Object.prototype.hasOwnProperty.call(env, "MONGODB_URI")),
     keys: keys.map((k) => describe(env, k)),
-    allKeysSample: env ? Object.keys(env).filter((k) => /MONGO|DATABASE|SUPABASE|DIRECT/i.test(k)) : [],
+    mongoKeysSample: env ? Object.keys(env).filter((k) => /MONGO/i.test(k)) : [],
   });
 }
 console.log(JSON.stringify(out, null, 2));

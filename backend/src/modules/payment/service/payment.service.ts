@@ -118,6 +118,9 @@ export class PaymentService {
       razorpayKeyId: getRazorpayKeyId(),
       paymentDevBypass: isPaymentDevBypass(),
       currency: env.RAZORPAY_CURRENCY,
+      // Reaching this point means assertAccessRedirect passed — the customer
+      // is allowed to pay, so the UI can enable the Pay button.
+      canPay: true as const,
     };
   }
 

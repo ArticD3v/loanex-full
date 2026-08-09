@@ -101,9 +101,9 @@ export class EmiPaymentService {
       loan: {
         id: loan.id,
         loanAccountNumber: loan.loanAccountNumber,
-        applicationNumber: loan.application.id,
-        productName: loan.application.productName,
-        productImage: resolveProductImage(loan.productId),
+        applicationNumber: loan.application?.id ?? loan.applicationId ?? null,
+        productName: loan.application?.productName ?? null,
+        productImage: resolveProductImage(loan.productId, loan.application?.productImage),
         loanStatus: loan.loanStatus,
       },
       emi: {
@@ -322,8 +322,8 @@ export class EmiPaymentService {
     try {
       const receiptPath = await this.generateReceiptPdf({
         loanAccountNumber: schedule.loanAccount.loanAccountNumber,
-        applicationNumber: schedule.loanAccount.application.id,
-        productName: schedule.loanAccount.application.productName,
+        applicationNumber: schedule.loanAccount.application?.id ?? schedule.loanAccount.applicationId ?? '—',
+        productName: schedule.loanAccount.application?.productName ?? null,
         emiNumber: schedule.emiNumber,
         amount: toNumber(payment.amount),
         razorpayPaymentId: input.razorpayPaymentId,
@@ -495,8 +495,8 @@ export class EmiPaymentService {
 
     const buffer = await this.buildReceiptPdfBuffer({
       loanAccountNumber: schedule.loanAccount.loanAccountNumber,
-      applicationNumber: schedule.loanAccount.application.id,
-      productName: schedule.loanAccount.application.productName,
+      applicationNumber: schedule.loanAccount.application?.id ?? schedule.loanAccount.applicationId ?? '—',
+      productName: schedule.loanAccount.application?.productName ?? null,
       emiNumber: schedule.emiNumber,
       amount: toNumber(schedule.paidAmount ?? schedule.emiAmount),
       razorpayPaymentId: schedule.transactionId ?? 'N/A',

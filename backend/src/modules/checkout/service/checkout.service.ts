@@ -25,13 +25,12 @@ import { jsonDb } from '../../../config/json-db';
 import { emiApplicationService } from '../../emi-application/service/emi-application.service';
 import { settingsService } from '../../settings/settings.service';
 
-function toNumber(value: { toNumber?: () => number } | number | string | null | undefined): number {
-  if (value === null || value === undefined) return 0;
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string') return Number(value);
-  if (value && typeof value.toNumber === 'function') return value.toNumber();
-  return Number(value);
-}
+import {
+  resolveUnitPricing,
+  resolveDeliveryCharges,
+  parseDiscountPercent,
+  toNumber,
+} from '../../../common/utils/product-pricing';
 
 /**
  * The single source of truth for COD availability — the web summary endpoint
@@ -53,64 +52,6 @@ function parseImages(images: unknown): string[] {
     return images.filter((item): item is string => typeof item === 'string');
   }
   return [];
-}
-
-function parseDiscountPercent(value: unknown): number {
-  if (value === null || value === undefined || value === '') return 0;
-  const raw = String(value).trim();
-  const match = raw.match(/(-?\d+(?:\.\d+)?)\s*%/);
-  if (match) return Math.max(0, Number(match[1]));
-  // Bare number only if it looks like a percent field (0–100) and original had %
-  return 0;
-}
-
-function resolveDeliveryCharges(product: any): number {
-  return (
-    toNumber(product?.deliveryCharges) ||
-    toNumber(product?.deliveryCharge) ||
-    toNumber(product?.wizardData?.deliveryCharges) ||
-    toNumber(product?.wizardData?.deliveryCharge) ||
-    0
-  );
-}
-
-function resolveUnitPricing(product: any, variant?: ProductVariant | null) {
-  const mrp = toNumber(
-    variant?.mrp ??
-      variant?.price ??
-      product.mrp ??
-      product.price ??
-      product.sellingPrice,
-  );
-
-  let unitPrice = toNumber(
-    variant?.sellingPrice ??
-      variant?.discountPrice ??
-      product.sellingPrice ??
-      product.discountPrice ??
-      product.price ??
-      mrp,
-  );
-
-  // Prefer explicit discounted/selling price when lower than MRP.
-  const explicitDiscountPrice = variant?.discountPrice ?? product.discountPrice;
-  if (explicitDiscountPrice != null && explicitDiscountPrice !== '') {
-    const discounted = toNumber(explicitDiscountPrice);
-    if (discounted > 0) unitPrice = discounted;
-  }
-
-  let discount = Math.max(mrp - unitPrice, 0);
-
-  // Fallback: wizard/admin percent discount when MRP == selling price.
-  if (discount <= 0) {
-    const pct = parseDiscountPercent(product.discount ?? product.wizardData?.discount);
-    if (pct > 0 && pct < 100 && mrp > 0) {
-      discount = Math.round(((mrp * pct) / 100) * 100) / 100;
-      unitPrice = Math.max(0, mrp - discount);
-    }
-  }
-
-  return { mrp, unitPrice, discount };
 }
 
 function buildSummary(
@@ -619,7 +560,11 @@ export class CheckoutService {
     // quantity rather than deleting the line.
     await cartRepository.removeProducts(
       userId,
-      lines.map((l) => ({ productId: l.productId, quantity: l.quantity })),
+      lines.map((l) => ({
+        productId: l.productId,
+        quantity: l.quantity,
+        variantId: l.variantId ?? null,
+      })),
     );
 
     await auditLogService.log({
@@ -834,6 +779,7 @@ export class CheckoutService {
       (session.items ?? []).map((i: any) => ({
         productId: i.productId,
         quantity: i.quantity ?? 1,
+        variantId: i.variantId ?? null,
       })),
     );
 

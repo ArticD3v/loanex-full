@@ -6,3 +6,7 @@ node_modules/
 LoanEx-9buu98.zip
 backup/
 backend/data/
+
+# DB dumps contain customer data — never commit
+backups/
+backend/backups/

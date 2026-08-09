@@ -5,14 +5,10 @@ import {
 import { auditLogService } from '../../verification/service/audit-log.service';
 import type { AddCartItemBody, UpdateCartItemBody } from '../dto/cart.dto';
 import { cartRepository } from '../repository/cart.repository';
-
-function toNumber(value: { toNumber?: () => number } | number | string | null | undefined): number {
-  if (value === null || value === undefined) return 0;
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string') return Number(value);
-  if (value && typeof value.toNumber === 'function') return value.toNumber();
-  return Number(value);
-}
+import {
+  resolveUnitPricing,
+  resolveDeliveryCharges,
+} from '../../../common/utils/product-pricing';
 
 function parseImages(images: unknown): string[] {
   if (Array.isArray(images)) {
@@ -23,73 +19,40 @@ function parseImages(images: unknown): string[] {
 
 type CartRow = Awaited<ReturnType<typeof cartRepository.listForUser>>[number];
 
-function resolvePricing(row: CartRow) {
-  const variant = row.variant;
-  const product = row.product as any;
-  if (variant) {
-    const mrp = toNumber(variant.mrp || variant.price);
-    const unitPrice = toNumber(variant.sellingPrice ?? variant.discountPrice ?? variant.price);
-    const images = parseImages(variant.images);
-    return {
-      mrp,
-      unitPrice: unitPrice > 0 ? unitPrice : mrp,
-      stock: variant.stock,
-      imageUrl: images[0] ?? product.image,
-      variantLabel: variant.variantName,
-      sku: variant.sku,
-    };
-  }
-
-  const mrp = toNumber(product.mrp || product.price);
-  const unitPrice = toNumber(
-    product.sellingPrice ?? product.discountPrice ?? product.price ?? mrp,
-  );
-  return {
-    mrp,
-    unitPrice: unitPrice > 0 ? unitPrice : mrp,
-    stock: product.stock,
-    imageUrl: product.image,
-    variantLabel: product.variant,
-    sku: product.sku,
-  };
-}
-
-function resolveDeliveryCharge(product: any): number {
-  return (
-    toNumber(product?.deliveryCharges) ||
-    toNumber(product?.deliveryCharge) ||
-    toNumber(product?.wizardData?.deliveryCharges) ||
-    0
-  );
-}
-
 function mapItem(row: CartRow) {
-  const pricing = resolvePricing(row);
-  const deliveryCharge = resolveDeliveryCharge(row.product);
-  const lineSubtotal = pricing.unitPrice * row.quantity;
-  const lineDiscount = Math.max(pricing.mrp - pricing.unitPrice, 0) * row.quantity;
-  const isActive = row.product.status === 'active';
-  const available = isActive && pricing.stock > 0;
+  const product = row.product as any;
+  const variant = row.variant;
+  // Same pricing function as checkout — MRP, unit price and discount can never
+  // disagree between the cart page and the checkout summary.
+  const { mrp, unitPrice } = resolveUnitPricing(product, variant);
+  const deliveryCharge = resolveDeliveryCharges(product);
+  const stock = variant?.stock ?? product.stock;
+  const images = parseImages(variant?.images);
+  const lineSubtotal = unitPrice * row.quantity;
+  const lineDiscount = Math.max(mrp - unitPrice, 0) * row.quantity;
+  const isActive = product.status === 'active';
+  const available = isActive && stock > 0;
 
   return {
     id: row.id,
     productId: row.product_id,
+    variantId: row.variant_id ?? null,
     quantity: row.quantity,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     product: {
-      id: row.product.id,
-      name: row.product.name,
-      brand: row.product.brand,
-      sku: pricing.sku,
-      imageUrl: pricing.imageUrl,
-      unitPrice: pricing.unitPrice,
-      mrp: pricing.mrp,
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      sku: variant?.sku ?? product.sku,
+      imageUrl: images[0] ?? product.image,
+      unitPrice,
+      mrp,
       deliveryCharge,
-      stockQuantity: pricing.stock,
+      stockQuantity: stock,
       inStock: available,
       stockStatus: available
-        ? pricing.stock <= 5
+        ? stock <= 5
           ? 'LOW_STOCK'
           : 'IN_STOCK'
         : 'OUT_OF_STOCK',
@@ -126,7 +89,7 @@ export class CartService {
     const product = await cartRepository.findProduct(input.productId);
     if (!product) throw new NotFoundError('Product not found.');
 
-    let variantId = input?.id ?? null;
+    let variantId = input?.variantId ?? input?.id ?? null;
     let stock = product.stock;
 
     if (product.variants && product.variants.length > 0) {
@@ -206,15 +169,15 @@ export class CartService {
       return this.getCart(userId);
     }
 
-    const pricing = resolvePricing(existing);
-    if (existing.product.status !== 'active' || pricing.stock <= 0) {
+    const stock = existing.variant?.stock ?? existing.product.stock;
+    if (existing.product.status !== 'active' || stock <= 0) {
       throw new BadRequestError('Product is out of stock.', { code: 'OUT_OF_STOCK' });
     }
 
-    if (input.quantity > pricing.stock) {
-      throw new BadRequestError(`Only ${pricing.stock} unit(s) available in stock.`, {
+    if (input.quantity > stock) {
+      throw new BadRequestError(`Only ${stock} unit(s) available in stock.`, {
         code: 'INSUFFICIENT_STOCK',
-        available: pricing.stock,
+        available: stock,
       });
     }
 

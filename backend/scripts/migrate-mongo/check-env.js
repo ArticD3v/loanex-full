@@ -1,4 +1,4 @@
-﻿const fs = require("fs");
+const fs = require("fs");
 const path = require("path");
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return {};
@@ -27,22 +27,14 @@ function describe(key) {
   let kind = "missing";
   if (present) {
     if (/^mongodb(\+srv)?:\/\//i.test(v)) kind = "mongodb";
-    else if (/^postgres(ql)?:\/\//i.test(v)) kind = "postgres";
     else if (/^https?:\/\//i.test(v)) kind = "http";
     else kind = "set";
   }
   const looksRedacted = /sensitive|redacted/i.test(v) && v.length < 40;
   return { key, present, length: v.length, kind, looksRedacted };
 }
-const keys = [
-  "MONGODB_URI",
-  "MONGODB_DB_NAME",
-  "DATABASE_URL",
-  "DIRECT_URL",
-  "SUPABASE_URL",
-  "SUPABASE_SERVICE_ROLE_KEY",
-  "SUPABASE_SYNC_MODE",
-];
+// Mongo is the single source of truth — Supabase/postgres env vars were retired.
+const keys = ["MONGODB_URI", "MONGODB_DB_NAME"];
 console.log(
   JSON.stringify(
     {

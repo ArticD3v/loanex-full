@@ -489,10 +489,14 @@ export default function CheckoutScreen() {
         type: 'payment',
         route: '/orders',
       });
+      const orderId = result.orderId;
       showAlert(
         'Payment Successful!',
         `Your order ${result.orderNumber ? result.orderNumber + ' ' : ''}has been placed. Payment ID: ${result.paymentId ?? '—'}`,
-        () => router.replace('/(tabs)' as any),
+        () => {
+          if (orderId) router.replace(`/order/${orderId}` as any);
+          else router.replace('/orders' as any);
+        },
       );
     } catch (e: any) {
       setShowPaymentWebView(false);

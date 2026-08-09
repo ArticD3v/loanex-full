@@ -152,6 +152,26 @@ export const rejectEmiApplication = async (
   return response.data.data;
 };
 
+/**
+ * Edit the sanction (loan terms) and publish to the customer (admin endpoint).
+ * The customer then sees the modified application and can accept (pay down
+ * payment) or decline (application closes).
+ */
+export const modifyEmiApplicationTerms = async (
+  applicationId: string,
+  terms: {
+    approvedAmount?: number;
+    approvedTenure?: number;
+    approvedDownPayment?: number;
+    interestRate?: number;
+    processingFee?: number;
+    adminRemarks?: string;
+  },
+): Promise<any> => {
+  const response = await api.patch(`/admin/emi-applications/${applicationId}/terms`, terms);
+  return response.data.data;
+};
+
 // ==================== FI Cases ====================
 
 export interface FiCase {

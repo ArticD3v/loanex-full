@@ -4,6 +4,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
+import { useKYC } from '../../hooks/useKYC';
 import { getLoanDashboard, LoanDashboard } from '../../services/emiPaymentService';
 import { Colors, Fonts, Spacing, Radius } from '../../constants/theme';
 import { APP_CONFIG } from '../../constants/config';
@@ -27,6 +28,7 @@ export default function EMIsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
+  const { isKYCComplete, kycLoading } = useKYC();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -73,7 +75,7 @@ export default function EMIsScreen() {
     );
   }
 
-  if (loading) {
+  if (loading || kycLoading) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
@@ -82,6 +84,28 @@ export default function EMIsScreen() {
         <View style={styles.empty}>
           <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={styles.emptySub}>Loading your loans...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // No KYC → nothing to show. EMI eligibility only exists for verified users.
+  if (!isKYCComplete) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <Text style={styles.title}>My EMIs</Text>
+        </View>
+        <View style={styles.empty}>
+          <MaterialIcons name="verified-user" size={80} color={Colors.border} />
+          <Text style={styles.emptyTitle}>Complete KYC to see EMIs</Text>
+          <Text style={styles.emptySub}>
+            Your identity must be verified (Aadhaar, PAN & credit check) before you can
+            apply for EMI or view loans.
+          </Text>
+          <Pressable style={styles.loginBtn} onPress={() => router.push('/kyc-verification' as any)}>
+            <Text style={styles.loginBtnTxt}>Verify Now</Text>
+          </Pressable>
         </View>
       </View>
     );

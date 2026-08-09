@@ -5,24 +5,45 @@ export class CartRepository {
     return jsonDb.findOne('products', { id: productId });
   }
 
-  findVariant(_variantId: string) {
-    return null;
+  findVariant(productId: string, variantId: string | null | undefined) {
+    if (!variantId) return null;
+    const product = this.findProduct(productId);
+    const variants = product?.variants ?? product?.productVariants ?? product?.product_variants ?? [];
+    return variants.find((row: any) => String(row.id) === String(variantId)) ?? null;
+  }
+
+  /** Attach product + (when stored) the variant so pricing uses variant data. */
+  private withRelations(item: any) {
+    if (!item) return item;
+    const product = this.findProduct(item.product_id);
+    const variant = item.variant_id
+      ? this.findVariant(item.product_id, item.variant_id)
+      : null;
+    return { ...item, product, variant };
   }
 
   async findItemByIdForUser(id: string, userId: string) {
     const items = jsonDb.findMany('cart_items', { id, user_id: userId });
-    const item = items[0];
-    if (!item) return null;
-    const product = this.findProduct(item.product_id);
-    return { ...item, product };
+    return this.withRelations(items[0] ?? null);
   }
 
-  async findItemByProductVariant(userId: string, productId: string, _variantId: string | null) {
+  async findItemByProductVariant(
+    userId: string,
+    productId: string,
+    variantId: string | null,
+  ) {
     const items = jsonDb.findMany('cart_items', { user_id: userId, product_id: productId });
-    const item = items[0];
-    if (!item) return null;
-    const product = this.findProduct(productId);
-    return { ...item, product };
+    const item = items.find(
+      (row: any) => (row.variant_id ?? null) === (variantId ?? null),
+    );
+    if (item) return this.withRelations(item);
+    // Only fall back to a base (no-variant) line for legacy rows — never to a
+    // DIFFERENT variant line, or adding variant B would bump variant A.
+    if (!variantId) {
+      const base = items.find((row: any) => !row.variant_id);
+      if (base) return this.withRelations(base);
+    }
+    return null;
   }
 
   async listForUser(userId: string) {
@@ -33,14 +54,20 @@ export class CartRepository {
         const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
         return tb - ta;
       })
-      .map((item: any) => ({
-        ...item,
-        product: this.findProduct(item.product_id),
-      }));
+      .map((item: any) => this.withRelations(item));
   }
 
-  async create(userId: string, productId: string, _variantId: string | null, quantity: number) {
-    const existing = jsonDb.findOne('cart_items', { user_id: userId, product_id: productId });
+  async create(
+    userId: string,
+    productId: string,
+    variantId: string | null,
+    quantity: number,
+  ) {
+    const existing = jsonDb.findOne('cart_items', {
+      user_id: userId,
+      product_id: productId,
+      variant_id: variantId ?? null,
+    });
     let item: any;
     if (existing) {
       item = jsonDb.update('cart_items', { id: existing.id }, {
@@ -50,19 +77,18 @@ export class CartRepository {
       item = jsonDb.insert('cart_items', {
         user_id: userId,
         product_id: productId,
+        variant_id: variantId ?? null,
         quantity,
         created_at: new Date().toISOString(),
       });
     }
-    const product = this.findProduct(productId);
-    return { ...item, product };
+    return this.withRelations(item);
   }
 
   async updateQuantity(id: string, quantity: number) {
     const item = jsonDb.update('cart_items', { id }, { quantity });
     if (!item) return null;
-    const product = this.findProduct(item.product_id);
-    return { ...item, product };
+    return this.withRelations(item);
   }
 
   delete(id: string) {
@@ -82,22 +108,33 @@ export class CartRepository {
    */
   removeProducts(
     userId: string,
-    purchases: Array<{ productId: string; quantity: number }> | undefined | null,
+    purchases: Array<{ productId: string; quantity: number; variantId?: string | null }> | undefined | null,
   ): number {
     const map = new Map<string, number>();
     for (const p of purchases ?? []) {
       if (!p?.productId) continue;
       const qty = Math.max(1, Math.floor(Number(p.quantity) || 1));
-      map.set(p.productId, (map.get(p.productId) ?? 0) + qty);
+      const key = `${p.productId}::${p.variantId ?? ''}`;
+      map.set(key, (map.get(key) ?? 0) + qty);
     }
     if (map.size === 0) return 0;
     const items = jsonDb.findMany('cart_items', { user_id: userId });
     let removed = 0;
     for (const item of items) {
-      const purchased = map.get(item.product_id);
-      if (!purchased) continue;
+      // Variant-aware match: a purchase carrying a variantId reduces exactly
+      // that line. A purchase WITHOUT a variant (EMI / legacy callers) reduces
+      // any line of that product.
+      const exactKey = `${item.product_id}::${item.variant_id ?? ''}`;
+      let bought = map.get(exactKey);
+      if (!bought) {
+        // Purchase without variant → match any line of this product, but only
+        // if no other purchase claimed a specific variant of it.
+        const anyKey = `${item.product_id}::`;
+        if (map.has(anyKey)) bought = map.get(anyKey);
+      }
+      if (!bought) continue;
       const lineQty = Math.max(0, Number(item.quantity) || 0);
-      if (lineQty <= purchased) {
+      if (lineQty <= bought) {
         jsonDb.delete('cart_items', { id: item.id });
         removed += 1;
         continue;
@@ -108,7 +145,7 @@ export class CartRepository {
       // instead of leaving an unfulfillable cart line.
       const rawStock = Number(this.findProduct(item.product_id)?.stock);
       const available = Number.isFinite(rawStock) && rawStock >= 0 ? rawStock : Number.POSITIVE_INFINITY;
-      const remaining = Math.min(lineQty - purchased, available);
+      const remaining = Math.min(lineQty - bought, available);
       if (remaining <= 0) {
         jsonDb.delete('cart_items', { id: item.id });
       } else {

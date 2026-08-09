@@ -930,6 +930,10 @@ class LocalDatabaseEngine {
    * Re-read a collection from MongoDB into memory. Keeps list endpoints
    * consistent after another instance wiped rows.
    */
+  /**
+   * Re-read a collection from MongoDB into memory. Keeps list endpoints
+   * consistent after another instance wiped rows.
+   */
   public async refreshCollection(name: string): Promise<void> {
     try {
       const db = await getMongoDb();

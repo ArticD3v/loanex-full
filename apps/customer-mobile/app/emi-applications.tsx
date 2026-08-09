@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, Pressable,
+  View, Text, StyleSheet, FlatList, Pressable, Platform, Alert,
   ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -9,6 +9,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
 import { Colors, Fonts, Spacing, Radius, Shadow } from '../constants/theme';
 import { api } from '../lib/apiClient';
+
+const showAlert = (title: string, msg: string, onOk?: () => void) => {
+  if (Platform.OS === 'web') { window.alert(`${title}\n${msg}`); onOk?.(); }
+  else Alert.alert(title, msg, onOk ? [{ text: 'OK', onPress: onOk }] : undefined);
+};
 
 interface EmiApplication {
   id: string;
@@ -53,6 +58,7 @@ export default function EMIScreen() {
   const [applications, setApplications] = useState<EmiApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [actingId, setActingId] = useState<string | null>(null);
 
   const fetchApplications = useCallback(async () => {
     if (!user) return;
@@ -197,18 +203,57 @@ export default function EMIScreen() {
               {/* Date */}
               <Text style={s.dateText}>Applied: {date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
 
-              {/* Action Button */}
+              {/* Action Buttons */}
               {needsDownPayment && (
-                <Pressable style={s.actionBtn}>
+                <Pressable
+                  style={s.actionBtn}
+                  onPress={() => router.push({ pathname: '/down-payment', params: { applicationId: app.id } } as any)}
+                >
                   <MaterialIcons name="payment" size={16} color="#fff" />
                   <Text style={s.actionBtnTxt}>Pay Down Payment ₹{downPay.toLocaleString('en-IN')}</Text>
                 </Pressable>
               )}
               {app.status === 'APPROVED' && (
-                <Pressable style={[s.actionBtn, { backgroundColor: Colors.success }]}>
-                  <MaterialIcons name="thumb-up" size={16} color="#fff" />
-                  <Text style={s.actionBtnTxt}>Accept Offer</Text>
-                </Pressable>
+                <>
+                  <Pressable
+                    style={[s.actionBtn, { backgroundColor: Colors.success }]}
+                    disabled={actingId === app.id}
+                    onPress={async () => {
+                      setActingId(app.id);
+                      try {
+                        await api.post('/emi/applications/accept-offer', { applicationId: app.id });
+                        router.push({ pathname: '/down-payment', params: { applicationId: app.id } } as any);
+                      } catch (e: any) {
+                        showAlert('Offer Error', e?.message || 'Unable to accept the offer.');
+                      } finally {
+                        setActingId(null);
+                      }
+                    }}
+                  >
+                    <MaterialIcons name="thumb-up" size={16} color="#fff" />
+                    <Text style={s.actionBtnTxt}>{actingId === app.id ? 'Accepting...' : 'Accept Offer & Pay Down Payment'}</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[s.actionBtn, { backgroundColor: Colors.error }]}
+                    disabled={actingId === app.id}
+                    onPress={async () => {
+                      setActingId(app.id);
+                      try {
+                        await api.post('/emi/applications/decline-offer', { applicationId: app.id });
+                        showAlert('Offer Declined', 'You declined the loan offer. This application is now closed.', () => {
+                          setActingId(null);
+                          fetchApplications();
+                        });
+                      } catch (e: any) {
+                        setActingId(null);
+                        showAlert('Offer Error', e?.message || 'Unable to decline the offer.');
+                      }
+                    }}
+                  >
+                    <MaterialIcons name="thumb-down" size={16} color="#fff" />
+                    <Text style={s.actionBtnTxt}>Decline Offer</Text>
+                  </Pressable>
+                </>
               )}
             </View>
           );

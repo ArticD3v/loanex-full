@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Modal, ActivityIndicator, Pressable, Platform } from 'react-native';
 import { WebView, WebViewNavigation } from 'react-native-webview';
 import { Colors, Fonts, Spacing, Radius } from '../../constants/theme';
 import { fetchDigiLockerDetails, extractNameFromDetails, extractAddressFromDetails, extractAadhaarFromDetails } from '../../services/digilockerService';
@@ -28,6 +28,63 @@ interface DigiLockerAuthProps {
   onClose: () => void;
 }
 
+/** Polling fallback for web — react-native-webview does not support web. */
+function useWebDigiLocker(clientId: string, authUrl: string, onSuccess: (d: VerifiedKYCData) => void, onError: (e: string) => void) {
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const doneRef = useRef(false);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
+  const check = useCallback(async () => {
+    if (doneRef.current) return;
+    try {
+      const result = await fetchDigiLockerDetails(clientId);
+      if (result.status === 'ok' && result.data) {
+        doneRef.current = true;
+        stopPolling();
+        onSuccess({
+          name: extractNameFromDetails(result.data) || 'Verified User',
+          aadhaarNumber: extractAadhaarFromDetails(result.data) || 'Verified',
+          address: extractAddressFromDetails(result.data),
+          raw: result.data,
+        });
+      }
+      // Authorization pending — keep polling until the user completes login.
+    } catch (e: any) {
+      const msg = String(e?.message ?? '');
+      if (/not yet authorized|pending|incomplete/i.test(msg)) {
+        return; // still waiting for the user in the popup
+      }
+      doneRef.current = true;
+      stopPolling();
+      onError(msg || 'Verification could not be completed');
+    }
+  }, [clientId, onSuccess, onError, stopPolling]);
+
+  const start = useCallback(() => {
+    doneRef.current = false;
+    stopPolling();
+    // Small delay so the popup has time to open before we start asking.
+    timeoutRef.current = setTimeout(() => {
+      void check();
+      pollRef.current = setInterval(() => void check(), 3000);
+    }, 2500);
+    return stopPolling;
+  }, [check, stopPolling]);
+
+  return { start, check, stopPolling };
+}
+
 export default function DigiLockerAuth({
   visible,
   authUrl,
@@ -43,14 +100,39 @@ export default function DigiLockerAuth({
   const [errorMsg, setErrorMsg] = useState('');
   const detailsFetched = useRef(false);
 
+  const isWeb = Platform.OS === 'web';
+  const webFlow = useWebDigiLocker(
+    clientId,
+    authUrl,
+    (data) => {
+      setStatus('success');
+      onSuccess(data);
+    },
+    (err) => {
+      setStatus('error');
+      setErrorMsg(err);
+      onError(err);
+    },
+  );
+
   // Reset when opened
   React.useEffect(() => {
     if (visible) {
       setStatus('loading');
       setErrorMsg('');
       detailsFetched.current = false;
+      if (isWeb && authUrl && clientId) {
+        const cleanup = webFlow.start();
+        // Open the popup right away on web.
+        const t = setTimeout(() => {
+          try { window.open(authUrl, '_blank'); } catch { /* popup blocked */ }
+        }, 300);
+        return () => { cleanup(); clearTimeout(t); };
+      }
+    } else {
+      webFlow.stopPolling();
     }
-  }, [visible]);
+  }, [visible, authUrl, clientId, isWeb]);
 
   // Detect navigation — when DigiLocker redirects to our callback URL, fetch details
   const handleNavigation = useCallback(async (nav: WebViewNavigation) => {
@@ -111,7 +193,25 @@ export default function DigiLockerAuth({
                   <Text style={styles.overlayText}>Verifying your details...</Text>
                 </View>
               )}
-              {authUrl ? (
+              {isWeb ? (
+                <View style={styles.centerOverlay}>
+                  <View style={styles.webIcon}>
+                    <Text style={styles.webIconTxt}>🔐</Text>
+                  </View>
+                  <Text style={styles.webTitle}>DigiLocker opened in a new tab</Text>
+                  <Text style={styles.webText}>
+                    Complete your login and consent on the DigiLocker tab, then return here.
+                    We'll detect it automatically.
+                  </Text>
+                  <Pressable style={styles.retryBtn} onPress={() => { try { window.open(authUrl, '_blank'); } catch { /* popup blocked */ } }}>
+                    <Text style={styles.retryTxt}>Re-open DigiLocker</Text>
+                  </Pressable>
+                  <Pressable style={styles.webCheckBtn} onPress={() => webFlow.check()}>
+                    <Text style={styles.webCheckTxt}>I've completed verification — check now</Text>
+                  </Pressable>
+                  <Text style={styles.webNote}>If the popup was blocked, tap "Re-open DigiLocker" above.</Text>
+                </View>
+              ) : authUrl ? (
                 <WebView
                   ref={webViewRef}
                   source={{ uri: authUrl }}
@@ -126,7 +226,6 @@ export default function DigiLockerAuth({
                       var hasFilledAadhaar = false;
                       setInterval(function() {
                         try {
-                          // 1. Checkboxes on consent screen
                           if (!hasClicked) {
                             var cbs = document.querySelectorAll('input[type="checkbox"]');
                             if (cbs.length > 0) {
@@ -142,8 +241,6 @@ export default function DigiLockerAuth({
                               hasClicked = true;
                             }
                           }
-                          
-                          // 2. Auto-fill Aadhaar number on login screen
                           if (prefill && !hasFilledAadhaar) {
                             var inputs = document.querySelectorAll('input');
                             for (var j = 0; j < inputs.length; j++) {
@@ -249,6 +346,13 @@ const styles = StyleSheet.create({
   errorText: { fontSize: Fonts.md, color: Colors.textSecondary, textAlign: 'center', lineHeight: 22 },
   retryBtn: { marginTop: Spacing.xl, backgroundColor: Colors.primary, paddingHorizontal: Spacing.xxl, paddingVertical: Spacing.md, borderRadius: Radius.lg },
   retryTxt: { color: '#fff', fontSize: Fonts.md, fontWeight: Fonts.bold },
+  webIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md },
+  webIconTxt: { fontSize: 36 },
+  webTitle: { fontSize: Fonts.xl, fontWeight: Fonts.bold, color: Colors.textPrimary, textAlign: 'center', marginBottom: Spacing.sm },
+  webText: { fontSize: Fonts.md, color: Colors.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: Spacing.xl },
+  webCheckBtn: { marginTop: Spacing.lg, backgroundColor: Colors.surface, borderWidth: 1.5, borderColor: Colors.primary, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, borderRadius: Radius.lg },
+  webCheckTxt: { color: Colors.primary, fontSize: Fonts.md, fontWeight: Fonts.bold, textAlign: 'center' },
+  webNote: { fontSize: Fonts.xs, color: Colors.textTertiary, textAlign: 'center', marginTop: Spacing.lg, lineHeight: 17 },
   footer: { padding: Spacing.xl, borderTopWidth: 1, borderTopColor: Colors.borderLight, backgroundColor: Colors.surface },
   doneBtn: { backgroundColor: Colors.primary, borderRadius: Radius.lg, padding: Spacing.lg, alignItems: 'center' },
   doneTxt: { color: '#fff', fontSize: Fonts.lg, fontWeight: Fonts.bold },

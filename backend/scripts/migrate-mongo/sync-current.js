@@ -1,10 +1,10 @@
 /**
  * One-way sync: Supabase → MongoDB (idempotent, non-destructive).
  *
- * Why: the backend now runs Mongo-primary (DATA_PRIMARY=auto + MONGODB_URI),
- * but MongoDB only holds the original migration snapshot while Supabase holds
- * the live records (orders, loans, schedules, payments, KYC). This script
- * brings MongoDB up to date so Mongo-primary serves the same data.
+ * Why: the backend now runs Mongo-primary via MONGODB_URI (Supabase is retired),
+ * but MongoDB only holds the original migration snapshot while Supabase used
+ * to hold the live records (orders, loans, schedules, payments, KYC). This
+ * script brings MongoDB up to date so Mongo-primary serves the same data.
  *
  * Reconciliation:
  *  - Users are matched by phone/email. When MongoDB already has a user with the

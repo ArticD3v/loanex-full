@@ -1,10 +1,10 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, BackHandler, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, BackHandler, ActivityIndicator, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { getEmiApplicationById, getAllFiCases, approveEmiApplication, EmiApplication } from '../../services/emiService';
+import { getEmiApplicationById, getAllFiCases, approveEmiApplication, rejectEmiApplication, modifyEmiApplicationTerms, EmiApplication } from '../../services/emiService';
 import { getOrderById } from '../../services/orderService';
 import { Order, OrderStatus } from '../../types/order';
 import { findCreditReview } from '../data/creditReviewMockData';
@@ -99,6 +99,39 @@ export function EmiApplicationDetailsScreen({ navigation, route }: Props) {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [approving, setApproving] = useState<boolean>(false);
+  const [rejecting, setRejecting] = useState<boolean>(false);
+  const [publishing, setPublishing] = useState<boolean>(false);
+  const [rejectionReason, setRejectionReason] = useState<string>('');
+  const [showRejectBox, setShowRejectBox] = useState<boolean>(false);
+  const [termsDraft, setTermsDraft] = useState<{
+    approvedAmount: string;
+    approvedTenure: string;
+    approvedDownPayment: string;
+    interestRate: string;
+    processingFee: string;
+    adminRemarks: string;
+  }>({
+    approvedAmount: '',
+    approvedTenure: '',
+    approvedDownPayment: '',
+    interestRate: '',
+    processingFee: '',
+    adminRemarks: '',
+  });
+
+  // Seed the sanction editor when the application loads.
+  React.useEffect(() => {
+    if (application) {
+      setTermsDraft((prev) => ({
+        approvedAmount: String(application.totalAmount ?? application.requestedLoanAmount ?? ''),
+        approvedTenure: String(application.tenure ?? ''),
+        approvedDownPayment: String(application.downPayment ?? ''),
+        interestRate: String((application as any).interestRate ?? 18),
+        processingFee: String((application as any).processingFee ?? 499),
+        adminRemarks: prev.adminRemarks || '',
+      }));
+    }
+  }, [application]);
 
   const fetchOrder = useCallback(async (app: EmiApplication) => {
     if (!app.orderId) {
@@ -194,6 +227,67 @@ export function EmiApplicationDetailsScreen({ navigation, route }: Props) {
   const canApprove =
     application?.status === 'pending' || application?.status === 'under_review';
 
+  const canEditSanction =
+    application?.status === 'pending' ||
+    application?.status === 'under_review' ||
+    application?.status === 'approved';
+
+  const handleReject = useCallback(async () => {
+    if (!application || rejecting) return;
+    if (!rejectionReason.trim()) {
+      // eslint-disable-next-line no-alert
+      window.alert('Please enter a rejection reason.');
+      return;
+    }
+    setRejecting(true);
+    try {
+      await rejectEmiApplication(application.id, rejectionReason.trim());
+      setApplication((prev) => (prev ? { ...prev, status: 'rejected' } : prev));
+      setShowRejectBox(false);
+      await reloadApplication();
+    } catch (error) {
+      console.error('Failed to reject EMI application:', error);
+    } finally {
+      setRejecting(false);
+    }
+  }, [application, rejecting, rejectionReason, reloadApplication]);
+
+  const handlePublishTerms = useCallback(async () => {
+    if (!application || publishing) return;
+    setPublishing(true);
+    try {
+      await modifyEmiApplicationTerms(application.id, {
+        approvedAmount: termsDraft.approvedAmount
+          ? Number(termsDraft.approvedAmount)
+          : undefined,
+        approvedTenure: termsDraft.approvedTenure
+          ? Number(termsDraft.approvedTenure)
+          : undefined,
+        approvedDownPayment: termsDraft.approvedDownPayment
+          ? Number(termsDraft.approvedDownPayment)
+          : undefined,
+        interestRate: termsDraft.interestRate
+          ? Number(termsDraft.interestRate)
+          : undefined,
+        processingFee: termsDraft.processingFee
+          ? Number(termsDraft.processingFee)
+          : undefined,
+        adminRemarks: termsDraft.adminRemarks.trim()
+          ? termsDraft.adminRemarks.trim()
+          : 'Terms modified by admin.',
+      });
+      // eslint-disable-next-line no-alert
+      window.alert('Sanction updated and published to the customer. They can accept or decline it.');
+      await reloadApplication();
+    } catch (error: any) {
+      console.error('Failed to publish modified terms:', error);
+      // eslint-disable-next-line no-alert
+      window.alert(error?.message || 'Failed to publish modified terms.');
+    } finally {
+      setPublishing(false);
+    }
+  }, [application, publishing, termsDraft, reloadApplication]);
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -248,15 +342,104 @@ export function EmiApplicationDetailsScreen({ navigation, route }: Props) {
           <DetailRow label="Application Date" value={formatDate(application.applicationDate)} />
           <DetailRow label="Status" value={STATUS_LABEL[application.status]} isLast={!canApprove} />
           {canApprove && (
-            <Button
-              title={approving ? 'Approving...' : 'Approve Application'}
-              variant="primary"
-              disabled={approving}
-              onPress={handleApprove}
-              style={styles.workflowBtn}
-            />
+            <>
+              <Button
+                title={approving ? 'Approving...' : 'Approve Application'}
+                variant="primary"
+                disabled={approving}
+                onPress={handleApprove}
+                style={styles.workflowBtn}
+              />
+              <Button
+                title={showRejectBox ? 'Cancel' : 'Reject Application'}
+                variant="outline"
+                disabled={rejecting}
+                onPress={() => setShowRejectBox((v) => !v)}
+                style={styles.workflowBtn}
+              />
+              {showRejectBox && (
+                <View style={styles.rejectBox}>
+                  <TextInput
+                    style={styles.rejectInput}
+                    placeholder="Reason for rejection"
+                    placeholderTextColor={colors.textMuted}
+                    value={rejectionReason}
+                    onChangeText={setRejectionReason}
+                    multiline
+                  />
+                  <Button
+                    title={rejecting ? 'Rejecting...' : 'Confirm Rejection'}
+                    variant="danger"
+                    disabled={rejecting}
+                    onPress={handleReject}
+                  />
+                </View>
+              )}
+            </>
           )}
         </Card>
+
+        {/* ── Sanction (edit + publish to customer) ─────────────────────── */}
+        {canEditSanction && (
+          <Card style={styles.section}>
+            <SectionTitle title="Sanction / Loan Terms" />
+            <Text style={styles.helperText}>
+              Adjust the loan terms below and publish them. The customer will see the
+              modified application and can accept (pay down payment) or decline it.
+            </Text>
+            <Text style={styles.fieldLabel}>Loan Amount (₹)</Text>
+            <TextInput
+              style={styles.rejectInput}
+              keyboardType="numeric"
+              value={termsDraft.approvedAmount}
+              onChangeText={(t) => setTermsDraft((p) => ({ ...p, approvedAmount: t }))}
+            />
+            <Text style={styles.fieldLabel}>Tenure (months)</Text>
+            <TextInput
+              style={styles.rejectInput}
+              keyboardType="numeric"
+              value={termsDraft.approvedTenure}
+              onChangeText={(t) => setTermsDraft((p) => ({ ...p, approvedTenure: t }))}
+            />
+            <Text style={styles.fieldLabel}>Down Payment (₹)</Text>
+            <TextInput
+              style={styles.rejectInput}
+              keyboardType="numeric"
+              value={termsDraft.approvedDownPayment}
+              onChangeText={(t) => setTermsDraft((p) => ({ ...p, approvedDownPayment: t }))}
+            />
+            <Text style={styles.fieldLabel}>Interest Rate (% p.a.)</Text>
+            <TextInput
+              style={styles.rejectInput}
+              keyboardType="numeric"
+              value={termsDraft.interestRate}
+              onChangeText={(t) => setTermsDraft((p) => ({ ...p, interestRate: t }))}
+            />
+            <Text style={styles.fieldLabel}>Processing Fee (₹)</Text>
+            <TextInput
+              style={styles.rejectInput}
+              keyboardType="numeric"
+              value={termsDraft.processingFee}
+              onChangeText={(t) => setTermsDraft((p) => ({ ...p, processingFee: t }))}
+            />
+            <Text style={styles.fieldLabel}>Admin Remarks</Text>
+            <TextInput
+              style={styles.rejectInput}
+              placeholder="Visible to the customer with the modified offer"
+              placeholderTextColor={colors.textMuted}
+              value={termsDraft.adminRemarks}
+              onChangeText={(t) => setTermsDraft((p) => ({ ...p, adminRemarks: t }))}
+              multiline
+            />
+            <Button
+              title={publishing ? 'Publishing...' : 'Publish to Customer'}
+              variant="primary"
+              disabled={publishing}
+              onPress={handlePublishTerms}
+              style={styles.workflowBtn}
+            />
+          </Card>
+        )}
 
         <Card style={styles.section}>
           <SectionTitle title="Customer Information" />
@@ -648,6 +831,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: colors.text,
+  },
+  rejectBox: {
+    marginTop: spacing.md,
+  },
+  rejectInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: spacing.md,
+    fontSize: 14,
+    color: colors.text,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.surface,
+    minHeight: 44,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+    marginBottom: 4,
   },
   notFound: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   notFoundText: { fontSize: 16, color: colors.textSecondary },
