@@ -194,7 +194,11 @@ export class SpecificationComponent {
   }
 
   private resolvedProductId(): string {
-    return this.productId() || this.product().id;
+    // Prefer the loaded product UUID — route `:productId` may be a slug
+    // (e.g. samsung-galaxy-...), which the reviews API rejects with 404.
+    const fromProduct = this.product()?.id?.trim();
+    if (fromProduct) return fromProduct;
+    return this.productId()?.trim() || '';
   }
 
   private loadReviews(productId: string): void {

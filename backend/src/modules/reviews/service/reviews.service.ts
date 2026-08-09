@@ -37,14 +37,15 @@ export class ReviewsService {
       throw new NotFoundError('Product not found.');
     }
 
-    const existing = await reviewsRepository.findByUserAndProduct(userId, input.productId);
+    const productId = product.id;
+    const existing = await reviewsRepository.findByUserAndProduct(userId, productId);
     if (existing) {
       throw new ConflictError('You have already reviewed this product.', {
         reviewId: existing.id,
       });
     }
 
-    const eligibleOrder = await reviewsRepository.hasEligibleOrder(userId, input.productId);
+    const eligibleOrder = await reviewsRepository.hasEligibleOrder(userId, productId);
     if (!eligibleOrder) {
       throw new ForbiddenError(
         'You can only review products from non-cancelled orders.',
@@ -53,7 +54,7 @@ export class ReviewsService {
 
     const created = await reviewsRepository.create({
       userId,
-      productId: input.productId,
+      productId,
       rating: input.rating,
       review: input.review,
     });
@@ -61,12 +62,13 @@ export class ReviewsService {
     return mapReviewItem(created, userId);
   }
 
-  async listByProduct(productId: string, currentUserId?: string) {
-    const product = await reviewsRepository.productExists(productId);
+  async listByProduct(productIdOrSlug: string, currentUserId?: string) {
+    const product = await reviewsRepository.productExists(productIdOrSlug);
     if (!product) {
       throw new NotFoundError('Product not found.');
     }
 
+    const productId = product.id;
     const [rows, aggregate, myReviewRow] = await Promise.all([
       reviewsRepository.findByProduct(productId),
       reviewsRepository.getAggregate(productId),

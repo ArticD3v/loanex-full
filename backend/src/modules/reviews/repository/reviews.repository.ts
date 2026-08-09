@@ -39,8 +39,18 @@ export class ReviewsRepository {
   }
 
   async productExists(productId: string) {
-    const product = jsonDb.findOne('products', { id: productId });
-    return product ? { id: product.id } : null;
+    const needle = String(productId || '').trim();
+    if (!needle) return null;
+    // Accept UUID id or SEO slug — PDP routes often use /products/:slug.
+    const byId = jsonDb.findOne('products', { id: needle });
+    if (byId?.id) return { id: String(byId.id) };
+    const bySlug = jsonDb.findOne('products', { slug: needle });
+    if (bySlug?.id) return { id: String(bySlug.id) };
+    const lower = needle.toLowerCase();
+    const fuzzy = jsonDb
+      .findMany('products')
+      .find((row: any) => String(row?.slug || '').toLowerCase() === lower);
+    return fuzzy?.id ? { id: String(fuzzy.id) } : null;
   }
 
   create(input: { userId: string; productId: string; rating: number; review: string; userName?: string }) {
